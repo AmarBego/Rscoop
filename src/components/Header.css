@@ -1,0 +1,44 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: var(--color-background-secondary);
+  border-bottom: 1px solid var(--color-border);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.title h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.nav-button {
+  background-color: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid transparent;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.nav-button:hover {
+  background-color: var(--color-background-tertiary);
+  color: var(--color-text-primary);
+}
+
+.nav-button.active {
+  color: var(--color-text-accent);
+  border-bottom: 2px solid var(--color-text-accent);
+  border-radius: 6px 6px 0 0;
+} 
