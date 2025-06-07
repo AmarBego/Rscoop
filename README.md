@@ -1,14 +1,65 @@
-# Tauri + Solid + Typescript
+# Rscoop - Modern Scoop GUI
 
-This template should help get you started developing with Tauri, Solid and Typescript in Vite.
+A modern, responsive GUI for the Scoop package manager on Windows, built with SolidJS and Tauri.
 
-## Recommended IDE Setup
+## Features
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+- 🔍 Search packages across all buckets
+- 📦 Manage installed packages
+- 🚀 Install, update, and remove packages
+- 🎨 Modern, responsive UI with dark mode
+- ⌨️ Command palette (Ctrl+K) for quick actions
 
-To get started run:
-  cd Rscoop
-  npm install
+## Tech Stack
 
-For Desktop development, run:
-  npm run tauri dev
+- **SolidJS** - Fast, reactive UI framework
+- **Tauri** - Lightweight, secure desktop app framework
+- **Tailwind CSS** - Utility-first CSS framework
+- **Kobalte** - Headless UI components
+- **Lucide Icons** - Beautiful, consistent icons
+- **Motion One** - Performant animations
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18+)
+- [Rust](https://www.rust-lang.org/tools/install) (latest stable)
+- [Scoop](https://scoop.sh/) installed on your system
+
+## Development
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/rscoop.git
+cd rscoop
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the development server:
+
+```bash
+npm run tauri dev
+```
+
+## Building
+
+To build the application for production:
+
+```bash
+npm run tauri build
+```
+
+This will create an installer in the `src-tauri/target/release/bundle` directory.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+MIT

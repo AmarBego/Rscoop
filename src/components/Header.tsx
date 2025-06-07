@@ -1,5 +1,7 @@
 import { Component, For } from "solid-js";
 import type { View } from "../App";
+import { ThemeToggle } from "./ui/ThemeToggle";
+import { Package, Search, Settings, Command } from "lucide-solid";
 
 interface HeaderProps {
   currentView: View;
@@ -7,35 +9,59 @@ interface HeaderProps {
 }
 
 const Header: Component<HeaderProps> = (props) => {
-  const navItems: { view: View; label: string }[] = [
-    { view: "search", label: "Search" },
-    { view: "installed", label: "Installed" },
-    { view: "settings", label: "Settings" },
+  const navItems: { view: View; label: string; icon: typeof Search }[] = [
+    { view: "search", label: "Search", icon: Search },
+    { view: "installed", label: "Installed", icon: Package },
+    { view: "settings", label: "Settings", icon: Settings },
   ];
 
+  const toggleCommandPalette = (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      e.preventDefault();
+      // The command palette component handles its own visibility
+    }
+  };
+
+  document.addEventListener("keydown", toggleCommandPalette);
+
   return (
-    <header class="bg-gray-100 dark:bg-gray-800/80 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-gray-200 dark:border-gray-700">
+    <header class="bg-dark-surface/80 backdrop-blur-md shadow-sm sticky top-0 z-40 border-b border-dark-border">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between items-center h-16">
           <div class="flex-shrink-0 flex items-center gap-2">
-            <h1 class="text-xl font-bold text-gray-900 dark:text-white">Rscoop</h1>
+            <h1 class="text-xl font-bold text-dark-text-primary">Rscoop</h1>
+            <span class="bg-primary-500 text-dark-text-primary text-xs font-medium px-2 py-0.5 rounded-full">Beta</span>
           </div>
-          <nav class="flex items-center bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
-            <For each={navItems}>
-              {(item) => (
-                <button
-                  class="px-4 py-1.5 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-100 dark:focus-visible:ring-offset-gray-800"
-                  classList={{
-                    "bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm": props.currentView === item.view,
-                    "text-gray-600 dark:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-white/10": props.currentView !== item.view,
-                  }}
-                  onClick={() => props.onNavigate(item.view)}
-                >
-                  {item.label}
-                </button>
-              )}
-            </For>
-          </nav>
+          <div class="flex items-center gap-4">
+            <nav class="flex items-center bg-dark-background/50 p-1 rounded-xl">
+              <For each={navItems}>
+                {(item) => (
+                  <button
+                    class="px-4 py-1.5 rounded-xl text-sm font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-dark-background flex items-center gap-2"
+                    classList={{
+                      "bg-dark-surface shadow-sm text-primary-500": props.currentView === item.view,
+                      "text-dark-text-secondary hover:bg-dark-background/80": props.currentView !== item.view,
+                    }}
+                    onClick={() => props.onNavigate(item.view)}
+                  >
+                    <item.icon class="w-4 h-4" />
+                    {item.label}
+                  </button>
+                )}
+              </For>
+            </nav>
+            <div class="flex items-center gap-2">
+              <button 
+                class="inline-flex h-9 items-center justify-center rounded-lg bg-dark-background/50 px-3 py-1 text-sm font-medium text-dark-text-secondary hover:bg-dark-background transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-dark-background"
+                onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+              >
+                <Command class="w-4 h-4 mr-2" />
+                <span>Command</span>
+                <kbd class="ml-2 rounded px-1.5 py-0.5 text-xs font-medium bg-dark-surface border border-dark-border">⌘K</kbd>
+              </button>
+              <ThemeToggle />
+            </div>
+          </div>
         </div>
       </div>
     </header>

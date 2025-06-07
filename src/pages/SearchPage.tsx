@@ -82,28 +82,28 @@ function SearchPage() {
       <div class="max-w-3xl mx-auto">
         <div class="relative">
           <input
-            class="w-full pl-10 pr-4 py-3 text-lg bg-white dark:bg-gray-800 border-2 border-transparent rounded-full focus:ring-blue-500 focus:border-blue-500 transition"
+            class="w-full pl-10 pr-4 py-3 text-lg bg-[#2A2A2A]/60 backdrop-blur-sm border border-[#4B4B4B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent text-[#EDEDED] placeholder-[#52525B] rounded-xl transition-all duration-200"
             type="text"
             placeholder="Search for apps..."
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
           />
           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg class="w-5 h-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="w-5 h-5 text-[#A1A1AA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
         </div>
         
-        <div class="flex justify-center my-6 bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+        <div class="flex justify-center my-6 p-1 rounded-xl">
           <button
-            class={`px-6 py-2 text-sm font-medium rounded-md transition ${activeTab() === "packages" ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600"}`}
+            class={`px-6 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab() === "packages" ? "bg-[#2A2A2A] text-[#3B82F6] shadow-lg" : "text-[#A1A1AA] hover:bg-[#3A3A3A]/50"}`}
             onClick={() => setActiveTab("packages")}
           >
             Packages ({packageResults().length})
           </button>
           <button
-            class={`px-6 py-2 text-sm font-medium rounded-md transition ${activeTab() === "includes" ? "bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow" : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-600"}`}
+            class={`px-6 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab() === "includes" ? "bg-[#2A2A2A] text-[#3B82F6] shadow-lg" : "text-[#A1A1AA] hover:bg-[#3A3A3A]/50"}`}
             onClick={() => setActiveTab("includes")}
           >
             Includes ({binaryResults().length})
@@ -112,34 +112,37 @@ function SearchPage() {
         
         <Show when={loading()}>
             <div class="flex justify-center items-center h-64">
-                <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500"></div>
+                <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#3B82F6]"></div>
             </div>
         </Show>
         
         <Show when={!loading() && resultsToShow().length === 0 && searchTerm().length > 1}>
           <div class="text-center py-16">
-              <p class="text-xl text-gray-500 dark:text-gray-400">No {activeTab() === "packages" ? "packages" : "includes"} found for "{searchTerm()}"</p>
+              <p class="text-xl text-[#A1A1AA]">No {activeTab() === "packages" ? "packages" : "includes"} found for "{searchTerm()}"</p>
           </div>
         </Show>
 
         <div class="space-y-4">
           <For each={resultsToShow()}>
             {(pkg) => (
-              <div 
-                class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 cursor-pointer transition-all hover:shadow-xl hover:scale-[1.02]" 
+              <div
+                class="bg-[#2A2A2A] border border-[#4B4B4B] rounded-xl shadow-xl shadow-black/30 p-6 cursor-pointer transition-all duration-200 transform hover:shadow-2xl hover:scale-105"
                 onClick={() => fetchPackageInfo(pkg)}
               >
                 <div class="flex justify-between items-start">
                   <div class="flex-grow">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-white">{pkg.name}</h3>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                    <h3 class="text-lg font-bold text-[#EDEDED]">{pkg.name}</h3>
+                    <p class="text-sm text-[#A1A1AA]">
                       from bucket: <strong>{pkg.source}</strong>
                     </p>
-                    {pkg.info && <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">{pkg.info}</p>}
+                    {pkg.info && <p class="text-sm text-[#A1A1AA] mt-1">{pkg.info}</p>}
                   </div>
-                  <div class="flex-shrink-0 ml-4 text-right">
-                    <span class="text-sm font-semibold text-blue-600 dark:text-blue-400">{pkg.version}</span>
-                    {pkg.is_installed && <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Installed</span>}
+                  <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
+                    <span class="text-sm font-semibold text-[#3B82F6]">{pkg.version}</span>
+                    {pkg.is_installed ? 
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#22C55E]/20 text-[#22C55E]">Installed</span> :
+                      <button class="text-xs font-medium bg-[#3B82F6] text-[#EDEDED] px-2.5 py-0.5 rounded-full hover:bg-[#60A5FA] transition-all duration-200">Install</button>
+                    }
                   </div>
                 </div>
               </div>

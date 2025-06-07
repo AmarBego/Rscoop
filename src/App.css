@@ -1,6 +1,14 @@
-@import "tailwindcss";
+/* Add Tailwind directives */
+@import 'tailwindcss';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import 'highlight.js/styles/atom-one-dark.css';
+@keyframes scaleEffect {
+  0% { transform: scale(0.8); }
+  100% { transform: scale(1); }
+}
+
+.scale-animate {
+  animation: scaleEffect 0.2s ease-out;
+} 
