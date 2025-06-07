@@ -15,7 +15,11 @@ pub fn run() {
                 .level(log::LevelFilter::Trace)
                 .build(),
         )
-        .invoke_handler(tauri::generate_handler![commands::search::search_scoop])
+        .invoke_handler(tauri::generate_handler![
+            commands::search::search_scoop,
+            commands::installed::get_installed_packages_full,
+            commands::info::get_package_info
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
