@@ -124,7 +124,7 @@ function SearchPage() {
           <For each={resultsToShow()}>
             {(pkg) => (
               <div
-                class="card bg-base-200 shadow-xl cursor-pointer transition-all duration-200 transform hover:shadow-2xl hover:scale-105"
+                class="card bg-base-200 shadow-xl cursor-pointer transition-all duration-200 transform hover:scale-101"
                 onClick={() => fetchPackageInfo(pkg)}
               >
                 <div class="card-body">

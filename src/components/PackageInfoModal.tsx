@@ -1,6 +1,7 @@
 import { For, Show, createEffect } from "solid-js";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
+import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import { Download } from "lucide-solid";
 
@@ -57,7 +58,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               <Show when={props.info?.notes}>
                 <div class="flex-1">
                   <h4 class="text-lg font-medium mb-3 border-b pb-2">Notes</h4>
-                  <pre class="text-sm bg-base-200 p-3 rounded-xl whitespace-pre-wrap font-sans">
+                  <pre class="text-sm p-3 rounded-xl whitespace-pre-wrap font-sans">
                     <code ref={codeRef} class="language-bash">{props.info?.notes}</code>
                   </pre>
                 </div>
