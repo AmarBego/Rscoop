@@ -3,56 +3,17 @@ import "./App.css";
 import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
 import InstalledPage from "./pages/InstalledPage.tsx";
-import { ToastProvider } from "./components/ui/Toast";
-import { CommandPalette } from "./components/ui/CommandPalette";
-
-export type View = "search" | "installed" | "settings";
+import { View } from "./types/scoop.ts";
 
 function App() {
   const [view, setView] = createSignal<View>("search");
 
-  const commands = [
-    {
-      id: "search",
-      name: "Search Packages",
-      description: "Search for packages in scoop",
-      shortcut: ["Ctrl", "1"],
-      action: () => setView("search"),
-    },
-    {
-      id: "installed",
-      name: "View Installed Packages",
-      description: "See your installed packages",
-      shortcut: ["Ctrl", "2"],
-      action: () => setView("installed"),
-    },
-    {
-      id: "settings",
-      name: "Open Settings",
-      description: "Configure application settings",
-      shortcut: ["Ctrl", "3"],
-      action: () => setView("settings"),
-    },
-    {
-      id: "refresh",
-      name: "Refresh Scoop",
-      description: "Update scoop and package lists",
-      action: () => console.log("Refreshing scoop..."),
-    },
-    {
-      id: "update-all",
-      name: "Update All Packages",
-      description: "Update all installed packages",
-      action: () => console.log("Updating all packages..."),
-    }
-  ];
-
   return (
-    <ToastProvider>
-      <main class="min-h-screen bg-dark-background text-dark-text-primary font-sans">
+    <div class="drawer">
+      <input id="my-drawer" type="checkbox" class="drawer-toggle" />
+      <div class="drawer-content flex flex-col">
         <Header currentView={view()} onNavigate={setView} />
-        <CommandPalette commands={commands} />
-        <div>
+        <main class="flex-1 p-6">
           <Show when={view() === "search"}>
             <SearchPage />
           </Show>
@@ -62,14 +23,21 @@ function App() {
           <Show when={view() === "settings"}>
             <div class="p-4 sm:p-6 md:p-8">
               <h2 class="text-3xl font-bold tracking-tight">Settings</h2>
-              <div class="mt-6 p-12 rounded-xl shadow-md shadow-black/30 text-center backdrop-blur-sm bg-white/5 border border-dark-border">
-                <p class="text-xl text-dark-text-secondary">Settings are not yet implemented.</p>
+              <div class="mt-6 p-12 bg-base-200 rounded-lg shadow text-center">
+                <p class="text-xl text-base-content/70">Settings are not yet implemented.</p>
               </div>
             </div>
           </Show>
-        </div>
-      </main>
-    </ToastProvider>
+        </main>
+      </div>
+      <div class="drawer-side">
+        <label for="my-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+        <ul class="menu p-4 w-80 min-h-full bg-base-200 text-base-content">
+          <li><a>Sidebar Item 1</a></li>
+          <li><a>Sidebar Item 2</a></li>
+        </ul>
+      </div>
+    </div>
   );
 }
 

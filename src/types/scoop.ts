@@ -11,3 +11,5 @@ export interface ScoopInfo {
   details: [string, string][];
   notes: string | null;
 } 
+
+export type View = "search" | "installed" | "settings"; 

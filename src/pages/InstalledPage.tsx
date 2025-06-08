@@ -2,6 +2,7 @@ import { createSignal, createEffect, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
 import PackageInfoModal from "../components/PackageInfoModal";
+import { MoreHorizontal, ArrowUpCircle, Trash2 } from 'lucide-solid';
 
 function InstalledPage() {
   const [packages, setPackages] = createSignal<ScoopPackage[]>([]);
@@ -67,89 +68,98 @@ function InstalledPage() {
   return (
     <div class="p-4 sm:p-6 md:p-8">
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-3xl font-bold tracking-tight text-[#EDEDED]">Installed Packages</h2>
+        <h2 class="text-3xl font-bold tracking-tight">Installed Packages</h2>
         <div class="flex items-center gap-4">
           <button 
-            class="px-4 py-2 text-sm font-medium text-[#EDEDED] bg-[#3B82F6] rounded-xl hover:bg-[#60A5FA] focus:ring-4 focus:ring-[#3B82F6]/50 disabled:opacity-50 transition-all duration-200"
+            class="btn btn-primary"
             onClick={fetchInstalledPackages}
             disabled={loading()}
           >
             Refresh
           </button>
-          <div class="bg-[#2A2A2A]/50 p-1 rounded-xl flex items-center">
-            <button 
-              classList={{ 
-                'bg-[#2A2A2A] text-[#3B82F6]': viewMode() === 'list',
-                'text-[#A1A1AA] hover:bg-[#3A3A3A]/50': viewMode() !== 'list'
-              }}
-              class="px-3 py-1 text-sm font-medium rounded-xl transition-all duration-200"
+          <div class="tabs tabs-border">
+            <a 
+              class="tab"
+              classList={{ "tab-active": viewMode() === 'list' }}
               onClick={() => setViewMode('list')}
             >
               List
-            </button>
-            <button 
-              classList={{ 
-                'bg-[#2A2A2A] text-[#3B82F6]': viewMode() === 'grid',
-                'text-[#A1A1AA] hover:bg-[#3A3A3A]/50': viewMode() !== 'grid'
-              }}
-              class="px-3 py-1 text-sm font-medium rounded-xl transition-all duration-200"
+            </a>
+            <a 
+              class="tab"
+              classList={{ "tab-active": viewMode() === 'grid' }}
               onClick={() => setViewMode('grid')}
             >
               Grid
-            </button>
+            </a>
           </div>
         </div>
       </div>
 
       <Show when={loading()}>
         <div class="flex justify-center items-center h-64">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#3B82F6]"></div>
+          <span class="loading loading-spinner loading-lg"></span>
         </div>
       </Show>
       
       <Show when={error()}>
-        <div class="bg-[#EF4444]/20 border border-[#EF4444]/50 text-[#EF4444] px-4 py-3 rounded-xl relative" role="alert">
-          <strong class="font-bold">Error:</strong>
-          <span class="block sm:inline"> {error()}</span>
-          <button class="mt-2 sm:mt-0 sm:ml-4 px-4 py-2 bg-[#EF4444] text-[#EDEDED] font-bold rounded-xl hover:bg-[#EF4444]/80" onClick={fetchInstalledPackages}>Try Again</button>
+        <div role="alert" class="alert alert-error">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <span>Error: {error()}</span>
+          <button class="btn btn-sm btn-primary" onClick={fetchInstalledPackages}>Try Again</button>
         </div>
       </Show>
 
       <Show when={!loading() && !error() && packages().length === 0}>
         <div class="text-center py-16">
-          <p class="text-xl text-[#A1A1AA]">No packages installed via Scoop</p>
+          <p class="text-xl">No packages installed via Scoop</p>
         </div>
       </Show>
 
       <Show when={!loading() && !error() && packages().length > 0}>
         <Show when={viewMode() === 'list'}>
-          <div class="overflow-x-auto bg-[#2A2A2A] rounded-xl shadow-xl shadow-black/30">
-            <table class="w-full text-sm text-left text-[#A1A1AA]">
-              <thead class="text-xs text-[#D4D4D8] uppercase bg-[#3A3A3A]/50">
+          <div class="overflow-x-auto bg-base-200 rounded-xl shadow-xl">
+            <table class="table">
+              <thead>
                 <tr>
-                  <th scope="col" class="px-6 py-3">Name</th>
-                  <th scope="col" class="px-6 py-3">Version</th>
-                  <th scope="col" class="px-6 py-3">Source</th>
-                  <th scope="col" class="px-6 py-3">Updated</th>
-                  <th scope="col" class="px-6 py-3 text-center">Actions</th>
+                  <th>Name</th>
+                  <th>Version</th>
+                  <th>Source</th>
+                  <th>Updated</th>
+                  <th class="text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 <For each={packages()}>
                   {(pkg) => (
-                    <tr class="bg-[#2A2A2A] border-b border-[#4B4B4B] hover:bg-[#3A3A3A]/50">
-                      <th scope="row" class="px-6 py-4 font-medium text-[#EDEDED] whitespace-nowrap">
-                        <button class="hover:underline" onClick={() => fetchPackageInfo(pkg)}>
+                    <tr>
+                      <td>
+                        <button class="btn btn-ghost btn-sm" onClick={() => fetchPackageInfo(pkg)}>
                           {pkg.name}
                         </button>
-                      </th>
-                      <td class="px-6 py-4">{pkg.version}</td>
-                      <td class="px-6 py-4">{pkg.source}</td>
-                      <td class="px-6 py-4">{pkg.updated}</td>
-                      <td class="px-6 py-4">
-                        <div class="flex justify-center items-center gap-2">
-                          <button class="px-3 py-1 text-xs font-medium bg-[#3B82F6] text-[#EDEDED] rounded-full hover:bg-[#60A5FA] transition-all duration-200">Update</button>
-                          <button class="px-3 py-1 text-xs font-medium bg-[#EF4444] text-[#EDEDED] rounded-full hover:bg-[#EF4444]/80 transition-all duration-200">Uninstall</button>
+                      </td>
+                      <td>{pkg.version}</td>
+                      <td>{pkg.source}</td>
+                      <td title={pkg.updated}>{pkg.updated.split(" ")[0]}</td>
+                      <td class="text-center">
+                        <div class="dropdown dropdown-end">
+                          <label tabindex="0" class="btn btn-ghost btn-xs btn-circle">
+                            <MoreHorizontal class="w-4 h-4" />
+                          </label>
+                          <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-40 z-[1]">
+                            <li>
+                              <a>
+                                <ArrowUpCircle class="w-4 h-4 mr-2" />
+                                Update
+                              </a>
+                            </li>
+                            <li>
+                              <a class="text-error">
+                                <Trash2 class="w-4 h-4 mr-2" />
+                                Uninstall
+                              </a>
+                            </li>
+                          </ul>
                         </div>
                       </td>
                     </tr>
@@ -163,18 +173,38 @@ function InstalledPage() {
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             <For each={packages()}>
               {(pkg) => (
-                <div class="bg-[#2A2A2A] rounded-xl shadow-xl shadow-black/30 p-5 flex flex-col justify-between transition-transform transform hover:scale-105">
-                  <div>
-                    <button class="text-lg font-bold text-[#EDEDED] hover:underline" onClick={() => fetchPackageInfo(pkg)}>
-                      {pkg.name}
-                    </button>
-                    <div class="text-sm text-[#A1A1AA] mt-2">Version: {pkg.version}</div>
-                    <div class="text-sm text-[#A1A1AA]">Source: {pkg.source}</div>
-                    <div class="text-sm text-[#A1A1AA]">Updated: {pkg.updated}</div>
-                  </div>
-                  <div class="flex justify-end gap-2 mt-4">
-                    <button class="px-3 py-1 text-xs font-medium bg-[#3B82F6] text-[#EDEDED] rounded-full hover:bg-[#60A5FA] transition-all duration-200">Update</button>
-                    <button class="px-3 py-1 text-xs font-medium bg-[#EF4444] text-[#EDEDED] rounded-full hover:bg-[#EF4444]/80 transition-all duration-200">Uninstall</button>
+                <div class="card bg-base-200 shadow-xl transition-transform transform hover:scale-105">
+                  <div class="card-body">
+                    <div class="flex justify-between items-start mb-2">
+                      <h2 class="card-title">
+                        <button class="hover:underline" onClick={() => fetchPackageInfo(pkg)}>
+                          {pkg.name}
+                        </button>
+                      </h2>
+                      <div class="dropdown dropdown-end">
+                        <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
+                          <MoreHorizontal class="w-5 h-5" />
+                        </label>
+                        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-40 z-[1]">
+                          <li>
+                            <a>
+                              <ArrowUpCircle class="w-4 h-4 mr-2" />
+                              Update
+                            </a>
+                          </li>
+                          <li>
+                            <a class="text-error">
+                              <Trash2 class="w-4 h-4 mr-2" />
+                              Uninstall
+                            </a>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    
+                    <p class="text-sm">Version: {pkg.version}</p>
+                    <p class="text-sm">Source: {pkg.source}</p>
+                    <p class="text-sm" title={pkg.updated}>Updated: {pkg.updated.split(" ")[0]}</p>
                   </div>
                 </div>
               )}

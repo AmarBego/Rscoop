@@ -2,6 +2,7 @@ import { createSignal, createEffect, on, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
 import PackageInfoModal from "../components/PackageInfoModal";
+import { Download } from "lucide-solid";
 
 function SearchPage() {
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -82,43 +83,40 @@ function SearchPage() {
       <div class="max-w-3xl mx-auto">
         <div class="relative">
           <input
-            class="w-full pl-10 pr-4 py-3 text-lg bg-[#2A2A2A]/60 backdrop-blur-sm border border-[#4B4B4B] focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent text-[#EDEDED] placeholder-[#52525B] rounded-xl transition-all duration-200"
             type="text"
             placeholder="Search for apps..."
+            class="input input-bordered w-full"
             value={searchTerm()}
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
           />
-          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg class="w-5 h-5 text-[#A1A1AA]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
         </div>
         
-        <div class="flex justify-center my-6 p-1 rounded-xl">
-          <button
-            class={`px-6 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab() === "packages" ? "bg-[#2A2A2A] text-[#3B82F6] shadow-lg" : "text-[#A1A1AA] hover:bg-[#3A3A3A]/50"}`}
+        <div class="tabs tabs-boxed my-6">
+          <a
+            class="tab"
+            classList={{ "tab-active": activeTab() === "packages" }}
             onClick={() => setActiveTab("packages")}
           >
             Packages ({packageResults().length})
-          </button>
-          <button
-            class={`px-6 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab() === "includes" ? "bg-[#2A2A2A] text-[#3B82F6] shadow-lg" : "text-[#A1A1AA] hover:bg-[#3A3A3A]/50"}`}
+          </a>
+          <a
+            class="tab"
+            classList={{ "tab-active": activeTab() === "includes" }}
             onClick={() => setActiveTab("includes")}
           >
             Includes ({binaryResults().length})
-          </button>
+          </a>
         </div>
         
         <Show when={loading()}>
             <div class="flex justify-center items-center h-64">
-                <div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#3B82F6]"></div>
+                <span class="loading loading-spinner loading-lg"></span>
             </div>
         </Show>
         
         <Show when={!loading() && resultsToShow().length === 0 && searchTerm().length > 1}>
           <div class="text-center py-16">
-              <p class="text-xl text-[#A1A1AA]">No {activeTab() === "packages" ? "packages" : "includes"} found for "{searchTerm()}"</p>
+              <p class="text-xl">No {activeTab() === "packages" ? "packages" : "includes"} found for "{searchTerm()}"</p>
           </div>
         </Show>
 
@@ -126,23 +124,25 @@ function SearchPage() {
           <For each={resultsToShow()}>
             {(pkg) => (
               <div
-                class="bg-[#2A2A2A] border border-[#4B4B4B] rounded-xl shadow-xl shadow-black/30 p-6 cursor-pointer transition-all duration-200 transform hover:shadow-2xl hover:scale-105"
+                class="card bg-base-200 shadow-xl cursor-pointer transition-all duration-200 transform hover:shadow-2xl hover:scale-105"
                 onClick={() => fetchPackageInfo(pkg)}
               >
-                <div class="flex justify-between items-start">
-                  <div class="flex-grow">
-                    <h3 class="text-lg font-bold text-[#EDEDED]">{pkg.name}</h3>
-                    <p class="text-sm text-[#A1A1AA]">
-                      from bucket: <strong>{pkg.source}</strong>
-                    </p>
-                    {pkg.info && <p class="text-sm text-[#A1A1AA] mt-1">{pkg.info}</p>}
-                  </div>
-                  <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
-                    <span class="text-sm font-semibold text-[#3B82F6]">{pkg.version}</span>
-                    {pkg.is_installed ? 
-                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#22C55E]/20 text-[#22C55E]">Installed</span> :
-                      <button class="text-xs font-medium bg-[#3B82F6] text-[#EDEDED] px-2.5 py-0.5 rounded-full hover:bg-[#60A5FA] transition-all duration-200">Install</button>
-                    }
+                <div class="card-body">
+                  <div class="flex justify-between items-start">
+                    <div class="flex-grow">
+                      <h3 class="card-title">{pkg.name}</h3>
+                      <p>from bucket: <strong>{pkg.source}</strong></p>
+                      {pkg.info && <p class="text-sm mt-1">{pkg.info}</p>}
+                    </div>
+                    <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
+                      <span class="badge badge-primary">{pkg.version}</span>
+                      {pkg.is_installed ? 
+                        <span class="badge badge-success">Installed</span> :
+                        <button class="btn btn-sm btn-ghost">
+                          <Download />
+                        </button>
+                      }
+                    </div>
                   </div>
                 </div>
               </div>
