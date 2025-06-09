@@ -5,6 +5,7 @@ import PackageInfoModal from "../components/PackageInfoModal";
 import OperationModal from "../components/OperationModal";
 import { Download } from "lucide-solid";
 import settingsStore from "../stores/settings";
+import installedPackagesStore from "../stores/installedPackagesStore";
 
 function SearchPage() {
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -127,6 +128,8 @@ function SearchPage() {
     if (wasSuccess) {
       // Refetch search to update "installed" status
       handleSearch(searchTerm());
+      // Refetch installed packages list in the background
+      installedPackagesStore.refetch();
     }
   };
 

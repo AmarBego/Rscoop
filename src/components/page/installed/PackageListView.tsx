@@ -2,9 +2,10 @@ import { For, Show, Accessor } from "solid-js";
 import { 
   MoreHorizontal, ArrowUpCircle, Trash2, ArrowUp, ArrowDown, Lock, Unlock
 } from 'lucide-solid';
-import type { DisplayPackage } from "../../../hooks/useInstalledPackages";
+import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
 import heldStore from "../../../stores/held";
+import { formatIsoDate } from "../../../utils/date";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
@@ -18,6 +19,7 @@ interface PackageListViewProps {
   onHold: (pkgName: string) => void;
   onUnhold: (pkgName: string) => void;
   onUninstall: (pkg: ScoopPackage) => void;
+  operatingOn: Accessor<string | null>;
 }
 
 const SortableHeader = (props: { 
@@ -75,7 +77,7 @@ function PackageListView(props: PackageListViewProps) {
                 </td>
                 <td>{pkg.version}</td>
                 <td>{pkg.source}</td>
-                <td title={pkg.updated}>{pkg.updated.split(" ")[0]}</td>
+                <td title={pkg.updated}>{formatIsoDate(pkg.updated)}</td>
                 <td class="text-center">
                   <div
                     class="dropdown dropdown-end"
@@ -96,18 +98,26 @@ function PackageListView(props: PackageListViewProps) {
                         </li>
                       </Show>
                       <li>
-                        <Show when={heldStore.isHeld(pkg.name)}
-                          fallback={
-                            <a onClick={() => props.onHold(pkg.name)}>
-                              <Lock class="w-4 h-4 mr-2" />
-                              <span>Hold Package</span>
-                            </a>
-                          }
+                        <Show when={props.operatingOn() === pkg.name}
+                            fallback={
+                                <Show when={heldStore.isHeld(pkg.name)}
+                                    fallback={
+                                        <a onClick={() => props.onHold(pkg.name)}>
+                                            <Lock class="w-4 h-4 mr-2" />
+                                            <span>Hold Package</span>
+                                        </a>
+                                    }
+                                >
+                                    <a onClick={() => props.onUnhold(pkg.name)}>
+                                        <Unlock class="w-4 h-4 mr-2" />
+                                        <span>Unhold Package</span>
+                                    </a>
+                                </Show>
+                            }
                         >
-                          <a onClick={() => props.onUnhold(pkg.name)}>
-                            <Unlock class="w-4 h-4 mr-2" />
-                            <span>Unhold Package</span>
-                          </a>
+                             <span class="flex items-center justify-center p-2">
+                                <span class="loading loading-spinner loading-xs"></span>
+                            </span>
                         </Show>
                       </li>
                       <li>

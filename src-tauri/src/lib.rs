@@ -22,7 +22,7 @@ pub fn run() {
             commands::info::get_package_info,
             commands::install::install_package,
             commands::manifest::get_package_manifest,
-            commands::update::check_for_updates,
+            commands::updates::check_for_updates,
             commands::update::update_package,
             commands::update::update_all_packages,
             commands::uninstall::uninstall_package,

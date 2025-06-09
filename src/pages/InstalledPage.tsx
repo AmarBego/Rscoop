@@ -20,6 +20,7 @@ function InstalledPage() {
     selectedPackage, info, infoLoading, infoError,
     operationTitle,
     operationNextStep,
+    operatingOn,
     handleSort,
     handleUpdate,
     handleUpdateAll,
@@ -76,6 +77,7 @@ function InstalledPage() {
             onHold={handleHold}
             onUnhold={handleUnhold}
             onUninstall={handleUninstall}
+            operatingOn={operatingOn}
           />}
         >
           <PackageListView 
@@ -88,6 +90,7 @@ function InstalledPage() {
             onHold={handleHold}
             onUnhold={handleUnhold}
             onUninstall={handleUninstall}
+            operatingOn={operatingOn}
           />
         </Show>
       </Show>

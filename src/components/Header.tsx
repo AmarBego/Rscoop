@@ -1,6 +1,7 @@
 import { Component, For } from "solid-js";
 import { View } from "../types/scoop.ts";
 import { Package, Search, Settings, Stethoscope } from "lucide-solid";
+import installedPackagesStore from '../stores/installedPackagesStore';
 
 interface HeaderProps {
   currentView: View;
@@ -40,6 +41,11 @@ const Header: Component<HeaderProps> = (props) => {
                     "btn-active bg-base-100": props.currentView === item.view,
                   }}
                   onClick={() => props.onNavigate(item.view)}
+                  onMouseEnter={() => {
+                    if (item.view === 'installed') {
+                      installedPackagesStore.fetch();
+                    }
+                  }}
                 >
                   <item.icon class="w-4 h-4" />
                   {item.label}

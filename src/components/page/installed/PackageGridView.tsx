@@ -2,9 +2,10 @@ import { For, Show, Accessor } from "solid-js";
 import { 
   MoreHorizontal, ArrowUpCircle, Trash2, Lock, Unlock
 } from 'lucide-solid';
-import type { DisplayPackage } from "../../../hooks/useInstalledPackages";
+import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
 import heldStore from "../../../stores/held";
+import { formatIsoDate } from "../../../utils/date";
 
 interface PackageGridViewProps {
   packages: Accessor<DisplayPackage[]>;
@@ -13,6 +14,7 @@ interface PackageGridViewProps {
   onHold: (pkgName: string) => void;
   onUnhold: (pkgName: string) => void;
   onUninstall: (pkg: ScoopPackage) => void;
+  operatingOn: Accessor<string | null>;
 }
 
 function PackageGridView(props: PackageGridViewProps) {
@@ -52,18 +54,26 @@ function PackageGridView(props: PackageGridViewProps) {
                         </li>
                       </Show>
                       <li>
-                        <Show when={heldStore.isHeld(pkg.name)}
-                          fallback={
-                            <a onClick={() => props.onHold(pkg.name)}>
-                              <Lock class="w-4 h-4 mr-2" />
-                              <span>Hold Package</span>
-                            </a>
-                          }
+                        <Show when={props.operatingOn() === pkg.name}
+                            fallback={
+                                <Show when={heldStore.isHeld(pkg.name)}
+                                    fallback={
+                                        <a onClick={() => props.onHold(pkg.name)}>
+                                            <Lock class="w-4 h-4 mr-2" />
+                                            <span>Hold Package</span>
+                                        </a>
+                                    }
+                                >
+                                    <a onClick={() => props.onUnhold(pkg.name)}>
+                                        <Unlock class="w-4 h-4 mr-2" />
+                                        <span>Unhold Package</span>
+                                    </a>
+                                </Show>
+                            }
                         >
-                          <a onClick={() => props.onUnhold(pkg.name)}>
-                            <Unlock class="w-4 h-4 mr-2" />
-                            <span>Unhold Package</span>
-                          </a>
+                            <span class="flex items-center justify-center p-2">
+                                <span class="loading loading-spinner loading-xs"></span>
+                            </span>
                         </Show>
                       </li>
                       <li>
@@ -78,7 +88,7 @@ function PackageGridView(props: PackageGridViewProps) {
               <p class="text-sm text-base-content/70">
                 Version {pkg.version} from <span class="font-semibold">{pkg.source}</span>
               </p>
-              <p class="text-xs text-base-content/50">Updated on {pkg.updated.split(" ")[0]}</p>
+              <p class="text-xs text-base-content/50" title={pkg.updated}>Updated on {formatIsoDate(pkg.updated)}</p>
             </div>
           </div>
         )}
