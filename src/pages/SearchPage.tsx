@@ -7,6 +7,11 @@ import { Download } from "lucide-solid";
 import settingsStore from "../stores/settings";
 import installedPackagesStore from "../stores/installedPackagesStore";
 
+interface OperationNextStep {
+  buttonLabel: string;
+  onNext: () => void;
+}
+
 function SearchPage() {
   const [searchTerm, setSearchTerm] = createSignal("");
   const [results, setResults] = createSignal<ScoopPackage[]>([]);
@@ -23,6 +28,7 @@ function SearchPage() {
 
   // For OperationModal
   const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
+  const [operationNextStep, setOperationNextStep] = createSignal<OperationNextStep | null>(null);
   const { settings } = settingsStore;
   const [isScanning, setIsScanning] = createSignal(false);
   const [pendingInstallPackage, setPendingInstallPackage] = createSignal<ScoopPackage | null>(null);
@@ -90,10 +96,24 @@ function SearchPage() {
       closeModal();
     }
     setOperationTitle(`Uninstalling ${pkg.name}`);
+    setOperationNextStep({
+      buttonLabel: "Clear Cache",
+      onNext: () => {
+        setOperationTitle(`Clearing cache for ${pkg.name}`);
+        setOperationNextStep(null);
+        invoke("clear_package_cache", {
+          packageName: pkg.name,
+          packageSource: pkg.source,
+        }).catch(err => console.error("Clear cache invocation failed:", err));
+      },
+    });
+
     invoke("uninstall_package", {
       packageName: pkg.name,
+      packageSource: pkg.source,
     }).catch(err => {
       console.error(`Uninstallation invocation failed for ${pkg.name}:`, err);
+      setOperationNextStep(null);
     });
   };
 
@@ -125,6 +145,7 @@ function SearchPage() {
     setOperationTitle(null);
     setIsScanning(false);
     setPendingInstallPackage(null);
+    setOperationNextStep(null);
     if (wasSuccess) {
       // Refetch search to update "installed" status
       handleSearch(searchTerm());
@@ -237,6 +258,7 @@ function SearchPage() {
         onClose={closeOperationModal}
         isScan={isScanning()}
         onInstallConfirm={handleInstallConfirm}
+        nextStep={operationNextStep() ?? undefined}
       />
     </div>
   );

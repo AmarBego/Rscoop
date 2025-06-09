@@ -49,7 +49,7 @@ function PackageListView(props: PackageListViewProps) {
           <tr>
             <SortableHeader key="name" title="Name" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
             <SortableHeader key="version" title="Version" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <SortableHeader key="source" title="Source" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="source" title="Bucket" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
             <SortableHeader key="updated" title="Updated" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
             <th class="text-center">Actions</th>
           </tr>

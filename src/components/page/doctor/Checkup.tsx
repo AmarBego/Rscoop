@@ -1,7 +1,8 @@
 import { For, Show } from "solid-js";
-import { CheckCircle, XCircle, AlertTriangle, RefreshCw } from "lucide-solid";
+import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Download } from "lucide-solid";
 
 export interface CheckupItem {
+    id: string | null;
     status: boolean;
     text: string;
     suggestion: string | null;
@@ -12,6 +13,8 @@ interface CheckupProps {
     isLoading: boolean;
     error: string | null;
     onRerun: () => void;
+    onInstallHelper: (id: string) => void;
+    installingHelper: string | null;
 }
 
 function Checkup(props: CheckupProps) {
@@ -54,6 +57,23 @@ function Checkup(props: CheckupProps) {
                                             <CheckCircle class="w-5 h-5 mr-3 text-success" />
                                         </Show>
                                         <span class="flex-grow">{item.text}</span>
+                                        <Show when={item.id && !item.status}>
+                                            <button 
+                                                class="btn btn-xs btn-outline btn-primary"
+                                                onClick={() => props.onInstallHelper(item.id!)}
+                                                disabled={!!props.installingHelper}
+                                            >
+                                                <Show when={props.installingHelper === item.id} fallback={
+                                                    <>
+                                                        <Download class="w-3 h-3 mr-1" />
+                                                        Install
+                                                    </>
+                                                }>
+                                                    <span class="loading loading-spinner loading-xs"></span>
+                                                    Installing...
+                                                </Show>
+                                            </button>
+                                        </Show>
                                     </div>
                                     <Show when={item.suggestion}>
                                         <div class="mt-2 ml-8 text-sm p-2 bg-base-300 rounded-md">

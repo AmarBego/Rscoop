@@ -31,4 +31,5 @@ reqwest = { version = "0.12.2", features = ["json", "blocking"] }
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
 tokio = { version = "1.39.0", features = ["full"] }
 chrono = { version = "0.4.41", features = ["serde"] }
+windows-sys = { version = "0.59.0", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 

@@ -86,7 +86,10 @@ function PackageGridView(props: PackageGridViewProps) {
                   </div>
               </div>
               <p class="text-sm text-base-content/70">
-                Version {pkg.version} from <span class="font-semibold">{pkg.source}</span>
+                Version {pkg.version}
+              </p>
+              <p class="text-xs text-base-content/70">
+                Bucket {pkg.source}
               </p>
               <p class="text-xs text-base-content/50" title={pkg.updated}>Updated on {formatIsoDate(pkg.updated)}</p>
             </div>

@@ -5,9 +5,11 @@ import Cleanup from "../components/page/doctor/Cleanup";
 import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
 import OperationModal from "../components/OperationModal";
+import installedPackagesStore from "../stores/installedPackagesStore";
 
 function DoctorPage() {
     const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
+    const [installingHelper, setInstallingHelper] = createSignal<string | null>(null);
 
     // State lifted from Checkup.tsx
     const [checkupResult, setCheckupResult] = createSignal<CheckupItem[]>([]);
@@ -33,13 +35,27 @@ function DoctorPage() {
 
     onMount(runCheckup);
 
-    // Derived state to determine if checkup is all green
-    const isCheckupAllGreen = createMemo(() => {
+    // Derived state to determine if checkup requires attention
+    const needsAttention = createMemo(() => {
         if (isCheckupLoading() || checkupError() || checkupResult().length === 0) {
-            return false; // Not green if loading, errored, or empty
+            return false;
         }
-        return checkupResult().every(item => item.status);
+        // Needs attention if any item is not OK (status is false)
+        return checkupResult().some(item => !item.status);
     });
+
+    const handleInstallHelper = async (helperId: string) => {
+        setInstallingHelper(helperId);
+        try {
+            await invoke("install_package", { packageName: helperId, packageSource: '' });
+            await runCheckup();
+            installedPackagesStore.refetch();
+        } catch (err) {
+            console.error(`Failed to install ${helperId}:`, err);
+        } finally {
+            setInstallingHelper(null);
+        }
+    };
 
     const runOperation = (title: string, command: Promise<any>) => {
         setOperationTitle(title);
@@ -68,25 +84,21 @@ function DoctorPage() {
         setOperationTitle(null);
     };
     
-    // A function to render the Checkup component, to avoid repetition
-    const CheckupComponent = () => (
-        <Checkup
-            checkupResult={checkupResult()}
-            isLoading={isCheckupLoading()}
-            error={checkupError()}
-            onRerun={runCheckup}
-        />
-    );
-
     return (
         <>
             <div class="p-4 sm:p-6 md:p-8">
                 <h1 class="text-3xl font-bold mb-6">System Doctor</h1>
                 
                 <div class="space-y-8">
-                    {/* Show at top if there are issues */}
-                    <Show when={!isCheckupAllGreen()}>
-                        <CheckupComponent />
+                    <Show when={needsAttention()}>
+                        <Checkup
+                            checkupResult={checkupResult()}
+                            isLoading={isCheckupLoading()}
+                            error={checkupError()}
+                            onRerun={runCheckup}
+                            onInstallHelper={handleInstallHelper}
+                            installingHelper={installingHelper()}
+                        />
                     </Show>
                     
                     <Cleanup 
@@ -102,9 +114,15 @@ function DoctorPage() {
                         isOperationRunning={!!operationTitle()}
                     />
 
-                    {/* Show at bottom if everything is OK */}
-                    <Show when={isCheckupAllGreen()}>
-                        <CheckupComponent />
+                    <Show when={!needsAttention()}>
+                         <Checkup
+                            checkupResult={checkupResult()}
+                            isLoading={isCheckupLoading()}
+                            error={checkupError()}
+                            onRerun={runCheckup}
+                            onInstallHelper={handleInstallHelper}
+                            installingHelper={installingHelper()}
+                        />
                     </Show>
                 </div>
             </div>
