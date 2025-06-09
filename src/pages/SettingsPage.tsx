@@ -1,6 +1,6 @@
 import { createSignal, onMount, Show, For } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { ShieldCheck, BellOff, Trash2, KeyRound, Save, Unlock } from "lucide-solid";
+import { ShieldCheck, BellOff, KeyRound, Save, Unlock } from "lucide-solid";
 import settingsStore from "../stores/settings";
 import heldStore from "../stores/held";
 import OperationModal from "../components/OperationModal";

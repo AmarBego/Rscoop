@@ -1,6 +1,6 @@
 import { For, Show, Accessor } from "solid-js";
 import { 
-  MoreHorizontal, ArrowUpCircle, Trash2, Bell, BellOff, Lock, Unlock
+  MoreHorizontal, ArrowUpCircle, Trash2, Lock, Unlock
 } from 'lucide-solid';
 import type { DisplayPackage } from "../../../hooks/useInstalledPackages";
 import type { ScoopPackage } from "../../../types/scoop";

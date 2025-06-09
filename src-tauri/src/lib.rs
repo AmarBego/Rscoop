@@ -37,6 +37,8 @@ pub fn run() {
             commands::doctor::cache::clear_cache,
             commands::doctor::shim::list_shims,
             commands::doctor::shim::remove_shim,
+            commands::doctor::shim::alter_shim,
+            commands::doctor::shim::add_shim,
             commands::hold::list_held_packages,
             commands::hold::hold_package,
             commands::hold::unhold_package

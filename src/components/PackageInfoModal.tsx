@@ -61,7 +61,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
 
   return (
     <>
-      <dialog class="modal" open={!!props.pkg}>
+      <dialog class="modal backdrop-blur-sm" open={!!props.pkg}>
         <div class="modal-box w-11/12 max-w-5xl bg-base-200 my-8">
           <div class="flex justify-between items-start">
             <h3 class="font-bold text-lg">Information for {props.pkg?.name}</h3>

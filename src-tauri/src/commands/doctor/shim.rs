@@ -27,6 +27,15 @@ pub struct Shim {
     is_hidden: bool,
 }
 
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AddShimArgs {
+    name: String,
+    path: String,
+    args: Option<String>,
+    global: bool,
+}
+
 #[tauri::command]
 pub async fn list_shims() -> Result<Vec<Shim>, String> {
     log::info!("Listing shims with `scoop shim list | ConvertTo-Json`");
@@ -64,6 +73,22 @@ pub async fn list_shims() -> Result<Vec<Shim>, String> {
 }
 
 #[tauri::command]
+pub async fn alter_shim(window: Window, shim_name: String) -> Result<(), String> {
+    let command_str = format!("scoop shim alter {}", shim_name);
+    let operation_name = format!("Altering shim: {}", shim_name);
+
+    powershell::run_and_stream_command(
+        window,
+        command_str,
+        operation_name,
+        "operation-output",
+        "operation-finished",
+        "cancel-operation",
+    )
+    .await
+}
+
+#[tauri::command]
 pub async fn remove_shim(window: Window, shim_name: String) -> Result<(), String> {
     let command_str = format!("scoop shim rm {}", shim_name);
     let operation_name = format!("Removing shim: {}", shim_name);
@@ -71,6 +96,38 @@ pub async fn remove_shim(window: Window, shim_name: String) -> Result<(), String
     powershell::run_and_stream_command(
         window,
         command_str,
+        operation_name,
+        "operation-output",
+        "operation-finished",
+        "cancel-operation",
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn add_shim(window: Window, args: AddShimArgs) -> Result<(), String> {
+    let mut command = String::from("scoop shim add");
+
+    if args.global {
+        command.push_str(" --global");
+    }
+
+    // Wrap name and path in quotes to handle spaces
+    command.push_str(&format!(" \"{}\" \"{}\"", args.name, args.path));
+
+    if let Some(shim_args) = args.args {
+        if !shim_args.is_empty() {
+            command.push_str(&format!(" -- {}", shim_args));
+        }
+    }
+    
+    log::info!("Executing add shim command: {}", command);
+
+    let operation_name = format!("Adding shim: {}", args.name);
+
+    powershell::run_and_stream_command(
+        window,
+        command,
         operation_name,
         "operation-output",
         "operation-finished",

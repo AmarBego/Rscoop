@@ -149,7 +149,7 @@ function OperationModal(props: OperationModalProps) {
   };
 
   return (
-    <dialog class="modal" open={!!props.title}>
+    <dialog class="modal backdrop-blur-sm" open={!!props.title}>
       <div class="modal-box w-11/12 max-w-5xl">
         <h3 class="font-bold text-lg">{props.title}</h3>
         <div 
