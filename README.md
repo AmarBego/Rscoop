@@ -33,9 +33,9 @@ For core actions, Rscoop acts as a seamless wrapper around the battle-tested off
 
 ## 🖼️ Screenshots
 
-| Search Page | Installed Packages (Grid) | System Doctor |
-| :---: | :---: | :---: |
-| ![Search Page](pics/search.png) | ![Installed Packages Grid View](pics/installedGRID.png) | ![System Doctor Page](pics/doctor.png) |
+| Search Page | Installed Packages (Grid) | System Doctor | Shims |
+| :---: | :---: | :---: | :---: |
+| ![Search Page](pics/search.png) | ![Installed Packages Grid View](pics/installedGRID.png) | ![System Doctor Page](pics/doctor.png) | ![Shims Manager View](pics/shims.png) |
 
 | Package Details | Operation in Progress | Settings |
 | :---: | :---: | :---: |
