@@ -34,7 +34,8 @@ jobs:
 
       - name: Run Vite build (frontend)
         # This corresponds to your `beforeBuildCommand`
-        run: npm run build      - name: Build Rust application (executable only)
+        run: npm run build
+      - name: Build Rust application (executable only)
         # Builds the .exe in src-tauri/target/release/
         run: |
           cd src-tauri
@@ -63,12 +64,13 @@ jobs:
           Get-ChildItem -Path src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
           echo "--- Bundles Directory ---"
           Get-ChildItem -Path src-tauri/target/release/bundle -Recurse
-        shell: pwsh      - name: Create GitHub Release
+        shell: pwsh
+
+      - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.app_info.outputs.product_name }} ${{ github.ref_name }}
           body: |
