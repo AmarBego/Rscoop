@@ -57,7 +57,7 @@ jobs:
       - name: Bundle application (MSI, NSIS installers)
         # This uses the already built (and UPX'd) executable
         # It will also ensure frontend assets from `frontendDist` are included
-        run: npm run tauri -- bundle --release
+        run: npm run tauri -- bundle
 
       - name: List bundled artifacts for verification
         run: |
