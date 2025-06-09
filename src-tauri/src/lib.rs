@@ -32,7 +32,7 @@ pub fn run() {
             commands::settings::get_scoop_path,
             commands::settings::set_scoop_path,
             commands::virustotal::scan_package,
-            commands::doctor::checkup::run_sfsu_checkup,
+            commands::doctor::checkup::run_scoop_checkup,
             commands::doctor::cleanup::cleanup_all_apps,
             commands::doctor::cleanup::cleanup_outdated_cache,
             commands::doctor::cache::list_cache_contents,

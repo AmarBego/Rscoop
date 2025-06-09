@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tauri::{Emitter, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command;
+use crate::commands::powershell;
 
 #[derive(Serialize, Clone, Debug)]
 pub struct VirustotalResult {
@@ -24,10 +24,7 @@ pub async fn scan_package(
 
     log::info!("Executing command: {}", &command_str);
 
-    let mut child = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &command_str])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
+    let mut child = powershell::create_powershell_command(&command_str)
         .spawn()
         .map_err(|e| format!("Failed to spawn 'scoop virustotal': {}", e))?;
 

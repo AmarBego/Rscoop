@@ -3,9 +3,9 @@
 // Original source: https://github.com/winpax/sfsu/blob/trunk/src/commands/checkup.rs
 
 use crate::utils;
+use crate::commands::powershell::create_powershell_command; // Added import
 use serde::Serialize;
 use std::path::Path;
-use std::process::Command;
 use tauri::{AppHandle, Runtime};
 
 #[cfg(windows)]
@@ -21,8 +21,8 @@ pub struct CheckupItem {
     pub suggestion: Option<String>,
 }
 
-fn check_git_installed() -> CheckupItem {
-    let git_installed = Command::new("git").arg("--version").output().is_ok();
+async fn check_git_installed() -> CheckupItem { // Made function async
+    let git_installed = create_powershell_command("git --version").output().await.is_ok(); // Added .await
     CheckupItem {
         id: None,
         status: git_installed,
@@ -176,7 +176,7 @@ fn check_missing_helpers(scoop_path: &Path) -> Vec<CheckupItem> {
 
 
 #[tauri::command]
-pub async fn run_sfsu_checkup<R: Runtime>(app: AppHandle<R>) -> Result<Vec<CheckupItem>, String> {
+pub async fn run_scoop_checkup<R: Runtime>(app: AppHandle<R>) -> Result<Vec<CheckupItem>, String> {
     log::info!("Running native system checkup");
     let mut items = vec![];
 
@@ -185,7 +185,7 @@ pub async fn run_sfsu_checkup<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Check
         Err(e) => return Err(e),
     };
 
-    items.push(check_git_installed());
+    items.push(check_git_installed().await); // Added .await
     items.push(check_main_bucket_installed(&scoop_path));
     
     // Windows-specific checks
@@ -199,4 +199,4 @@ pub async fn run_sfsu_checkup<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Check
     items.extend(check_missing_helpers(&scoop_path));
 
     Ok(items)
-} 
+}

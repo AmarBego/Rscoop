@@ -2,36 +2,36 @@
 
 ![Rscoop Showcase Banner](pics/logo.png)
 
-Welcome to **Rscoop**, a beautiful and feature-rich graphical user interface for the [Scoop](https://scoop.sh/) package manager on Windows. Rscoop is designed to be a complete replacement for the command line, providing a fast, intuitive, and powerful way to manage your software.
-
-Built with a focus on performance and a clean user experience, Rscoop leverages the speed of Rust and the modern reactivity of SolidJS to make managing your Scoop packages a joy.
+Welcome to **Rscoop**, (rust-scoop) the ultimate graphical user interface for the [Scoop](https://scoop.sh/) package manager on Windows. Rscoop isn't just a pretty face; it's a powerhouse of functionality designed to be a complete replacement for the command line. Its intuitive, modern UI is incredibly easy to grasp, making package management a breeze for both new and experienced users.
 
 ## ✨ Features
 
-Rscoop is more than just a package list. It's a full-fledged management toolkit.
+Rscoop is more than just a package list. It's a full-fledged, native management toolkit that supercharges your Scoop experience.
 
-### 📦 Core Package Management
-- **Blazing Fast Search**: Instantly search for packages across all your buckets, powered by `sfsu`.
-- **Install & Uninstall**: Easily install new packages and remove old ones with a click.
-- **One-Click Updates**: See all available updates and upgrade all your packages at once.
-- **Detailed Package Info**: Click on any package to open a modal with detailed information, notes, and metadata.
-- **View Manifests**: Inspect the JSON manifest for any package directly within the app.
+### 🚀 Blazing-Fast Native Performance
+At its core, Rscoop leverages a custom-built Rust backend to handle the heavy lifting. We've re-engineered critical logic to be native to Rscoop, delivering incredible speed and responsiveness.
+- **Instant Search**: Find the exact package you need in milliseconds. Our native search implementation scans all your buckets instantly.
+- **Package & Update Discovery**: Listing installed packages and checking for available updates is faster than ever.
 
-### 🛡️ System Health & Security
-- **VirusTotal Integration**: Automatically scan packages on install to protect you from malware. Rscoop will warn you if any detections are found.
-- **System Doctor**: A central hub for maintaining your Scoop installation.
-    - **Health Checkup**: Run diagnostics to find and fix common problems with your Scoop setup.
-    - **Smart Cleanup**: Free up disk space by cleaning up old, uninstalled package versions and outdated cache files.
-- **Hold Packages**: Prevent specific packages from being updated, giving you full control over your versions.
-
-### ⚙️ Advanced Control
+### ⚙️ Advanced System & Package Control
+Rscoop provides a level of control that goes far beyond the standard command line. Manage every aspect of your Scoop installation and packages through an intuitive UI.
+- **Shim Manager**: A complete interface to manage your Scoop shims. View, remove, and even `alter` shims without touching the command line.
+- **Hold Packages**: Prevent specific packages from being updated with a single click, giving you full control over your versions.
 - **Cache Manager**: Get a detailed view of all cached installer files, see how much space they're using, and selectively remove them.
-- **Shim Manager**: A complete interface to manage your Scoop shims. View, remove, add, and even `alter` shims without touching the command line.
-- **Customizable Views**: Switch between a responsive grid view and a detailed list view for your installed packages. Sort and filter with ease.
+- **Package Details**: Instantly view detailed information, notes, and the full package manifest for any application.
+
+### 🛡️ System Health
+Keep your Scoop installation in top shape with our integrated System Doctor.
+- **Dependency Checkup**: Run diagnostics to find and fix common problems with your Scoop setup, like missing Git/7-Zip, with a single button click.
+
+### ✅ Seamless & Secure Operations
+For core actions, Rscoop acts as a seamless wrapper around the battle-tested official Scoop CLI, ensuring maximum compatibility and reliability. All operations are fully integrated into the UI—you'll never see a command prompt.
+- **Install, Uninstall, & Update**: Manage packages with the click of a button, backed by Scoop's robust engine.
+- **Security-First Installation**: A standout Rscoop feature. Before installing, the application can automatically scan the package with VirusTotal. This pre-install check protects you from malware by blocking the installation if threats are detected, a safety layer not present in standard Scoop.
+- **System Cleanup**: Easily clean up old package versions to free up disk space.
+
 
 ## 🖼️ Screenshots
-
-*(Placeholder: Add screenshots of the application here)*
 
 | Search Page | Installed Packages (Grid) | System Doctor |
 | :---: | :---: | :---: |

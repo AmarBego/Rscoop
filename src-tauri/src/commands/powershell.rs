@@ -20,6 +20,20 @@ pub struct CommandResult {
     pub message: String,
 }
 
+/// Creates a tokio::process::Command for running a PowerShell command without a visible window.
+pub fn create_powershell_command(command_str: &str) -> Command {
+    let mut cmd = Command::new("powershell");
+    cmd.args(["-NoProfile", "-Command", command_str])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    
+    // Prevents a console window from appearing on Windows.
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    cmd
+}
+
 /// For long-running commands that stream output.
 /// Emits `output_event` with `StreamOutput` for each line.
 /// Emits `finished_event` with `CommandResult` when done.
@@ -34,16 +48,7 @@ pub async fn run_and_stream_command(
 ) -> Result<(), String> {
     log::info!("Executing streaming command: {}", &command_str);
 
-    let mut cmd = Command::new("powershell");
-    cmd.args(["-NoProfile", "-Command", &command_str])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped());
-    
-    // Prevents a console window from appearing on Windows.
-    #[cfg(windows)]
-    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-
-    let mut child = cmd.spawn()
+    let mut child = create_powershell_command(&command_str).spawn()
         .map_err(|e| format!("Failed to spawn command '{}': {}", command_str, e))?;
 
     let stdout = child.stdout.take().expect("child did not have a handle to stdout");

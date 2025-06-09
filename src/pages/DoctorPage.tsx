@@ -21,7 +21,7 @@ function DoctorPage() {
         setIsCheckupLoading(true);
         setCheckupError(null);
         try {
-            const result = await invoke<CheckupItem[]>("run_sfsu_checkup");
+            const result = await invoke<CheckupItem[]>("run_scoop_checkup");
             setCheckupResult(result);
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
