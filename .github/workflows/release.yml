@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-release-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write # Needed to create releases
     env:
       NODE_VERSION: '20' # Specify your project's Node.js version
 
@@ -19,6 +21,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
