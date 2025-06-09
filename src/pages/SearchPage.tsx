@@ -84,6 +84,18 @@ function SearchPage() {
     }
   };
 
+  const handleUninstall = (pkg: ScoopPackage) => {
+    if (selectedPackage()?.name === pkg.name) {
+      closeModal();
+    }
+    setOperationTitle(`Uninstalling ${pkg.name}`);
+    invoke("uninstall_package", {
+      packageName: pkg.name,
+    }).catch(err => {
+      console.error(`Uninstallation invocation failed for ${pkg.name}:`, err);
+    });
+  };
+
   const fetchPackageInfo = async (pkg: ScoopPackage) => {
     if (selectedPackage()?.name === pkg.name) {
       closeModal();
@@ -215,6 +227,7 @@ function SearchPage() {
         error={infoError()}
         onClose={closeModal}
         onInstall={handleInstall}
+        onUninstall={handleUninstall}
       />
       <OperationModal 
         title={operationTitle()}

@@ -10,10 +10,14 @@ use std::sync::Arc;
 /// For simple commands that return output at the end.
 pub async fn execute_command(command: &str) -> Result<Output, std::io::Error> {
     log::info!("Executing command: {}", command);
-    Command::new("powershell")
-        .args(["-NoProfile", "-Command", command])
-        .output()
-        .await
+    let mut cmd = Command::new("powershell");
+    cmd.args(["-NoProfile", "-Command", command]);
+
+    // Prevents a console window from appearing on Windows.
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    cmd.output().await
 }
 
 /// Struct for streaming output lines.
@@ -44,11 +48,16 @@ pub async fn run_and_stream_command(
 ) -> Result<(), String> {
     log::info!("Executing streaming command: {}", &command_str);
 
-    let mut child = Command::new("powershell")
-        .args(["-NoProfile", "-Command", &command_str])
+    let mut cmd = Command::new("powershell");
+    cmd.args(["-NoProfile", "-Command", &command_str])
         .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
+        .stderr(std::process::Stdio::piped());
+    
+    // Prevents a console window from appearing on Windows.
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    let mut child = cmd.spawn()
         .map_err(|e| format!("Failed to spawn command '{}': {}", command_str, e))?;
 
     let stdout = child.stdout.take().expect("child did not have a handle to stdout");
