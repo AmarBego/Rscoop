@@ -1,0 +1,96 @@
+name: Release Build and Upload
+
+on:
+  push:
+    tags:
+      - 'v*.*.*' # Trigger on version tags like v1.0.0
+
+jobs:
+  build-and-release-windows:
+    runs-on: windows-latest
+    env:
+      NODE_VERSION: '20' # Specify your project's Node.js version
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rust-src # May be needed for some crates
+
+      - name: Install UPX
+        run: choco install upx -y
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Run Vite build (frontend)
+        # This corresponds to your `beforeBuildCommand`
+        run: npm run build
+
+      - name: Build Rust application (executable only)
+        # Builds the .exe in src-tauri/target/release/
+        run: |
+          cd src-tauri
+          cargo build --release
+          cd ..
+
+      - name: Get app version from tauri.conf.json
+        id: app_version
+        uses: CumulusDS/get-json-property-action@v1.0.0
+        with:
+          file: src-tauri/tauri.conf.json
+          property: version
+
+      - name: Get app product name from tauri.conf.json
+        id: app_product_name
+        uses: CumulusDS/get-json-property-action@v1.0.0
+        with:
+          file: src-tauri/tauri.conf.json
+          property: productName
+
+      - name: Compress executable with UPX
+        run: upx --best --lzma src-tauri/target/release/${{ steps.app_product_name.outputs.value }}.exe
+
+      - name: Bundle application (MSI, NSIS installers)
+        # This uses the already built (and UPX'd) executable
+        # It will also ensure frontend assets from `frontendDist` are included
+        run: npm run tauri -- bundle --release
+
+      - name: List bundled artifacts for verification
+        run: |
+          echo "--- Main Executable ---"
+          Get-ChildItem -Path src-tauri/target/release/${{ steps.app_product_name.outputs.value }}.exe
+          echo "--- Bundles Directory ---"
+          Get-ChildItem -Path src-tauri/target/release/bundle -Recurse
+        shell: pwsh
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ steps.app_product_name.outputs.value }} ${{ github.ref_name }}
+          body: |
+            Automated release for ${{ steps.app_product_name.outputs.value }} version ${{ steps.app_version.outputs.value }}.
+
+            Artifacts:
+            - Main executable: `${{ steps.app_product_name.outputs.value }}.exe` (UPX compressed)
+            - MSI installer: `${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64_en-US.msi`
+            - NSIS setup: `${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64-setup.exe`
+          draft: false
+          prerelease: false
+          files: |
+            src-tauri/target/release/${{ steps.app_product_name.outputs.value }}.exe
+            src-tauri/target/release/bundle/msi/${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64_en-US.msi
+            src-tauri/target/release/bundle/nsis/${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64-setup.exe
