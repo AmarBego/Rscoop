@@ -41,34 +41,24 @@ jobs:
         run: |
           cd src-tauri
           cargo build --release
-          cd ..
-
-      - name: Get app version from tauri.conf.json
-        id: app_version
-        uses: CumulusDS/get-json-property-action@v1
-        with:
-          file: src-tauri/tauri.conf.json
-          property: version
-
-      - name: Get app product name from tauri.conf.json
-        id: app_product_name
-        uses: CumulusDS/get-json-property-action@v1
-        with:
-          file: src-tauri/tauri.conf.json
-          property: productName
-
-      - name: Compress executable with UPX
-        run: upx --best --lzma src-tauri/target/release/${{ steps.app_product_name.outputs.value }}.exe
+          cd ..      - name: Get app version and product name from tauri.conf.json
+        id: app_info
+        run: |
+          $config = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          $version = $config.version
+          $productName = $config.productName
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+          echo "product_name=$productName" >> $env:GITHUB_OUTPUT
+        shell: pwsh      - name: Compress executable with UPX
+        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
 
       - name: Bundle application (MSI, NSIS installers)
         # This uses the already built (and UPX'd) executable
         # It will also ensure frontend assets from `frontendDist` are included
-        run: npm run tauri -- bundle --release
-
-      - name: List bundled artifacts for verification
+        run: npm run tauri -- bundle --release      - name: List bundled artifacts for verification
         run: |
           echo "--- Main Executable ---"
-          Get-ChildItem -Path src-tauri/target/release/${{ steps.app_product_name.outputs.value }}.exe
+          Get-ChildItem -Path src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
           echo "--- Bundles Directory ---"
           Get-ChildItem -Path src-tauri/target/release/bundle -Recurse
         shell: pwsh
@@ -77,20 +67,19 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ steps.app_product_name.outputs.value }} ${{ github.ref_name }}
+          name: ${{ steps.app_info.outputs.product_name }} ${{ github.ref_name }}
           body: |
-            Automated release for ${{ steps.app_product_name.outputs.value }} version ${{ steps.app_version.outputs.value }}.
+            Automated release for ${{ steps.app_info.outputs.product_name }} version ${{ steps.app_info.outputs.version }}.
 
             Artifacts:
-            - Main executable: `${{ steps.app_product_name.outputs.value }}.exe` (UPX compressed)
-            - MSI installer: `${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64_en-US.msi`
-            - NSIS setup: `${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64-setup.exe`
+            - Main executable: `${{ steps.app_info.outputs.product_name }}.exe` (UPX compressed)
+            - MSI installer: `${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi`
+            - NSIS setup: `${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe`
           draft: false
           prerelease: false
           files: |
-            src-tauri/target/release/${{ steps.app_product_name.outputs.value }}.exe
-            src-tauri/target/release/bundle/msi/${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64_en-US.msi
-            src-tauri/target/release/bundle/nsis/${{ steps.app_product_name.outputs.value }}_${{ steps.app_version.outputs.value }}_x64-setup.exe
+            src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
+            src-tauri/target/release/bundle/msi/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
+            src-tauri/target/release/bundle/nsis/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
