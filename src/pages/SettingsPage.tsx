@@ -1,6 +1,6 @@
 import { createSignal, onMount, Show, For } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { ShieldCheck, BellOff, KeyRound, Save, Unlock } from "lucide-solid";
+import { ShieldCheck, BellOff, KeyRound, Save, Unlock, FolderCog } from "lucide-solid";
 import settingsStore from "../stores/settings";
 import heldStore from "../stores/held";
 import OperationModal from "../components/OperationModal";
@@ -10,9 +10,13 @@ function SettingsPage() {
     const { store: heldPackagesStore, refetch: refetchHeldPackages } = heldStore;
 
     const [apiKey, setApiKey] = createSignal("");
+    const [scoopPath, setScoopPath] = createSignal("");
     const [isLoading, setIsLoading] = createSignal(true);
+    const [pathIsLoading, setPathIsLoading] = createSignal(true);
     const [error, setError] = createSignal<string | null>(null);
+    const [pathError, setPathError] = createSignal<string | null>(null);
     const [successMessage, setSuccessMessage] = createSignal<string | null>(null);
+    const [pathSuccessMessage, setPathSuccessMessage] = createSignal<string | null>(null);
 
     // For the operation modal
     const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
@@ -37,6 +41,21 @@ function SettingsPage() {
             setIsLoading(false);
         }
     };
+    
+    const fetchScoopPath = async () => {
+        setPathIsLoading(true);
+        setPathError(null);
+        try {
+            const path = await invoke<string | null>("get_scoop_path", {});
+            setScoopPath(path ?? "");
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error("Failed to fetch scoop path:", errorMsg);
+            setPathError("Could not load Scoop path setting.");
+        } finally {
+            setPathIsLoading(false);
+        }
+    }
     
     const validateApiKey = (key: string): boolean => {
         // An empty string is valid, it just means no key is set.
@@ -70,7 +89,24 @@ function SettingsPage() {
         }
     };
     
-    onMount(fetchApiKey);
+    const handleSavePath = async () => {
+        setPathError(null);
+        setPathSuccessMessage(null);
+        try {
+            await invoke("set_scoop_path", { path: scoopPath() });
+            setPathSuccessMessage("Scoop path saved! Restart the app for it to take effect everywhere.");
+            setTimeout(() => setPathSuccessMessage(null), 5000);
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error("Failed to save scoop path:", errorMsg);
+            setPathError("Failed to save Scoop path.");
+        }
+    };
+    
+    onMount(() => {
+        fetchApiKey();
+        fetchScoopPath();
+    });
     
     const handleUnhold = (packageName: string) => {
         setOperationTitle(`Removing hold from ${packageName}...`);
@@ -89,6 +125,42 @@ function SettingsPage() {
                 <h1 class="text-3xl font-bold mb-6">Settings</h1>
                 
                 <div class="space-y-8">
+                    {/* Scoop Configuration Section */}
+                    <div class="card bg-base-200 shadow-xl">
+                        <div class="card-body">
+                            <h2 class="card-title text-xl">
+                                <FolderCog class="w-6 h-6 mr-2 text-primary" />
+                                Scoop Configuration
+                            </h2>
+                            <p class="text-base-content/80 mb-4">
+                                Set the installation path for your Scoop directory. The application may need to be restarted for this to take full effect.
+                            </p>
+                            <div class="form-control w-full max-w-lg">
+                                <label class="label">
+                                    <span class="label-text font-semibold flex items-center">
+                                        Scoop Installation Path
+                                    </span>
+                                </label>
+                                <div class="join">
+                                    <input 
+                                        type="text"
+                                        placeholder={pathIsLoading() ? "Loading..." : "Enter Scoop path (e.g. C:\\scoop)"}
+                                        class="input input-bordered join-item w-full" 
+                                        value={scoopPath()}
+                                        onInput={(e) => setScoopPath(e.currentTarget.value)}
+                                        disabled={pathIsLoading()}
+                                    />
+                                    <button class="btn btn-primary join-item" onClick={handleSavePath} disabled={pathIsLoading()}>
+                                        <Save class="w-4 h-4 mr-1" />
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                             {pathError() && <div class="alert alert-error mt-4 text-sm">{pathError()}</div>}
+                            {pathSuccessMessage() && <div class="alert alert-success mt-4 text-sm">{pathSuccessMessage()}</div>}
+                        </div>
+                    </div>
+
                     {/* VirusTotal Section */}
                     <div class="card bg-base-200 shadow-xl">
                         <div class="card-body">

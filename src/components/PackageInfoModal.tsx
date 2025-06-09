@@ -1,13 +1,15 @@
-import { For, Show, createEffect, createSignal } from "solid-js";
+import { For, Show, createEffect, createSignal, createMemo, Switch, Match } from "solid-js";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
+import json from 'highlight.js/lib/languages/json';
 import { Download, MoreHorizontal, FileText, Trash2 } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 
 hljs.registerLanguage('bash', bash);
+hljs.registerLanguage('json', json);
 
 interface PackageInfoModalProps {
   pkg: ScoopPackage | null;
@@ -19,8 +21,103 @@ interface PackageInfoModalProps {
   onUninstall?: (pkg: ScoopPackage) => void;
 }
 
+// Component to render detail values. If it's a JSON string of an object/array, it pretty-prints and highlights it.
+function DetailValue(props: { value: string }) {
+  const parsed = createMemo(() => {
+    try {
+      const p = JSON.parse(props.value);
+      if (p && typeof p === 'object') {
+        return p;
+      }
+    } catch (e) {
+      // Not a JSON object string
+    }
+    return null;
+  });
+
+  let codeRef: HTMLElement | undefined;
+  createEffect(() => {
+    if (parsed() && codeRef) {
+      hljs.highlightElement(codeRef);
+    }
+  });
+
+  return (
+    <Show when={parsed()} fallback={<span class="break-words">{props.value}</span>}>
+      <pre class="text-xs p-2 bg-base-100 rounded-lg whitespace-pre-wrap font-mono max-h-60 overflow-y-auto">
+        <code ref={codeRef} class="language-json">
+          {JSON.stringify(parsed(), null, 2)}
+        </code>
+      </pre>
+    </Show>
+  );
+}
+
+function LicenseValue(props: { value: string }) {
+  const license = createMemo(() => {
+    try {
+      const p = JSON.parse(props.value);
+      if (p && typeof p === 'object' && p.identifier) {
+        return {
+          identifier: p.identifier as string,
+          url: p.url as string | undefined,
+        };
+      }
+    } catch (e) {
+      // Not a JSON object string
+    }
+    return null;
+  });
+
+  return (
+    <Show when={license()} fallback={<DetailValue value={props.value} />}>
+      <Switch>
+        <Match when={license()?.url}>
+          <a
+            href={license()!.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="link link-primary"
+          >
+            {license()!.identifier}
+          </a>
+        </Match>
+        <Match when={!license()?.url}>
+          <span class="break-words">{license()!.identifier}</span>
+        </Match>
+      </Switch>
+    </Show>
+  );
+}
+
 function PackageInfoModal(props: PackageInfoModalProps) {
   let codeRef: HTMLElement | undefined;
+
+  const orderedDetails = createMemo(() => {
+    if (!props.info?.details) return [];
+
+    const desiredOrder = [
+      'Name',
+      'Description',
+      'Bucket',
+      'Bin',
+      'Installed',
+      'Homepage',
+      'License',
+      'Version'
+    ];
+
+    const detailsMap = new Map(props.info.details);
+    const result: [string, string][] = [];
+
+    for (const key of desiredOrder) {
+      if (detailsMap.has(key)) {
+        result.push([key, detailsMap.get(key)!]);
+      }
+    }
+
+    return result;
+  });
 
   // State for manifest modal
   const [manifestContent, setManifestContent] = createSignal<string | null>(null);
@@ -99,11 +196,20 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                 <div class="flex-1">
                   <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
                   <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
-                    <For each={props.info?.details}>
+                    <For each={orderedDetails()}>
                       {([key, value]) => (
                         <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}:</div>
-                          <div class="col-span-2">{value}</div>
+                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}{key === 'Installed' }:</div>
+                          <div class="col-span-2">
+                            <Switch fallback={<DetailValue value={value} />}>
+                              <Match when={key === 'Homepage'}>
+                                <a href={value} target="_blank" rel="noopener noreferrer" class="link link-primary break-all">{value}</a>
+                              </Match>
+                              <Match when={key === 'License'}>
+                                <LicenseValue value={value} />
+                              </Match>
+                            </Switch>
+                          </div>
                         </div>
                       )}
                     </For>

@@ -18,8 +18,15 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "capabilities": [
+        "default"
+      ]
     }
+  },
+  "plugins": {
+    "store": null,
+    "dialog": null
   },
   "bundle": {
     "active": true,
