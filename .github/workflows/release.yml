@@ -45,14 +45,14 @@ jobs:
 
       - name: Get app version from tauri.conf.json
         id: app_version
-        uses: CumulusDS/get-json-property-action@v1.0.0
+        uses: CumulusDS/get-json-property-action@v1
         with:
           file: src-tauri/tauri.conf.json
           property: version
 
       - name: Get app product name from tauri.conf.json
         id: app_product_name
-        uses: CumulusDS/get-json-property-action@v1.0.0
+        uses: CumulusDS/get-json-property-action@v1
         with:
           file: src-tauri/tauri.conf.json
           property: productName
