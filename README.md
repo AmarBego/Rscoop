@@ -52,14 +52,12 @@ This project is still in its early stages. While it's packed with features, it h
 2.  Download the latest `.msi` installer file.
 3.  Run the installer. That's it!
 
-Rscoop will automatically check for a required dependency (`sfsu`) on first launch and ask to install it for you.
- (first launch it might tell you to keep installing it, just reset the program)
 ## ❤️ Acknowledgements & Tech Stack
 
 Rscoop wouldn't be possible without the incredible work of the open-source community.
 
 -   **[Scoop](https://scoop.sh/)**: For creating the best package manager for Windows.
--   **[sfsu (Stupid Fast Scoop Utils)](https://github.com/winpax/sfsu)**: For providing the high-performance scoop commands that powers many of Rscoop's fastest features.
+-   **[sfsu (Stupid Fast Scoop Utils)](https://github.com/winpax/sfsu)**: For the original high-performance scoop logic that Rscoop's native backend is based on.
 -   **[Tauri](https://tauri.app/)**: For the lightweight and secure desktop application framework.
 -   **[SolidJS](https://www.solidjs.com/)**: For the fast and reactive UI library.
 -   **[daisyUI](https://daisyui.com/)**: For the component library for Tailwind CSS.

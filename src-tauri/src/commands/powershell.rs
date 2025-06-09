@@ -3,22 +3,8 @@ use tauri::{Emitter, Listener, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::oneshot;
-use std::process::Output;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
-/// For simple commands that return output at the end.
-pub async fn execute_command(command: &str) -> Result<Output, std::io::Error> {
-    log::info!("Executing command: {}", command);
-    let mut cmd = Command::new("powershell");
-    cmd.args(["-NoProfile", "-Command", command]);
-
-    // Prevents a console window from appearing on Windows.
-    #[cfg(windows)]
-    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-
-    cmd.output().await
-}
 
 /// Struct for streaming output lines.
 #[derive(Serialize, Clone)]

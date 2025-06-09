@@ -1,6 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod commands;
-mod utils;
+pub mod utils;
 use tauri_plugin_log::{Target, TargetKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,7 +32,6 @@ pub fn run() {
             commands::settings::get_scoop_path,
             commands::settings::set_scoop_path,
             commands::virustotal::scan_package,
-            commands::startup::check_sfsu_installed,
             commands::doctor::checkup::run_sfsu_checkup,
             commands::doctor::cleanup::cleanup_all_apps,
             commands::doctor::cleanup::cleanup_outdated_cache,

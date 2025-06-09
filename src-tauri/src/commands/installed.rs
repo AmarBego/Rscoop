@@ -5,6 +5,19 @@ use std::fs;
 use tauri::{AppHandle, Runtime};
 
 #[derive(Serialize, Debug, Clone, PartialEq, Eq)]
+pub enum MatchSource {
+    Name,
+    Binary,
+    None,
+}
+
+impl Default for MatchSource {
+    fn default() -> Self {
+        MatchSource::None
+    }
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Eq, Default)]
 pub struct ScoopPackage {
     pub name: String,
     pub version: String,
@@ -12,6 +25,8 @@ pub struct ScoopPackage {
     pub updated: String,
     pub is_installed: bool,
     pub info: String,
+    #[serde(default)]
+    pub match_source: MatchSource,
 }
 
 #[derive(Deserialize, Debug)]
@@ -111,6 +126,7 @@ pub async fn get_installed_packages_full<R: Runtime>(
             updated: updated_time,
             is_installed: true,
             info: manifest.description,
+            ..Default::default()
         });
     }
 

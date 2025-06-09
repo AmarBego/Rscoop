@@ -7,7 +7,6 @@ pub mod manifest;
 pub mod powershell;
 pub mod search;
 pub mod settings;
-pub mod startup;
 pub mod uninstall;
 pub mod update;
 pub mod updates;

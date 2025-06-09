@@ -19,20 +19,23 @@ function SearchPage() {
   const [activeTab, setActiveTab] = createSignal<"packages" | "includes">(
     "packages"
   );
-  
+
   // For the package info modal
-  const [selectedPackage, setSelectedPackage] = createSignal<ScoopPackage | null>(null);
+  const [selectedPackage, setSelectedPackage] =
+    createSignal<ScoopPackage | null>(null);
   const [info, setInfo] = createSignal<ScoopInfo | null>(null);
   const [infoLoading, setInfoLoading] = createSignal(false);
   const [infoError, setInfoError] = createSignal<string | null>(null);
 
   // For OperationModal
   const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
-  const [operationNextStep, setOperationNextStep] = createSignal<OperationNextStep | null>(null);
+  const [operationNextStep, setOperationNextStep] =
+    createSignal<OperationNextStep | null>(null);
   const { settings } = settingsStore;
   const [isScanning, setIsScanning] = createSignal(false);
-  const [pendingInstallPackage, setPendingInstallPackage] = createSignal<ScoopPackage | null>(null);
-  
+  const [pendingInstallPackage, setPendingInstallPackage] =
+    createSignal<ScoopPackage | null>(null);
+
   let debounceTimer: number;
 
   const handleSearch = async (term: string) => {
@@ -51,14 +54,14 @@ function SearchPage() {
       setLoading(false);
     }
   };
-  
+
   const performInstall = (pkg: ScoopPackage) => {
     setOperationTitle(`Installing ${pkg.name}`);
     setIsScanning(false);
     invoke("install_package", {
       packageName: pkg.name,
       packageSource: pkg.source,
-    }).catch(err => {
+    }).catch((err) => {
       console.error("Installation invocation failed:", err);
     });
   };
@@ -67,7 +70,7 @@ function SearchPage() {
     if (selectedPackage()?.name === pkg.name) {
       closeModal();
     }
-    
+
     if (settings.virustotal.enabled && settings.virustotal.autoScanOnInstall) {
       setOperationTitle(`Scanning ${pkg.name} with VirusTotal...`);
       setIsScanning(true);
@@ -75,7 +78,7 @@ function SearchPage() {
       invoke("scan_package", {
         packageName: pkg.name,
         packageSource: pkg.source,
-      }).catch(err => {
+      }).catch((err) => {
         console.error("Scan invocation failed:", err);
       });
     } else {
@@ -104,14 +107,14 @@ function SearchPage() {
         invoke("clear_package_cache", {
           packageName: pkg.name,
           packageSource: pkg.source,
-        }).catch(err => console.error("Clear cache invocation failed:", err));
+        }).catch((err) => console.error("Clear cache invocation failed:", err));
       },
     });
 
     invoke("uninstall_package", {
       packageName: pkg.name,
       packageSource: pkg.source,
-    }).catch(err => {
+    }).catch((err) => {
       console.error(`Uninstallation invocation failed for ${pkg.name}:`, err);
       setOperationNextStep(null);
     });
@@ -122,17 +125,17 @@ function SearchPage() {
       closeModal();
       return;
     }
-    
+
     setSelectedPackage(pkg);
     setInfoLoading(true);
     setInfoError(null);
     setInfo(null);
-    
+
     try {
-        const result = await invoke<ScoopInfo>("get_package_info", {
-            packageName: pkg.name
-        });
-        setInfo(result);
+      const result = await invoke<ScoopInfo>("get_package_info", {
+        packageName: pkg.name,
+      });
+      setInfo(result);
     } catch (err) {
       console.error(`Failed to fetch info for ${pkg.name}:`, err);
       setInfoError(`Failed to load info for ${pkg.name}`);
@@ -160,13 +163,17 @@ function SearchPage() {
     setInfoError(null);
   };
 
-  createEffect(on(searchTerm, (term) => {
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => handleSearch(term), 300);
-  }));
+  createEffect(
+    on(searchTerm, (term) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => handleSearch(term), 300);
+    })
+  );
 
-  const packageResults = () => results().filter((p) => !p.info);
-  const binaryResults = () => results().filter((p) => p.info);
+  const packageResults = () =>
+    results().filter((p) => p.match_source === "Name");
+  const binaryResults = () =>
+    results().filter((p) => p.match_source === "Binary");
   const resultsToShow = () => {
     return activeTab() === "packages" ? packageResults() : binaryResults();
   };
@@ -183,7 +190,7 @@ function SearchPage() {
             onInput={(e) => setSearchTerm(e.currentTarget.value)}
           />
         </div>
-        
+
         <div class="tabs tabs-border my-6">
           <a
             class="tab"
@@ -200,16 +207,21 @@ function SearchPage() {
             Includes ({binaryResults().length})
           </a>
         </div>
-        
+
         <Show when={loading()}>
-            <div class="flex justify-center items-center h-64">
-                <span class="loading loading-spinner loading-lg"></span>
-            </div>
+          <div class="flex justify-center items-center h-64">
+            <span class="loading loading-spinner loading-lg"></span>
+          </div>
         </Show>
-        
-        <Show when={!loading() && resultsToShow().length === 0 && searchTerm().length > 1}>
+
+        <Show
+          when={!loading() && resultsToShow().length === 0 && searchTerm().length > 1}
+        >
           <div class="text-center py-16">
-              <p class="text-xl">No {activeTab() === "packages" ? "packages" : "includes"} found for "{searchTerm()}"</p>
+            <p class="text-xl">
+              No {activeTab() === "packages" ? "packages" : "includes"} found
+              for "{searchTerm()}"
+            </p>
           </div>
         </Show>
 
@@ -224,17 +236,27 @@ function SearchPage() {
                   <div class="flex justify-between items-start">
                     <div class="flex-grow">
                       <h3 class="card-title">{pkg.name}</h3>
-                      <p>from bucket: <strong>{pkg.source}</strong></p>
-                      {pkg.info && <p class="text-sm mt-1">{pkg.info}</p>}
+                      <p>
+                        from bucket: <strong>{pkg.source}</strong>
+                      </p>
                     </div>
                     <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
-                      <span class="badge badge-primary badge-soft">{pkg.version}</span>
-                      {pkg.is_installed ? 
-                        <span class="badge badge-success">Installed</span> :
-                        <button class="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); handleInstall(pkg); }}>
+                      <span class="badge badge-primary badge-soft">
+                        {pkg.version}
+                      </span>
+                      {pkg.is_installed ? (
+                        <span class="badge badge-success">Installed</span>
+                      ) : (
+                        <button
+                          class="btn btn-sm btn-ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleInstall(pkg);
+                          }}
+                        >
                           <Download />
                         </button>
-                      }
+                      )}
                     </div>
                   </div>
                 </div>
@@ -243,8 +265,8 @@ function SearchPage() {
           </For>
         </div>
       </div>
-      
-      <PackageInfoModal 
+
+      <PackageInfoModal
         pkg={selectedPackage()}
         info={info()}
         loading={infoLoading()}
@@ -253,7 +275,7 @@ function SearchPage() {
         onInstall={handleInstall}
         onUninstall={handleUninstall}
       />
-      <OperationModal 
+      <OperationModal
         title={operationTitle()}
         onClose={closeOperationModal}
         isScan={isScanning()}

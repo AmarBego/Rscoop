@@ -5,6 +5,7 @@ export interface ScoopPackage {
   updated: string;
   is_installed: boolean;
   info: string;
+  match_source: "Name" | "Binary" | "None";
 }
 
 export interface ScoopInfo {

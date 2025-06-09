@@ -50,7 +50,14 @@ pub fn get_package_info<R: Runtime>(
                     None => String::new(),
                     Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
                 };
-                other_fields.push((cap_key, value_str));
+
+                let final_key = if cap_key == "Bin" {
+                    "Includes".to_string()
+                } else {
+                    cap_key
+                };
+
+                other_fields.push((final_key, value_str));
             }
         }
     }

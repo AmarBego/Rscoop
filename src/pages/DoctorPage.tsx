@@ -105,14 +105,8 @@ function DoctorPage() {
                         onCleanupApps={handleCleanupApps}
                         onCleanupCache={handleCleanupCache}
                     />
-                    <CacheManager 
-                        onRunOperation={runOperation}
-                        isOperationRunning={!!operationTitle()}
-                    />
-                    <ShimManager
-                        onRunOperation={runOperation}
-                        isOperationRunning={!!operationTitle()}
-                    />
+                    <CacheManager />
+                    <ShimManager />
 
                     <Show when={!needsAttention()}>
                          <Checkup

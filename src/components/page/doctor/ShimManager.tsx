@@ -1,6 +1,6 @@
 import { createSignal, onMount, For, Show, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, AlertTriangle, Inbox, Link, Globe, EyeOff, Plus } from "lucide-solid";
+import { RefreshCw, AlertTriangle, Inbox, Link, EyeOff, Plus, BookText } from "lucide-solid";
 import ShimDetailsModal from "./ShimDetailsModal";
 import AddShimModal from "./AddShimModal";
 
@@ -9,19 +9,15 @@ export interface Shim {
     path: string;
     source: string;
     shimType: string;
-    isGlobal: boolean;
+    args?: string;
     isHidden: boolean;
 }
 
-interface ShimManagerProps {
-    onRunOperation: (title: string, command: Promise<any>) => void;
-    isOperationRunning: boolean;
-}
-
-function ShimManager(props: ShimManagerProps) {
+function ShimManager() {
     const [allShims, setAllShims] = createSignal<Shim[]>([]);
     const [filter, setFilter] = createSignal("");
     const [isLoading, setIsLoading] = createSignal(true);
+    const [isProcessing, setIsProcessing] = createSignal(false);
     const [error, setError] = createSignal<string | null>(null);
     const [selectedShim, setSelectedShim] = createSignal<Shim | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = createSignal(false);
@@ -51,34 +47,53 @@ function ShimManager(props: ShimManagerProps) {
 
     onMount(fetchShims);
 
-    const handleAddShim = (name: string, path: string, args: string, global: boolean) => {
-        props.onRunOperation(
-            `Adding shim: ${name}...`,
-            invoke("add_shim", { args: { name, path, args, global } }).finally(() => {
-                fetchShims();
-                setIsAddModalOpen(false);
-            })
-        )
+    const handleAddShim = async (name: string, path: string, args: string) => {
+        setIsProcessing(true);
+        try {
+            await invoke("add_shim", { args: { name, path, args } });
+            await fetchShims();
+            setIsAddModalOpen(false);
+        } catch (err) {
+            console.error(`Failed to add shim ${name}:`, err);
+            // Optionally, set an error message to display to the user
+        } finally {
+            setIsProcessing(false);
+        }
     }
 
-    const handleRemoveShim = (shimName: string) => {
-        props.onRunOperation(
-            `Removing shim: ${shimName}...`,
-            invoke("remove_shim", { shimName }).finally(() => {
-                fetchShims();
-                setSelectedShim(null);
-            })
-        );
+    const handleRemoveShim = async (shimName: string) => {
+        setIsProcessing(true);
+        try {
+            await invoke("remove_shim", { shimName });
+            await fetchShims();
+            setSelectedShim(null);
+        } catch (err) {
+            console.error(`Failed to remove shim ${shimName}:`, err);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
-    const handleAlterShim = (shimName: string) => {
-        props.onRunOperation(
-            `Altering shim: ${shimName}...`,
-            invoke("alter_shim", { shimName }).finally(() => {
-                fetchShims();
+    const handleAlterShim = async (shimName: string) => {
+        setIsProcessing(true);
+        try {
+            await invoke("alter_shim", { shimName });
+            await fetchShims();
+            
+            const currentlySelected = selectedShim();
+            if (currentlySelected && currentlySelected.name === shimName) {
+                const newShims = allShims();
+                const updatedShim = newShims.find(s => s.name === shimName);
+                setSelectedShim(updatedShim || null);
+            } else {
                 setSelectedShim(null);
-            })
-        );
+            }
+
+        } catch (err) {
+            console.error(`Failed to alter shim ${shimName}:`, err);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     return (
@@ -92,14 +107,14 @@ function ShimManager(props: ShimManagerProps) {
                         <button 
                             class="btn btn-primary btn-sm"
                             onClick={() => setIsAddModalOpen(true)}
-                            disabled={isLoading() || props.isOperationRunning}
+                            disabled={isLoading() || isProcessing()}
                         >
                             <Plus class="w-4 h-4" /> Add Shim
                         </button>
                         <button 
                             class="btn btn-ghost btn-sm"
                             onClick={fetchShims} 
-                            disabled={isLoading() || props.isOperationRunning}
+                            disabled={isLoading() || isProcessing()}
                         >
                             <RefreshCw classList={{"animate-spin": isLoading()}} />
                         </button>
@@ -149,11 +164,11 @@ function ShimManager(props: ShimManagerProps) {
                                             </td>
                                             <td>
                                                 <div class="flex gap-2">
-                                                    <Show when={item.isGlobal}>
-                                                        <div class="badge badge-info gap-1"><Globe class="w-3 h-3"/>Global</div>
-                                                    </Show>
                                                     <Show when={item.isHidden}>
                                                          <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3"/>Hidden</div>
+                                                    </Show>
+                                                    <Show when={item.args}>
+                                                         <div class="badge badge-accent gap-1"><BookText class="w-3 h-3"/>Args</div>
                                                     </Show>
                                                 </div>
                                             </td>
@@ -171,7 +186,7 @@ function ShimManager(props: ShimManagerProps) {
                         onClose={() => setSelectedShim(null)}
                         onRemove={handleRemoveShim}
                         onAlter={handleAlterShim}
-                        isOperationRunning={props.isOperationRunning}
+                        isOperationRunning={isProcessing()}
                     />
                 </Show>
                 
@@ -179,7 +194,7 @@ function ShimManager(props: ShimManagerProps) {
                     <AddShimModal 
                         onClose={() => setIsAddModalOpen(false)}
                         onAdd={handleAddShim}
-                        isOperationRunning={props.isOperationRunning}
+                        isOperationRunning={isProcessing()}
                     />
                 </Show>
             </div>

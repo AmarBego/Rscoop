@@ -1,98 +1,189 @@
-use crate::commands::installed::ScoopPackage;
-use serde::Deserialize;
-use std::collections::HashMap;
-use crate::commands::powershell;
+// This command is a reimplementation of the `sfsu search` command.
+// I am grateful to the SFSU team for their original work and logic.
+// Original source: https://github.com/winpax/sfsu/blob/trunk/src/commands/search.rs
 
-#[derive(Deserialize, Debug, Clone)]
-struct SfsuPackage {
-    name: String,
-    bucket: String,
-    version: String,
+use crate::commands::installed::{MatchSource, ScoopPackage};
+use rayon::prelude::*;
+use regex::Regex;
+use sprinkles::{
+    buckets::Bucket,
+    contexts::{ScoopContext, User},
+    packages::{Manifest, MergeDefaults, SearchMode},
+    Architecture,
+};
+
+#[derive(Debug, Clone)]
+#[must_use = "MatchCriteria has no side effects"]
+/// The criteria for a match
+pub struct MatchCriteria {
+    name: bool,
+    bins: Vec<String>,
+}
+
+impl MatchCriteria {
+    /// Create a new match criteria
+    pub const fn new() -> Self {
+        Self {
+            name: false,
+            bins: vec![],
+        }
+    }
+
+    /// Check if the name matches
+    pub fn matches(
+        file_name: &str,
+        pattern: &Regex,
+        list_binaries: impl FnOnce() -> Vec<String>,
+        mode: SearchMode,
+    ) -> Self {
+        let mut output = MatchCriteria::new();
+
+        if mode.match_names() {
+            output.match_names(pattern, file_name);
+        }
+
+        if mode.match_binaries() {
+            output.match_binaries(pattern, list_binaries());
+        }
+
+        output
+    }
+
+    fn match_names(&mut self, pattern: &Regex, file_name: &str) -> &mut Self {
+        if pattern.is_match(file_name) {
+            self.name = true;
+        }
+        self
+    }
+
+    fn match_binaries(&mut self, pattern: &Regex, binaries: Vec<String>) -> &mut Self {
+        let binary_matches = binaries
+            .into_iter()
+            .filter(|binary| pattern.is_match(binary))
+            .filter_map(|b| {
+                if pattern.is_match(&b) {
+                    Some(b.clone())
+                } else {
+                    None
+                }
+            });
+
+        self.bins.extend(binary_matches);
+
+        self
+    }
+}
+
+impl Default for MatchCriteria {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+struct MatchedManifest {
+    manifest: Manifest,
     installed: bool,
-    bins: Option<Vec<String>>,
+    name_matched: bool,
+    bins: Vec<String>,
+}
+
+impl MatchedManifest {
+    pub fn new(
+        ctx: &impl ScoopContext,
+        manifest: Manifest,
+        pattern: &Regex,
+        mode: SearchMode,
+        arch: Architecture,
+    ) -> MatchedManifest {
+        // TODO: Better display of output
+        let bucket = unsafe { manifest.bucket() };
+
+        let match_output = MatchCriteria::matches(
+            unsafe { manifest.name() },
+            pattern,
+            // Function to list binaries from a manifest
+            // Passed as a closure to avoid this parsing if bin matching isn't required
+            || {
+                manifest
+                    .architecture
+                    .merge_default(manifest.install_config.clone(), arch)
+                    .bin
+                    .map(|b| b.to_vec())
+                    .unwrap_or_default()
+            },
+            mode,
+        );
+
+        let installed = manifest.is_installed(ctx, Some(bucket));
+
+        MatchedManifest {
+            manifest,
+            installed,
+            name_matched: match_output.name,
+            bins: match_output.bins,
+        }
+    }
+
+    pub fn should_match(&self, installed_only: bool) -> bool {
+        if !self.installed && installed_only {
+            return false;
+        }
+        if !self.name_matched && self.bins.is_empty() {
+            return false;
+        }
+
+        true
+    }
 }
 
 #[tauri::command]
 pub async fn search_scoop(term: String) -> Result<Vec<ScoopPackage>, String> {
-    log::info!("Searching for term: '{}'", term);
     if term.is_empty() {
         return Ok(vec![]);
     }
 
-    let lower_term = term.to_lowercase();
+    log::info!("Searching for term: '{}'", term);
 
-    // In PowerShell, single quotes must be escaped by doubling them up for command strings.
-    let sanitized_term = term.replace('\'', "''");
-    let command_str = format!("sfsu search --mode both '{sanitized_term}' --json");
+    let ctx = User::new().map_err(|e| e.to_string())?;
 
-    log::info!("Executing command: {}", &command_str);
+    let pattern = Regex::new(&format!("(?i){term}")).map_err(|e| e.to_string())?;
+    let arch = Architecture::ARCH;
 
-    let output = powershell::execute_command(&command_str)
-        .await
-        .map_err(|e| {
-            let msg = format!("Failed to execute sfsu search: {}", e);
-            log::error!("{}", msg);
-            msg
-        })?;
+    let buckets = Bucket::list_all(&ctx).map_err(|e| e.to_string())?;
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        log::warn!("sfsu search command failed. Stderr: {}", stderr);
-        // It could be that no packages were found.
-        return Ok(vec![]);
-    }
+    let packages: Vec<ScoopPackage> = buckets
+        .par_iter()
+        .filter_map(|bucket| bucket.matches(&ctx, false, &pattern, SearchMode::Both).ok())
+        .flatten()
+        .map(|manifest| MatchedManifest::new(&ctx, manifest, &pattern, SearchMode::Both, arch))
+        .filter(|manifest| manifest.should_match(false))
+        .map(|manifest| {
+            let info = if manifest.bins.is_empty() {
+                "".to_string()
+            } else {
+                format!("includes {}", manifest.bins.join(", "))
+            };
 
-    let search_output = String::from_utf8_lossy(&output.stdout);
-    if search_output.trim().is_empty() {
-        return Ok(vec![]);
-    }
+            let match_source = if manifest.name_matched {
+                MatchSource::Name
+            } else {
+                MatchSource::Binary
+            };
 
-    log::debug!("sfsu search output: {}", search_output);
-
-    let search_results: HashMap<String, Vec<SfsuPackage>> =
-        serde_json::from_str(&search_output).map_err(|e| {
-            let msg = format!("Failed to parse sfsu search JSON: {}", e);
-            log::error!("{}. Output was: {}", msg, search_output);
-            msg
-        })?;
-
-    let mut packages = Vec::new();
-
-    for (_bucket, sfsu_packages) in search_results {
-        for sfsu_pkg in sfsu_packages {
-            let lower_name = sfsu_pkg.name.to_lowercase();
-            let is_name_match = lower_name.contains(&lower_term);
-
-            if is_name_match {
-                packages.push(ScoopPackage {
-                    name: sfsu_pkg.name,
-                    version: sfsu_pkg.version,
-                    source: sfsu_pkg.bucket,
-                    is_installed: sfsu_pkg.installed,
-                    updated: "".to_string(),
-                    info: "".to_string(),
-                });
-            } else if let Some(bins) = &sfsu_pkg.bins {
-                if let Some(matching_bin) = bins.iter().find(|b| {
-                    let bin_filename = std::path::Path::new(b)
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or(b);
-                    bin_filename.to_lowercase().contains(&lower_term)
-                }) {
-                    packages.push(ScoopPackage {
-                        name: sfsu_pkg.name,
-                        version: sfsu_pkg.version,
-                        source: sfsu_pkg.bucket,
-                        is_installed: sfsu_pkg.installed,
-                        updated: "".to_string(),
-                        info: format!("includes {}", matching_bin),
-                    });
-                }
+            ScoopPackage {
+                name: unsafe { manifest.manifest.name() }.to_string(),
+                version: manifest.manifest.version.to_string(),
+                source: unsafe { manifest.manifest.bucket() }.to_string(),
+                is_installed: manifest.installed,
+                updated: "".to_string(),
+                info,
+                match_source,
+                ..Default::default()
             }
-        }
-    }
+        })
+        .collect();
 
-    log::info!("Parsed {} packages from search output", packages.len());
+    log::info!("Found {} packages matching '{}'", packages.len(), term);
+
     Ok(packages)
 } 

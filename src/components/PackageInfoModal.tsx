@@ -100,7 +100,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       'Name',
       'Description',
       'Bucket',
-      'Bin',
+      'Includes',
       'Installed',
       'Homepage',
       'License',
@@ -199,7 +199,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                     <For each={orderedDetails()}>
                       {([key, value]) => (
                         <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}{key === 'Installed' }:</div>
+                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}{key === 'Installed' || key === 'Includes'}:</div>
                           <div class="col-span-2">
                             <Switch fallback={<DetailValue value={value} />}>
                               <Match when={key === 'Homepage'}>
