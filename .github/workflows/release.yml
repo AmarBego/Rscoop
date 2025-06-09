@@ -53,7 +53,8 @@ jobs:
         shell: pwsh
 
       - name: Compress executable with UPX
-        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe      - name: Bundle application (MSI, NSIS installers)
+        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
+      - name: Bundle application (MSI, NSIS installers)
         # This uses the already built (and UPX'd) executable
         # It will also ensure frontend assets from `frontendDist` are included
         run: npm run tauri -- bundle --release
@@ -70,7 +71,8 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.app_info.outputs.product_name }} ${{ github.ref_name }}
           body: |
