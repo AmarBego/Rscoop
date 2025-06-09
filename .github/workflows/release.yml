@@ -34,14 +34,14 @@ jobs:
 
       - name: Run Vite build (frontend)
         # This corresponds to your `beforeBuildCommand`
-        run: npm run build
-
-      - name: Build Rust application (executable only)
+        run: npm run build      - name: Build Rust application (executable only)
         # Builds the .exe in src-tauri/target/release/
         run: |
           cd src-tauri
           cargo build --release
-          cd ..      - name: Get app version and product name from tauri.conf.json
+          cd ..
+
+      - name: Get app version and product name from tauri.conf.json
         id: app_info
         run: |
           $config = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
@@ -49,25 +49,26 @@ jobs:
           $productName = $config.productName
           echo "version=$version" >> $env:GITHUB_OUTPUT
           echo "product_name=$productName" >> $env:GITHUB_OUTPUT
-        shell: pwsh      - name: Compress executable with UPX
-        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
+        shell: pwsh
 
-      - name: Bundle application (MSI, NSIS installers)
+      - name: Compress executable with UPX
+        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe      - name: Bundle application (MSI, NSIS installers)
         # This uses the already built (and UPX'd) executable
         # It will also ensure frontend assets from `frontendDist` are included
-        run: npm run tauri -- bundle --release      - name: List bundled artifacts for verification
+        run: npm run tauri -- bundle --release
+
+      - name: List bundled artifacts for verification
         run: |
           echo "--- Main Executable ---"
           Get-ChildItem -Path src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
           echo "--- Bundles Directory ---"
           Get-ChildItem -Path src-tauri/target/release/bundle -Recurse
-        shell: pwsh
-
-      - name: Create GitHub Release
+        shell: pwsh      - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
           tag_name: ${{ github.ref_name }}
           name: ${{ steps.app_info.outputs.product_name }} ${{ github.ref_name }}
           body: |
