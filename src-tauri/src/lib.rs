@@ -18,7 +18,28 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::search::search_scoop,
             commands::installed::get_installed_packages_full,
-            commands::info::get_package_info
+            commands::info::get_package_info,
+            commands::install::install_package,
+            commands::manifest::get_package_manifest,
+            commands::update::check_for_updates,
+            commands::update::update_package,
+            commands::update::update_all_packages,
+            commands::uninstall::uninstall_package,
+            commands::uninstall::clear_package_cache,
+            commands::settings::get_config_value,
+            commands::settings::set_config_value,
+            commands::virustotal::scan_package,
+            commands::startup::check_sfsu_installed,
+            commands::doctor::checkup::run_sfsu_checkup,
+            commands::doctor::cleanup::cleanup_all_apps,
+            commands::doctor::cleanup::cleanup_outdated_cache,
+            commands::doctor::cache::list_cache_contents,
+            commands::doctor::cache::clear_cache,
+            commands::doctor::shim::list_shims,
+            commands::doctor::shim::remove_shim,
+            commands::hold::list_held_packages,
+            commands::hold::hold_package,
+            commands::hold::unhold_package
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

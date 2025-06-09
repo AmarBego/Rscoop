@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
-use tokio::process::Command;
+use crate::commands::powershell;
 
 #[derive(Serialize, Debug, Clone, Default)]
 pub struct ScoopInfo {
@@ -14,9 +14,7 @@ pub async fn get_package_info(package_name: String) -> Result<ScoopInfo, String>
 
     let command_str = format!("scoop info {} | ConvertTo-Json", package_name);
 
-    let output = Command::new("powershell")
-        .args(["-Command", &command_str])
-        .output()
+    let output = powershell::execute_command(&command_str)
         .await
         .map_err(|e| format!("Failed to execute scoop info: {}", e))?;
 

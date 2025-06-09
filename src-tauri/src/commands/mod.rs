@@ -1,3 +1,13 @@
 pub mod installed;
 pub mod search;
 pub mod info; 
+pub mod install;
+pub mod manifest;
+pub mod powershell;
+pub mod uninstall;
+pub mod update;
+pub mod settings;
+pub mod startup;
+pub mod virustotal;
+pub mod doctor;
+pub mod hold; 

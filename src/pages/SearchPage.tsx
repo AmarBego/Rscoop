@@ -2,7 +2,9 @@ import { createSignal, createEffect, on, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
 import PackageInfoModal from "../components/PackageInfoModal";
+import OperationModal from "../components/OperationModal";
 import { Download } from "lucide-solid";
+import settingsStore from "../stores/settings";
 
 function SearchPage() {
   const [searchTerm, setSearchTerm] = createSignal("");
@@ -17,6 +19,12 @@ function SearchPage() {
   const [info, setInfo] = createSignal<ScoopInfo | null>(null);
   const [infoLoading, setInfoLoading] = createSignal(false);
   const [infoError, setInfoError] = createSignal<string | null>(null);
+
+  // For OperationModal
+  const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
+  const { settings } = settingsStore;
+  const [isScanning, setIsScanning] = createSignal(false);
+  const [pendingInstallPackage, setPendingInstallPackage] = createSignal<ScoopPackage | null>(null);
   
   let debounceTimer: number;
 
@@ -34,6 +42,45 @@ function SearchPage() {
       setResults([]);
     } finally {
       setLoading(false);
+    }
+  };
+  
+  const performInstall = (pkg: ScoopPackage) => {
+    setOperationTitle(`Installing ${pkg.name}`);
+    setIsScanning(false);
+    invoke("install_package", {
+      packageName: pkg.name,
+      packageSource: pkg.source,
+    }).catch(err => {
+      console.error("Installation invocation failed:", err);
+    });
+  };
+
+  const handleInstall = (pkg: ScoopPackage) => {
+    if (selectedPackage()?.name === pkg.name) {
+      closeModal();
+    }
+    
+    if (settings.virustotal.enabled && settings.virustotal.autoScanOnInstall) {
+      setOperationTitle(`Scanning ${pkg.name} with VirusTotal...`);
+      setIsScanning(true);
+      setPendingInstallPackage(pkg); // Remember which package to install
+      invoke("scan_package", {
+        packageName: pkg.name,
+        packageSource: pkg.source,
+      }).catch(err => {
+        console.error("Scan invocation failed:", err);
+      });
+    } else {
+      performInstall(pkg);
+    }
+  };
+
+  const handleInstallConfirm = () => {
+    const pkg = pendingInstallPackage();
+    if (pkg) {
+      performInstall(pkg);
+      setPendingInstallPackage(null);
     }
   };
 
@@ -58,6 +105,16 @@ function SearchPage() {
       setInfoError(`Failed to load info for ${pkg.name}`);
     } finally {
       setInfoLoading(false);
+    }
+  };
+
+  const closeOperationModal = (wasSuccess: boolean) => {
+    setOperationTitle(null);
+    setIsScanning(false);
+    setPendingInstallPackage(null);
+    if (wasSuccess) {
+      // Refetch search to update "installed" status
+      handleSearch(searchTerm());
     }
   };
 
@@ -91,7 +148,7 @@ function SearchPage() {
           />
         </div>
         
-        <div class="tabs tabs-boxed my-6">
+        <div class="tabs tabs-border my-6">
           <a
             class="tab"
             classList={{ "tab-active": activeTab() === "packages" }}
@@ -135,10 +192,10 @@ function SearchPage() {
                       {pkg.info && <p class="text-sm mt-1">{pkg.info}</p>}
                     </div>
                     <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
-                      <span class="badge badge-primary">{pkg.version}</span>
+                      <span class="badge badge-primary badge-soft">{pkg.version}</span>
                       {pkg.is_installed ? 
                         <span class="badge badge-success">Installed</span> :
-                        <button class="btn btn-sm btn-ghost">
+                        <button class="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); handleInstall(pkg); }}>
                           <Download />
                         </button>
                       }
@@ -157,6 +214,13 @@ function SearchPage() {
         loading={infoLoading()}
         error={infoError()}
         onClose={closeModal}
+        onInstall={handleInstall}
+      />
+      <OperationModal 
+        title={operationTitle()}
+        onClose={closeOperationModal}
+        isScan={isScanning()}
+        onInstallConfirm={handleInstallConfirm}
       />
     </div>
   );

@@ -1,6 +1,6 @@
 import { Component, For } from "solid-js";
 import { View } from "../types/scoop.ts";
-import { Package, Search, Settings } from "lucide-solid";
+import { Package, Search, Settings, Stethoscope } from "lucide-solid";
 
 interface HeaderProps {
   currentView: View;
@@ -11,6 +11,7 @@ const Header: Component<HeaderProps> = (props) => {
   const navItems: { view: View; label: string; icon: typeof Search }[] = [
     { view: "search", label: "Search", icon: Search },
     { view: "installed", label: "Installed", icon: Package },
+    { view: "doctor", label: "Doctor", icon: Stethoscope },
     { view: "settings", label: "Settings", icon: Settings },
   ];
 
@@ -36,7 +37,7 @@ const Header: Component<HeaderProps> = (props) => {
                 <button
                   class="btn"
                   classList={{
-                    "btn-active": props.currentView === item.view,
+                    "btn-active bg-base-100": props.currentView === item.view,
                   }}
                   onClick={() => props.onNavigate(item.view)}
                 >
