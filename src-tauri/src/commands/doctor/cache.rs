@@ -1,15 +1,8 @@
-use serde::{Deserialize, Serialize};
-use tauri::Window;
-use crate::commands::powershell;
-
-// Represents the data structure from the PowerShell `ConvertTo-Json` output.
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "PascalCase")]
-struct PowerShellCacheEntry {
-    name: String,
-    version: String,
-    length: u64,
-}
+use serde::Serialize;
+use tauri::{AppHandle, Runtime};
+use crate::utils;
+use std::fs;
+use std::path::PathBuf;
 
 // Represents the data structure we send to the frontend (camelCase).
 #[derive(Serialize, Debug, Clone)]
@@ -18,72 +11,123 @@ pub struct CacheEntry {
     pub name: String,
     pub version: String,
     pub length: u64,
+    pub file_name: String,
+}
+
+// Helper function to parse a cache file entry.
+fn parse_cache_entry_from_path(path: &PathBuf) -> Option<CacheEntry> {
+    if !path.is_file() {
+        return None;
+    }
+
+    let file_name = match path.file_name().and_then(|name| name.to_str()) {
+        Some(name) => name.to_string(),
+        None => return None,
+    };
+
+    let parts: Vec<&str> = file_name.split('#').collect();
+
+    // Expects format like `name#version#hash.ext`
+    if parts.len() < 2 {
+        log::warn!("Skipping cache file with unexpected format: {}", file_name);
+        return None;
+    }
+
+    let name = parts[0].to_string();
+    let version = parts[1].to_string();
+
+    match fs::metadata(path) {
+        Ok(metadata) => Some(CacheEntry {
+            name,
+            version,
+            length: metadata.len(),
+            file_name,
+        }),
+        Err(e) => {
+            log::error!("Failed to get metadata for {}: {}", file_name, e);
+            None
+        }
+    }
 }
 
 #[tauri::command]
-pub async fn list_cache_contents() -> Result<Vec<CacheEntry>, String> {
-    log::info!("Listing cache contents with `scoop cache | ConvertTo-Json`");
+pub async fn list_cache_contents<R: Runtime>(app: AppHandle<R>) -> Result<Vec<CacheEntry>, String> {
+    log::info!("Listing cache contents from filesystem");
 
-    let command_str = "scoop cache | ConvertTo-Json";
-    let output = powershell::execute_command(command_str)
-        .await
-        .map_err(|e| e.to_string())?;
+    let scoop_path = utils::find_scoop_dir(app).map_err(|e| e.to_string())?;
+    let cache_path = scoop_path.join("cache");
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        log::error!("`scoop cache` command failed: {}", stderr);
-        return Err(format!("Failed to list cache contents: {}", stderr));
+    if !cache_path.exists() || !cache_path.is_dir() {
+        log::warn!("Scoop cache directory not found at: {:?}", cache_path);
+        return Ok(vec![]);
+    }
+
+    let mut entries = vec![];
+    let read_dir = fs::read_dir(&cache_path).map_err(|e| format!("Failed to read cache directory: {}", e))?;
+    
+    for dir_entry_result in read_dir {
+        match dir_entry_result {
+            Ok(dir_entry) => {
+                if let Some(cache_entry) = parse_cache_entry_from_path(&dir_entry.path()) {
+                    entries.push(cache_entry);
+                }
+            }
+            Err(e) => {
+                log::error!("Error reading directory entry in cache: {}", e);
+            }
+        }
     }
     
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
-    let json_start = stdout.find(|c| c == '{' || c == '[').unwrap_or(0);
-    let json_str = &stdout[json_start..];
-
-    let parsed_entries: Vec<PowerShellCacheEntry> = if json_str.trim().starts_with('{') {
-        let entry: PowerShellCacheEntry = serde_json::from_str(json_str)
-            .map_err(|e| format!("Failed to parse single cache entry: {}. Raw: {}", e, json_str))?;
-        vec![entry]
-    } else {
-        serde_json::from_str(json_str).map_err(|e| {
-            log::error!("Failed to parse scoop cache JSON array: {}. Output: {}", e, json_str);
-            format!("Failed to parse cache data from `scoop`: {}", e)
-        })?
-    };
-
-    // Map from the PowerShell format to the frontend format.
-    let frontend_entries = parsed_entries.into_iter().map(|entry| CacheEntry {
-        name: entry.name,
-        version: entry.version,
-        length: entry.length,
-    }).collect();
-
-    Ok(frontend_entries)
+    Ok(entries)
 }
 
 #[tauri::command]
-pub async fn clear_cache(window: Window, packages: Vec<String>) -> Result<(), String> {
-    let command_args = if packages.is_empty() {
-        // Using --all to clear everything
-        "--all".to_string()
-    } else {
-        packages.join(" ")
-    };
+pub async fn clear_cache<R: Runtime>(app: AppHandle<R>, files: Option<Vec<String>>) -> Result<(), String> {
+    log::info!("Clearing cache from filesystem. Files: {:?}", &files);
 
-    let command_str = format!("scoop cache rm {}", command_args);
-    let operation_name = if packages.is_empty() {
-        "Clearing all package caches".to_string()
-    } else {
-        format!("Clearing cache for {} package(s)", packages.len())
-    };
+    let scoop_path = utils::find_scoop_dir(app).map_err(|e| e.to_string())?;
+    let cache_path = scoop_path.join("cache");
 
-    powershell::run_and_stream_command(
-        window,
-        command_str,
-        operation_name,
-        "operation-output",
-        "operation-finished",
-        "cancel-operation",
-    )
-    .await
+    if !cache_path.exists() {
+        return Ok(());
+    }
+
+    match files {
+        Some(files_to_delete) => {
+            if files_to_delete.is_empty() {
+                log::info!("No specific cache files requested for deletion.");
+                return Ok(());
+            }
+
+            log::info!("Clearing {} specified cache files.", files_to_delete.len());
+            for file_name in files_to_delete {
+                let file_path = cache_path.join(&file_name);
+                if file_path.exists() && file_path.is_file() {
+                    if let Err(e) = fs::remove_file(&file_path) {
+                        log::error!("Failed to delete cache file {}: {}", file_name, e);
+                    }
+                }
+            }
+        }
+        None => {
+            log::info!("Clearing all files from cache directory.");
+            let dir_entries = fs::read_dir(&cache_path)
+                .map_err(|e| format!("Failed to read cache directory: {}", e))?;
+            
+            for entry in dir_entries {
+                if let Ok(entry) = entry {
+                    let path = entry.path();
+                    if path.is_file() {
+                        if let Err(e) = fs::remove_file(&path) {
+                            log::error!("Failed to remove cache file {:?}: {}", path.file_name(), e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
 } 

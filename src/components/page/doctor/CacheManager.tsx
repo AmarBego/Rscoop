@@ -7,14 +7,15 @@ interface CacheEntry {
     name: string;
     version: string;
     length: number; 
+    fileName: string;
 }
 
 // A unique identifier for a cache entry
 type CacheIdentifier = string; 
 
 function getCacheIdentifier(entry: CacheEntry): CacheIdentifier {
-    // Using length as part of the key for uniqueness, as multiple files can exist for the same version
-    return `${entry.name}@${entry.version}:${entry.length}`;
+    // Using the full filename for uniqueness
+    return entry.fileName;
 }
 
 interface CacheManagerProps {
@@ -71,20 +72,18 @@ function CacheManager(props: CacheManagerProps) {
     };
 
     const handleClearSelected = () => {
-        const packageNames = new Set(
-            [...selectedItems()].map(id => id.split('@')[0])
-        );
+        const selectedFiles = [...selectedItems()];
 
         props.onRunOperation(
-            `Clearing cache for ${packageNames.size} package(s)...`,
-            invoke("clear_cache", { packages: [...packageNames] }).finally(fetchCacheContents)
+            `Clearing cache for ${selectedFiles.length} item(s)...`,
+            invoke("clear_cache", { files: selectedFiles }).finally(fetchCacheContents)
         );
     };
     
     const handleClearAll = () => {
         props.onRunOperation(
             "Clearing all package cache...",
-            invoke("clear_cache", { packages: [] }).finally(fetchCacheContents)
+            invoke("clear_cache", { files: null }).finally(fetchCacheContents)
         );
     };
 
