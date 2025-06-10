@@ -23,11 +23,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Rust Cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: ./src-tauri
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -43,6 +38,8 @@ jobs:
       - name: Run Vite build (frontend)
         # This corresponds to your `beforeBuildCommand`
         run: npm run build
+        env:
+          NODE_ENV: production  # Ensure production mode is used for the build
       - name: Build Rust application (executable only)
         # Builds the .exe in src-tauri/target/release/
         run: |
