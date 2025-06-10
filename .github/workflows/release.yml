@@ -1,33 +1,23 @@
-name: Release Build and Upload
+name: Release Build
 
 on:
   push:
     tags:
-      - 'v*.*.*' # Trigger on version tags like v1.0.0
+      - 'v*.*.*'
+
+permissions:
+  contents: write
 
 jobs:
-  build-and-release-windows:
+  build:
     runs-on: windows-latest
-    permissions:
-      contents: write # Needed to create releases
     env:
-      NODE_VERSION: '20' # Specify your project's Node.js version
-
+      NODE_VERSION: '20'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Node.js dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            **/node_modules
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -40,7 +30,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             src-tauri/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -48,96 +38,55 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          components: rust-src # May be needed for some crates
 
-      - name: Install UPX
+      - name: Install system dependencies (UPX)
         run: choco install upx -y
 
-      - name: Install frontend dependencies
-        run: npm install
+      - name: Install project dependencies
+        run: npm ci
 
-      - name: Run Vite build (frontend)
-        # This corresponds to your `beforeBuildCommand`
-        run: npm run build
-        env:
-          NODE_ENV: production  # Ensure production mode is used for the build
+      # One command builds frontend, compiles Rust, and bundles installers
+      - name: Build & bundle application (Tauri)
+        run: npm run tauri -- build
 
-      - name: Log Vite output location
-        run: |
-          echo "Vite output directory:"
-          ls -R dist
-          echo "Current directory structure:"
-          ls -R
-
-      - name: Build Rust application (executable only)
-        # Builds the .exe in src-tauri/target/release/
-        run: |
-          cd src-tauri
-          cargo build --release
-          cd ..
-
-      - name: Get app version and product name from tauri.conf.json
-        id: app_info
-        run: |
-          $config = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
-          $version = $config.version
-          $productName = $config.productName
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "productName=$productName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+      - name: Extract metadata (product name & version)
+        id: meta
         shell: pwsh
+        run: |
+          $cfg = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          "version=$($cfg.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "product=$($cfg.productName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Compress executable with UPX
-        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.productName }}.exe
-      - name: Bundle application (MSI, NSIS installers)
-        # This uses the already built (and UPX'd) executable
-        # It will also ensure frontend assets from `frontendDist` are included
-        run: npm run tauri -- bundle
+        run: upx --best --lzma src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
 
-      - name: List bundled artifacts for verification
-        run: |
-          echo "--- Main Executable ---"
-          Get-ChildItem -Path src-tauri/target/release/${{ steps.app_info.outputs.productName }}.exe
-          echo "--- Bundles Directory ---"
-          Get-ChildItem -Path src-tauri/target/release/bundle -Recurse
-        shell: pwsh
-
-      - name: Create Release
+      - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.app_info.outputs.version }}
-          release_name: Release ${{ steps.app_info.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
 
-      - name: Upload Release Assets
+      - name: Upload main executable
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/${{ steps.app_info.outputs.productName }}.exe
-          asset_name: ${{ steps.app_info.outputs.productName }}.exe
+          asset_path: ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
+          asset_name: ${{ steps.meta.outputs.product }}.exe
           asset_content_type: application/octet-stream
 
-      - name: Upload Installer
+      - name: Upload MSI installer
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
-          asset_name: ${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
-          asset_content_type: application/octet-stream
-
-      - name: Upload Setup
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/nsis/${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
-          asset_name: ${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
+          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
+          asset_name: ${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
           asset_content_type: application/octet-stream

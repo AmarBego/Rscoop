@@ -6,6 +6,10 @@ use tokio::sync::oneshot;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+pub const EVENT_OUTPUT: &str = "operation-output";
+pub const EVENT_FINISHED: &str = "operation-finished";
+pub const EVENT_CANCEL: &str = "cancel-operation";
+
 /// Struct for streaming output lines.
 #[derive(Serialize, Clone)]
 pub struct StreamOutput {

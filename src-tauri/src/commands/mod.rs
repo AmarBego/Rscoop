@@ -5,6 +5,7 @@ pub mod install;
 pub mod installed;
 pub mod manifest;
 pub mod powershell;
+pub mod scoop;
 pub mod search;
 pub mod settings;
 pub mod uninstall;

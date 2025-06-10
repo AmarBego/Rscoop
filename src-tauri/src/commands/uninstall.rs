@@ -1,5 +1,5 @@
 use tauri::Window;
-use crate::commands::powershell;
+use crate::commands::scoop::{self, ScoopOp};
 
 #[tauri::command]
 pub async fn uninstall_package(
@@ -7,23 +7,8 @@ pub async fn uninstall_package(
     package_name: String,
     package_source: String,
 ) -> Result<(), String> {
-    let command_str = if !package_source.is_empty() && package_source != "None" {
-        format!("scoop uninstall {}/{}", package_source, package_name)
-    } else {
-        format!("scoop uninstall {}", package_name)
-    };
-
-    let operation_name = format!("Uninstall of {}", package_name);
-
-    powershell::run_and_stream_command(
-        window,
-        command_str,
-        operation_name,
-        "operation-output",
-        "operation-finished",
-        "cancel-operation",
-    )
-    .await
+    let bucket_opt = if package_source.is_empty() || package_source == "None" { None } else { Some(package_source.as_str()) };
+    scoop::execute_scoop(window, ScoopOp::Uninstall, Some(&package_name), bucket_opt).await
 }
 
 #[tauri::command]
@@ -32,21 +17,6 @@ pub async fn clear_package_cache(
     package_name: String,
     package_source: String,
 ) -> Result<(), String> {
-    let command_str = if !package_source.is_empty() && package_source != "None" {
-        format!("scoop cache rm {}", package_name)
-    } else {
-        format!("scoop cache rm {}", package_name)
-    };
-
-    let operation_name = format!("Clearing cache for {}", package_name);
-
-    powershell::run_and_stream_command(
-        window,
-        command_str,
-        operation_name,
-        "operation-output",
-        "operation-finished",
-        "cancel-operation",
-    )
-    .await
-} 
+    let bucket_opt = if package_source.is_empty() || package_source == "None" { None } else { Some(package_source.as_str()) };
+    scoop::execute_scoop(window, ScoopOp::ClearCache, Some(&package_name), bucket_opt).await
+}
