@@ -59,6 +59,14 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production  # Ensure production mode is used for the build
+
+      - name: Log Vite output location
+        run: |
+          echo "Vite output directory:"
+          ls -R dist
+          echo "Current directory structure:"
+          ls -R
+
       - name: Build Rust application (executable only)
         # Builds the .exe in src-tauri/target/release/
         run: |

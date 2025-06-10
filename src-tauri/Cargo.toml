@@ -1,6 +1,6 @@
 [package]
 name = "rscoop"
-version = "0.1.4"
+version = "0.1.5"
 description = "A modern, powerful GUI for Scoop"
 authors = ["AmarBego"]
 license = "MIT"
