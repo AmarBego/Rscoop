@@ -3,7 +3,11 @@ import solid from "vite-plugin-solid";
 import tailwindcss from "@tailwindcss/vite";
 
 // @ts-expect-error process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
+const tauriDevHost = process.env.TAURI_DEV_HOST;
+
+// Ensure hostConfig is false if TAURI_DEV_HOST is undefined, null, empty, or whitespace only.
+// Otherwise, use the trimmed value of TAURI_DEV_HOST.
+const hostConfig = (tauriDevHost && tauriDevHost.trim() !== "") ? tauriDevHost.trim() : false;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
@@ -21,11 +25,11 @@ export default defineConfig(async () => ({
   server: {
     port: 1420,
     strictPort: true,
-    host: host || false,
-    hmr: host
+    host: hostConfig, // Use the robust hostConfig
+    hmr: hostConfig // Only configure HMR if hostConfig is a valid host string
       ? {
           protocol: "ws",
-          host,
+          host: hostConfig,
           port: 1421,
         }
       : undefined,
