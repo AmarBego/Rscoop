@@ -17,11 +17,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            **/node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target/release
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -72,24 +91,43 @@ jobs:
           Get-ChildItem -Path src-tauri/target/release/bundle -Recurse
         shell: pwsh
 
-      - name: Create GitHub Release
+      - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          name: ${{ steps.app_info.outputs.product_name }} ${{ github.ref_name }}
-          body: |
-            Automated release for ${{ steps.app_info.outputs.product_name }} version ${{ steps.app_info.outputs.version }}.
-
-            Artifacts:
-            - Main executable: `${{ steps.app_info.outputs.product_name }}.exe` (UPX compressed)
-            - MSI installer: `${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi`
-            - NSIS setup: `${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe`
+          tag_name: ${{ steps.app_info.outputs.version }}
+          release_name: Release ${{ steps.app_info.outputs.version }}
           draft: false
           prerelease: false
-          files: |
-            src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
-            src-tauri/target/release/bundle/msi/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
-            src-tauri/target/release/bundle/nsis/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
+          asset_name: ${{ steps.app_info.outputs.product_name }}.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload Installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
+          asset_name: ${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
+          asset_content_type: application/octet-stream
+
+      - name: Upload Setup
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/release/bundle/nsis/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
+          asset_name: ${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
+          asset_content_type: application/octet-stream
