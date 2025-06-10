@@ -1,13 +1,13 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "rscoop",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "identifier": "com.rscoop.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "frontendDist": "./dist"
   },
   "app": {
     "windows": [

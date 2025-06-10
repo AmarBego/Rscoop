@@ -39,8 +39,10 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            src-tauri/target/release
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -80,12 +82,12 @@ jobs:
           $config = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
           $version = $config.version
           $productName = $config.productName
-          echo "version=$version" >> $env:GITHUB_OUTPUT
-          echo "product_name=$productName" >> $env:GITHUB_OUTPUT
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "productName=$productName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         shell: pwsh
 
       - name: Compress executable with UPX
-        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
+        run: upx --best --lzma src-tauri/target/release/${{ steps.app_info.outputs.productName }}.exe
       - name: Bundle application (MSI, NSIS installers)
         # This uses the already built (and UPX'd) executable
         # It will also ensure frontend assets from `frontendDist` are included
@@ -94,7 +96,7 @@ jobs:
       - name: List bundled artifacts for verification
         run: |
           echo "--- Main Executable ---"
-          Get-ChildItem -Path src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
+          Get-ChildItem -Path src-tauri/target/release/${{ steps.app_info.outputs.productName }}.exe
           echo "--- Bundles Directory ---"
           Get-ChildItem -Path src-tauri/target/release/bundle -Recurse
         shell: pwsh
@@ -116,8 +118,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/${{ steps.app_info.outputs.product_name }}.exe
-          asset_name: ${{ steps.app_info.outputs.product_name }}.exe
+          asset_path: ./src-tauri/target/release/${{ steps.app_info.outputs.productName }}.exe
+          asset_name: ${{ steps.app_info.outputs.productName }}.exe
           asset_content_type: application/octet-stream
 
       - name: Upload Installer
@@ -126,8 +128,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
-          asset_name: ${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
+          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
+          asset_name: ${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64_en-US.msi
           asset_content_type: application/octet-stream
 
       - name: Upload Setup
@@ -136,6 +138,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/nsis/${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
-          asset_name: ${{ steps.app_info.outputs.product_name }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
+          asset_path: ./src-tauri/target/release/bundle/nsis/${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
+          asset_name: ${{ steps.app_info.outputs.productName }}_${{ steps.app_info.outputs.version }}_x64-setup.exe
           asset_content_type: application/octet-stream
