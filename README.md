@@ -51,6 +51,7 @@ This project is still in its early stages. While it's packed with features, it h
 1.  Go to the [**Releases**](https://github.com/AmarBego/rscoop/releases) page.
 2.  Download the latest `.msi` installer file.
 3.  Run the installer. That's it!
+4.  Upon installation set the PATH of scoop in the settings page (this only happens once) and restart the program, (this is going to be fixed in the next release)
 
 ## ❤️ Acknowledgements & Tech Stack
 
