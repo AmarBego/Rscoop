@@ -25,6 +25,8 @@ jobs:
 
       - name: Rust Cache
         uses: swatinem/rust-cache@v2
+        with:
+          working-directory: src-tauri
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable

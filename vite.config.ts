@@ -11,6 +11,7 @@ export default defineConfig(async () => ({
     tailwindcss(),
     solid(),
   ],
+  base: './',
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
   //
