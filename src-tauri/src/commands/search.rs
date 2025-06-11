@@ -1,189 +1,194 @@
-// This command is a reimplementation of the `sfsu search` command.
-// I am grateful to the SFSU team for their original work and logic.
-// Original source: https://github.com/winpax/sfsu/blob/trunk/src/commands/search.rs
-
-use crate::commands::installed::{MatchSource, ScoopPackage};
+//! Commands for searching Scoop packages.
+use crate::commands::installed::get_installed_packages_full;
+use crate::models::{MatchSource, ScoopPackage, SearchResult};
+use crate::utils;
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
-use sprinkles::{
-    buckets::Bucket,
-    contexts::{ScoopContext, User},
-    packages::{Manifest, MergeDefaults, SearchMode},
-    Architecture,
-};
+use serde_json::Value;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
-#[derive(Debug, Clone)]
-#[must_use = "MatchCriteria has no side effects"]
-/// The criteria for a match
-pub struct MatchCriteria {
-    name: bool,
-    bins: Vec<String>,
-}
+// Global cache for manifest paths to avoid re-scanning the filesystem on every search.
+static MANIFEST_CACHE: Lazy<Mutex<Option<HashSet<PathBuf>>>> = Lazy::new(|| Mutex::new(None));
 
-impl MatchCriteria {
-    /// Create a new match criteria
-    pub const fn new() -> Self {
-        Self {
-            name: false,
-            bins: vec![],
-        }
+/// Finds all `.json` manifest files in a given bucket's `bucket` subdirectory.
+fn find_manifests_in_bucket(bucket_path: PathBuf) -> Vec<PathBuf> {
+    let manifests_path = bucket_path.join("bucket");
+    if !manifests_path.is_dir() {
+        return vec![];
     }
 
-    /// Check if the name matches
-    pub fn matches(
-        file_name: &str,
-        pattern: &Regex,
-        list_binaries: impl FnOnce() -> Vec<String>,
-        mode: SearchMode,
-    ) -> Self {
-        let mut output = MatchCriteria::new();
-
-        if mode.match_names() {
-            output.match_names(pattern, file_name);
-        }
-
-        if mode.match_binaries() {
-            output.match_binaries(pattern, list_binaries());
-        }
-
-        output
-    }
-
-    fn match_names(&mut self, pattern: &Regex, file_name: &str) -> &mut Self {
-        if pattern.is_match(file_name) {
-            self.name = true;
-        }
-        self
-    }
-
-    fn match_binaries(&mut self, pattern: &Regex, binaries: Vec<String>) -> &mut Self {
-        let binary_matches = binaries
-            .into_iter()
-            .filter(|binary| pattern.is_match(binary))
-            .filter_map(|b| {
-                if pattern.is_match(&b) {
-                    Some(b.clone())
-                } else {
-                    None
-                }
-            });
-
-        self.bins.extend(binary_matches);
-
-        self
+    match std::fs::read_dir(manifests_path) {
+        Ok(entries) => entries
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry.path().extension().and_then(|s| s.to_str()) == Some("json")
+            })
+            .map(|entry| entry.path())
+            .collect(),
+        Err(_) => vec![],
     }
 }
 
-impl Default for MatchCriteria {
-    fn default() -> Self {
-        Self::new()
+/// Scans all bucket directories to find package manifests and populates the cache.
+fn populate_manifest_cache(scoop_path: &Path) -> Result<HashSet<PathBuf>, String> {
+    let buckets_path = scoop_path.join("buckets");
+    if !buckets_path.is_dir() {
+        return Err("Scoop buckets directory not found".to_string());
+    }
+
+    let manifest_paths = std::fs::read_dir(&buckets_path)
+        .map_err(|e| format!("Failed to read buckets directory: {}", e))?
+        .par_bridge()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .flat_map(|entry| find_manifests_in_bucket(entry.path()))
+        .collect::<HashSet<PathBuf>>();
+
+    Ok(manifest_paths)
+}
+
+/// Acquires a lock on the manifest cache and populates it if it's empty.
+fn get_manifests<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(HashSet<PathBuf>, bool), String> {
+    let mut guard = MANIFEST_CACHE.lock().unwrap();
+    let is_cold = guard.is_none();
+
+    if is_cold {
+        log::info!("Cold search: Populating manifest cache.");
+        let scoop_path = utils::resolve_scoop_root(app)?;
+        let paths = populate_manifest_cache(&scoop_path)?;
+        *guard = Some(paths.clone());
+        Ok((paths, true))
+    } else {
+        Ok((guard.as_ref().unwrap().clone(), false))
     }
 }
 
-struct MatchedManifest {
-    manifest: Manifest,
-    installed: bool,
-    name_matched: bool,
-    bins: Vec<String>,
+/// Parses a Scoop package manifest file to extract package information.
+fn parse_package_from_manifest(path: &Path) -> Option<ScoopPackage> {
+    let file_name = path.file_stem().and_then(|s| s.to_str())?.to_string();
+
+    let content = std::fs::read_to_string(path).ok()?;
+    let json: Value = serde_json::from_str(&content).ok()?;
+
+    let version = json.get("version").and_then(|v| v.as_str())?.to_string();
+    let bucket = path.parent()?.parent()?.file_name()?.to_str()?.to_string();
+
+    Some(ScoopPackage {
+        name: file_name,
+        version,
+        source: bucket,
+        match_source: MatchSource::Name,
+        ..Default::default()
+    })
 }
 
-impl MatchedManifest {
-    pub fn new(
-        ctx: &impl ScoopContext,
-        manifest: Manifest,
-        pattern: &Regex,
-        mode: SearchMode,
-        arch: Architecture,
-    ) -> MatchedManifest {
-        // TODO: Better display of output
-        let bucket = unsafe { manifest.bucket() };
+/// Builds a regex pattern for searching, supporting exact and partial matches.
+fn build_search_regex(term: &str) -> Result<Regex, String> {
+    let trimmed = term.trim();
+    let pattern_str = if trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() > 1 {
+        // Exact match: "term"
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let normalized = inner.trim().replace(' ', "-");
+        format!("(?i)^{}$", regex::escape(&normalized))
+    } else {
+        // Partial match: term
+        let normalized = trimmed.replace(' ', "-");
+        format!("(?i){}", regex::escape(&normalized))
+    };
 
-        let match_output = MatchCriteria::matches(
-            unsafe { manifest.name() },
-            pattern,
-            // Function to list binaries from a manifest
-            // Passed as a closure to avoid this parsing if bin matching isn't required
-            || {
-                manifest
-                    .architecture
-                    .merge_default(manifest.install_config.clone(), arch)
-                    .bin
-                    .map(|b| b.to_vec())
-                    .unwrap_or_default()
-            },
-            mode,
-        );
-
-        let installed = manifest.is_installed(ctx, Some(bucket));
-
-        MatchedManifest {
-            manifest,
-            installed,
-            name_matched: match_output.name,
-            bins: match_output.bins,
-        }
-    }
-
-    pub fn should_match(&self, installed_only: bool) -> bool {
-        if !self.installed && installed_only {
-            return false;
-        }
-        if !self.name_matched && self.bins.is_empty() {
-            return false;
-        }
-
-        true
-    }
+    Regex::new(&pattern_str).map_err(|e| e.to_string())
 }
 
+/// Searches for Scoop packages based on a search term.
 #[tauri::command]
-pub async fn search_scoop(term: String) -> Result<Vec<ScoopPackage>, String> {
+pub async fn search_scoop<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+    term: String,
+) -> Result<SearchResult, String> {
     if term.is_empty() {
-        return Ok(vec![]);
+        return Ok(SearchResult::default());
     }
 
     log::info!("Searching for term: '{}'", term);
 
-    let ctx = User::new().map_err(|e| e.to_string())?;
+    let (manifest_paths, is_cold) = get_manifests(app.clone())?;
+    let pattern = build_search_regex(&term)?;
 
-    let pattern = Regex::new(&format!("(?i){term}")).map_err(|e| e.to_string())?;
-    let arch = Architecture::ARCH;
-
-    let buckets = Bucket::list_all(&ctx).map_err(|e| e.to_string())?;
-
-    let packages: Vec<ScoopPackage> = buckets
+    let mut packages: Vec<ScoopPackage> = manifest_paths
         .par_iter()
-        .filter_map(|bucket| bucket.matches(&ctx, false, &pattern, SearchMode::Both).ok())
-        .flatten()
-        .map(|manifest| MatchedManifest::new(&ctx, manifest, &pattern, SearchMode::Both, arch))
-        .filter(|manifest| manifest.should_match(false))
-        .map(|manifest| {
-            let info = if manifest.bins.is_empty() {
-                "".to_string()
-            } else {
-                format!("includes {}", manifest.bins.join(", "))
-            };
+        .filter_map(|path| {
+            // Check if the file name (package name) matches first
+            let file_name = path.file_stem().and_then(|s| s.to_str())?;
+            let name_matches = pattern.is_match(file_name);
 
-            let match_source = if manifest.name_matched {
+            // Determine if the search term matches one of the binaries declared in the manifest.
+            // We only do this expensive parse if the package name itself did **not** match.
+            let match_source = if name_matches {
                 MatchSource::Name
             } else {
-                MatchSource::Binary
+                // Load and inspect the manifest's `bin` field
+                let content = std::fs::read_to_string(path).ok()?;
+                let json: Value = serde_json::from_str(&content).ok()?;
+
+                let does_bin_match = json.get("bin").map_or(false, |bin_val| {
+                    match bin_val {
+                        Value::String(s) => pattern.is_match(s),
+                        Value::Array(arr) => arr.iter().any(|entry| match entry {
+                            Value::String(s) => pattern.is_match(s),
+                            Value::Object(obj) => {
+                                // Some manifests use object syntax { "alias": "path/to/file" }
+                                obj.keys().any(|k| pattern.is_match(k)) || obj.values().any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
+                            }
+                            _ => false,
+                        }),
+                        Value::Object(obj) => {
+                            // Very uncommon, but treat similarly to array/object case
+                            obj.keys().any(|k| pattern.is_match(k)) || obj.values().any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
+                        }
+                        _ => false,
+                    }
+                });
+
+                if does_bin_match {
+                    MatchSource::Binary
+                } else {
+                    MatchSource::None
+                }
             };
 
-            ScoopPackage {
-                name: unsafe { manifest.manifest.name() }.to_string(),
-                version: manifest.manifest.version.to_string(),
-                source: unsafe { manifest.manifest.bucket() }.to_string(),
-                is_installed: manifest.installed,
-                updated: "".to_string(),
-                info,
-                match_source,
-                ..Default::default()
+            if match_source == MatchSource::None {
+                return None;
             }
+
+            let mut pkg = parse_package_from_manifest(path)?;
+            pkg.match_source = match_source;
+            Some(pkg)
         })
         .collect();
 
+    // Determine which of the found packages are already installed.
+    if let Ok(installed_pkgs) = get_installed_packages_full(app).await {
+        let installed_set: HashSet<String> = installed_pkgs
+            .into_iter()
+            .map(|p| p.name.to_lowercase())
+            .collect();
+
+        for pkg in &mut packages {
+            if installed_set.contains(&pkg.name.to_lowercase()) {
+                pkg.is_installed = true;
+            }
+        }
+    }
+
     log::info!("Found {} packages matching '{}'", packages.len(), term);
 
-    Ok(packages)
-} 
+    Ok(SearchResult {
+        packages,
+        is_cold,
+    })
+}

@@ -53,6 +53,18 @@ function DetailValue(props: { value: string }) {
   );
 }
 
+// Component to render long "Includes" lists in a compact, scrollable form
+function IncludesValue(props: { value: string }) {
+  const items = createMemo(() => props.value.split(/,\s*/).filter((s) => s.length > 0));
+  return (
+    <div class="max-h-60 overflow-y-auto">
+      <ul class="list-disc list-inside text-xs space-y-0.5">
+        <For each={items()}>{(item) => <ul class="break-all">{item}</ul>}</For>
+      </ul>
+    </div>
+  );
+}
+
 function LicenseValue(props: { value: string }) {
   const license = createMemo(() => {
     try {
@@ -138,7 +150,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     try {
       const result = await invoke<string>("get_package_manifest", {
         packageName: pkg.name,
-        packageSource: pkg.source,
+        bucket: pkg.source,
       });
       setManifestContent(result);
     } catch (err) {
@@ -207,6 +219,9 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                               </Match>
                               <Match when={key === 'License'}>
                                 <LicenseValue value={value} />
+                              </Match>
+                              <Match when={key === 'Includes'}>
+                                <IncludesValue value={value} />
                               </Match>
                             </Switch>
                           </div>

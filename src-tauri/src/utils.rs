@@ -3,7 +3,21 @@ use std::env;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
-pub fn find_scoop_dir<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, String> {
+/// Resolve the root directory of Scoop on the host machine.
+///
+/// The resolution strategy is:
+/// 1. Use the user-defined path stored in settings (highest precedence).
+/// 2. Inspect the `SCOOP` environment variable.
+/// 3. Default to `%USERPROFILE%\\scoop`.
+/// 4. Fallback to the system-wide `C:\\ProgramData\\scoop` location.
+///
+/// A detailed log entry is written at every decision point so that problems
+/// can be diagnosed from the unified application log.
+///
+/// # Errors
+/// Returns `Err` with a human-readable message if no valid directory could be
+/// located.
+pub fn resolve_scoop_root<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, String> {
     // 1. Check the user-defined path from settings first
     if let Ok(Some(path_str)) = settings::get_scoop_path(app) {
         let path = PathBuf::from(path_str);
@@ -40,10 +54,36 @@ pub fn find_scoop_dir<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, String> 
         return Ok(program_data);
     }
 
-    Err("Could not find scoop directory. Please set it in the settings.".to_string())
+    Err("Unable to determine Scoop root directory. Please configure it explicitly in Settings.".to_string())
 }
 
-pub fn find_package_manifest(
+// -----------------------------------------------------------------------------
+// Manifest helpers
+// -----------------------------------------------------------------------------
+
+/// Locate a manifest file for `package_name` within the Scoop buckets.
+///
+/// If `package_source` is supplied it will be treated as an exact bucket name
+/// and only that bucket will be inspected. Otherwise all buckets are searched
+/// in parallel and the first match is returned.
+///
+/// The returned tuple contains the fully qualified path to the manifest file
+/// and the bucket name the manifest originated from.
+///
+/// # Errors
+/// Propagates any I/O failure and returns a domain-specific error when the
+/// manifest cannot be located.
+pub fn locate_package_manifest(
+    scoop_dir: &std::path::Path,
+    package_name: &str,
+    package_source: Option<String>,
+) -> Result<(PathBuf, String), String> {
+    locate_package_manifest_impl(scoop_dir, package_name, package_source)
+}
+
+// Internal implementation that contains the previous logic. This avoids code
+// duplication while giving us the opportunity to phase out the old API.
+fn locate_package_manifest_impl(
     scoop_dir: &std::path::Path,
     package_name: &str,
     package_source: Option<String>,
@@ -96,4 +136,4 @@ pub fn find_package_manifest(
         "Package '{}' not found in any bucket.",
         package_name
     ))
-} 
+}
