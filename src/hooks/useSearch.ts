@@ -64,7 +64,7 @@ export function useSearch() {
         setIsScanning(false);
         invoke("install_package", {
             packageName: pkg.name,
-            packageSource: pkg.source,
+            bucket: pkg.source,
         }).catch((err) => {
             console.error("Installation invocation failed:", err);
         });
@@ -81,7 +81,7 @@ export function useSearch() {
             setPendingInstallPackage(pkg); // Remember which package to install
             invoke("scan_package", {
                 packageName: pkg.name,
-                packageSource: pkg.source,
+                bucket: pkg.source,
             }).catch((err) => {
                 console.error("Scan invocation failed:", err);
             });
@@ -110,14 +110,14 @@ export function useSearch() {
                 setOperationNextStep(null);
                 invoke("clear_package_cache", {
                     packageName: pkg.name,
-                    packageSource: pkg.source,
+                    bucket: pkg.source,
                 }).catch((err) => console.error("Clear cache invocation failed:", err));
             },
         });
 
         invoke("uninstall_package", {
             packageName: pkg.name,
-            packageSource: pkg.source,
+            bucket: pkg.source,
         }).catch((err) => {
             console.error(`Uninstallation invocation failed for ${pkg.name}:`, err);
             setOperationNextStep(null);

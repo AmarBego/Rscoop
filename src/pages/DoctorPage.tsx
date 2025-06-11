@@ -47,7 +47,7 @@ function DoctorPage() {
     const handleInstallHelper = async (helperId: string) => {
         setInstallingHelper(helperId);
         try {
-            await invoke("install_package", { packageName: helperId, packageSource: '' });
+            await invoke("install_package", { packageName: helperId, bucket: '' });
             await runCheckup();
             installedPackagesStore.refetch();
         } catch (err) {

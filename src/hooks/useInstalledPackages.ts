@@ -74,14 +74,14 @@ export function useInstalledPackages() {
         setOperationNextStep(null);
         invoke("clear_package_cache", {
           packageName: pkg.name,
-          packageSource: pkg.source,
+          bucket: pkg.source,
         }).catch(err => console.error("Clear cache invocation failed:", err));
       },
     });
 
     invoke("uninstall_package", {
       packageName: pkg.name,
-      packageSource: pkg.source,
+      bucket: pkg.source,
     }).catch(err => {
       console.error("Uninstall invocation failed:", err);
       setOperationNextStep(null);
