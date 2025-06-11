@@ -4,6 +4,12 @@
 
 Welcome to **Rscoop**, (rust-scoop) the ultimate graphical user interface for the [Scoop](https://scoop.sh/) package manager on Windows. Rscoop isn't just a pretty face; it's a powerhouse of functionality designed to be a complete replacement for the command line. Its intuitive, modern UI is incredibly easy to grasp, making package management a breeze for both new and experienced users.
 
+## 🚀 Installation
+
+1.  Go to the [**Releases**](https://github.com/AmarBego/rscoop/releases) page.
+2.  Download the latest `.msi` installer file or portable `.exe` file.
+3.  Run the installer. That's it!
+
 ## ✨ Features
 
 Rscoop is more than just a package list. It's a full-fledged, native management toolkit that supercharges your Scoop experience.
@@ -45,13 +51,6 @@ For core actions, Rscoop acts as a seamless wrapper around the battle-tested off
 ## ⚠️ Early Development Stage
 
 This project is still in its early stages. While it's packed with features, it has not yet been tested for many bugs or edge cases. Please use it with this in mind and feel free to report any issues you find!
-
-## 🚀 Installation
-
-1.  Go to the [**Releases**](https://github.com/AmarBego/rscoop/releases) page.
-2.  Download the latest `.msi` installer file.
-3.  Run the installer. That's it!
-4.  Upon installation set the PATH of scoop in the settings page (this only happens once) and restart the program, (this is going to be fixed in the next release)
 
 ## ❤️ Acknowledgements & Tech Stack
 
