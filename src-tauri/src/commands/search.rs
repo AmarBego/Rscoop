@@ -23,9 +23,7 @@ fn find_manifests_in_bucket(bucket_path: PathBuf) -> Vec<PathBuf> {
     match std::fs::read_dir(manifests_path) {
         Ok(entries) => entries
             .filter_map(Result::ok)
-            .filter(|entry| {
-                entry.path().extension().and_then(|s| s.to_str()) == Some("json")
-            })
+            .filter(|entry| entry.path().extension().and_then(|s| s.to_str()) == Some("json"))
             .map(|entry| entry.path())
             .collect(),
         Err(_) => vec![],
@@ -142,13 +140,19 @@ pub async fn search_scoop<R: tauri::Runtime>(
                             Value::String(s) => pattern.is_match(s),
                             Value::Object(obj) => {
                                 // Some manifests use object syntax { "alias": "path/to/file" }
-                                obj.keys().any(|k| pattern.is_match(k)) || obj.values().any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
+                                obj.keys().any(|k| pattern.is_match(k))
+                                    || obj
+                                        .values()
+                                        .any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
                             }
                             _ => false,
                         }),
                         Value::Object(obj) => {
                             // Very uncommon, but treat similarly to array/object case
-                            obj.keys().any(|k| pattern.is_match(k)) || obj.values().any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
+                            obj.keys().any(|k| pattern.is_match(k))
+                                || obj
+                                    .values()
+                                    .any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
                         }
                         _ => false,
                     }
@@ -187,8 +191,14 @@ pub async fn search_scoop<R: tauri::Runtime>(
 
     log::info!("Found {} packages matching '{}'", packages.len(), term);
 
-    Ok(SearchResult {
-        packages,
-        is_cold,
-    })
+    Ok(SearchResult { packages, is_cold })
+}
+
+/// Warms (populates) the global manifest cache if it is empty. Intended for use by the
+/// cold-start routine so that the first search from the UI is instant.
+///
+/// Returns Ok(()) on success or an error string if the cache population failed.
+pub fn warm_manifest_cache<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
+    let _ = get_manifests(app)?;
+    Ok(())
 }

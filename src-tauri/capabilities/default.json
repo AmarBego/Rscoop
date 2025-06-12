@@ -9,6 +9,7 @@
     "core:default",
     "shell:default",
     "log:default",
-    "store:default"
+    "store:default",
+    "log:default"
   ]
 }

@@ -1,12 +1,19 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod cold_start;
 mod commands;
+mod models;
 pub mod utils;
-pub mod models;
+
+use tauri::Manager;
 use tauri_plugin_log::{Target, TargetKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new().build())
+        .on_page_load(|window, _payload| {
+            cold_start::run_cold_start(window.app_handle().clone());
+        })
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(
             tauri_plugin_log::Builder::new()
