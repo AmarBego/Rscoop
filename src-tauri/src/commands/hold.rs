@@ -1,10 +1,10 @@
 //! Commands for holding and unholding Scoop packages.
-use crate::utils;
+use crate::state::AppState;
 use rayon::prelude::*;
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
-use tauri::{AppHandle, Runtime};
+use std::path::{Path, PathBuf};
+use tauri::{AppHandle, Runtime, State};
 
 /// Resolves the path to the `install.json` file for the currently installed version of a package.
 /// This file contains metadata about the installation, including its hold status.
@@ -57,13 +57,12 @@ fn is_package_held(scoop_dir: &std::path::Path, package_name: &str) -> Result<bo
 }
 
 /// Modifies the hold status of a package by updating its `install.json`.
-fn modify_hold_status<R: Runtime>(
-    app: AppHandle<R>,
+fn modify_hold_status(
+    scoop_dir: &Path,
     package_name: &str,
     hold: bool,
 ) -> Result<(), String> {
-    let scoop_dir = utils::resolve_scoop_root(app)?;
-    let install_json_path = get_current_install_json_path(&scoop_dir, package_name)?;
+    let install_json_path = get_current_install_json_path(scoop_dir, package_name)?;
     let content = fs::read_to_string(&install_json_path).map_err(|e| e.to_string())?;
 
     let mut value: Value = serde_json::from_str(&content)
@@ -87,11 +86,13 @@ fn modify_hold_status<R: Runtime>(
 
 /// Lists all packages that are currently on hold.
 #[tauri::command]
-pub async fn list_held_packages<R: Runtime>(app: AppHandle<R>) -> Result<Vec<String>, String> {
+pub async fn list_held_packages<R: Runtime>(
+    _app: AppHandle<R>,
+    state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
     log::info!("Listing held packages by checking all install.json files");
 
-    let scoop_path = utils::resolve_scoop_root(app)?;
-    let apps_path = scoop_path.join("apps");
+    let apps_path = state.scoop_path.join("apps");
     if !apps_path.is_dir() {
         log::warn!("Scoop apps directory not found at {}", apps_path.display());
         return Ok(vec![]);
@@ -107,7 +108,7 @@ pub async fn list_held_packages<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Str
         .par_iter()
         .filter_map(|entry| {
             let package_name = entry.file_name().to_string_lossy().to_string();
-            match is_package_held(&scoop_path, &package_name) {
+            match is_package_held(&state.scoop_path, &package_name) {
                 Ok(true) => Some(package_name),
                 _ => None,
             }
@@ -121,19 +122,21 @@ pub async fn list_held_packages<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Str
 /// Places a hold on a package to prevent it from being updated.
 #[tauri::command]
 pub async fn hold_package<R: Runtime>(
-    app: AppHandle<R>,
+    _app: AppHandle<R>,
+    state: State<'_, AppState>,
     package_name: String,
 ) -> Result<(), String> {
     log::info!("Placing a hold on: {}", package_name);
-    modify_hold_status(app, &package_name, true)
+    modify_hold_status(&state.scoop_path, &package_name, true)
 }
 
 /// Removes the hold on a package, allowing it to be updated.
 #[tauri::command]
 pub async fn unhold_package<R: Runtime>(
-    app: AppHandle<R>,
+    _app: AppHandle<R>,
+    state: State<'_, AppState>,
     package_name: String,
 ) -> Result<(), String> {
     log::info!("Removing hold from: {}", package_name);
-    modify_hold_status(app, &package_name, false)
+    modify_hold_status(&state.scoop_path, &package_name, false)
 }

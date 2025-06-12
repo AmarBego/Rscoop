@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use tauri::{AppHandle, Emitter, Runtime};
+use crate::state::AppState;
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 static COLD_START_DONE: AtomicBool = AtomicBool::new(false);
 
@@ -22,12 +23,13 @@ pub fn run_cold_start<R: Runtime>(app: AppHandle<R>) {
     tauri::async_runtime::spawn(async move {
         log::info!("Prefetching installed packages during cold start...");
 
-        match crate::commands::installed::get_installed_packages_full(app.clone()).await {
+                let state = app.state::<AppState>();
+        match crate::commands::installed::get_installed_packages_full(app.clone(), state).await {
             Ok(pkgs) => {
                 log::info!("Prefetched {} installed packages", pkgs.len());
 
                 // Warm the search manifest cache.
-                if let Err(e) = crate::commands::search::warm_manifest_cache(app.clone()) {
+                if let Err(e) = crate::commands::search::warm_manifest_cache(app.clone()).await {
                     log::error!("Failed to warm search manifest cache: {}", e);
                 }
 

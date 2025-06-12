@@ -1,6 +1,7 @@
 //! Commands for searching Scoop packages.
 use crate::commands::installed::get_installed_packages_full;
 use crate::models::{MatchSource, ScoopPackage, SearchResult};
+use crate::state::AppState;
 use crate::utils;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
@@ -8,7 +9,8 @@ use regex::Regex;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use tauri::{Manager};
+use tokio::sync::Mutex;
 
 // Global cache for manifest paths to avoid re-scanning the filesystem on every search.
 static MANIFEST_CACHE: Lazy<Mutex<Option<HashSet<PathBuf>>>> = Lazy::new(|| Mutex::new(None));
@@ -31,34 +33,38 @@ fn find_manifests_in_bucket(bucket_path: PathBuf) -> Vec<PathBuf> {
 }
 
 /// Scans all bucket directories to find package manifests and populates the cache.
-fn populate_manifest_cache(scoop_path: &Path) -> Result<HashSet<PathBuf>, String> {
+async fn populate_manifest_cache(scoop_path: &Path) -> Result<HashSet<PathBuf>, String> {
     let buckets_path = scoop_path.join("buckets");
-    if !buckets_path.is_dir() {
+    if !tokio::fs::try_exists(&buckets_path).await.unwrap_or(false) {
         return Err("Scoop buckets directory not found".to_string());
     }
 
-    let manifest_paths = std::fs::read_dir(&buckets_path)
-        .map_err(|e| format!("Failed to read buckets directory: {}", e))?
-        .par_bridge()
-        .filter_map(Result::ok)
-        .filter(|entry| entry.path().is_dir())
-        .flat_map(|entry| find_manifests_in_bucket(entry.path()))
-        .collect::<HashSet<PathBuf>>();
+    let mut read_dir = tokio::fs::read_dir(&buckets_path)
+        .await
+        .map_err(|e| format!("Failed to read buckets directory: {}", e))?;
+    let mut manifest_paths = HashSet::new();
+
+    while let Ok(Some(entry)) = read_dir.next_entry().await {
+        if entry.path().is_dir() {
+            let bucket_manifests = find_manifests_in_bucket(entry.path());
+            manifest_paths.extend(bucket_manifests);
+        }
+    }
 
     Ok(manifest_paths)
 }
 
 /// Acquires a lock on the manifest cache and populates it if it's empty.
-fn get_manifests<R: tauri::Runtime>(
+async fn get_manifests<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<(HashSet<PathBuf>, bool), String> {
-    let mut guard = MANIFEST_CACHE.lock().unwrap();
+    let mut guard = MANIFEST_CACHE.lock().await;
     let is_cold = guard.is_none();
 
     if is_cold {
         log::info!("Cold search: Populating manifest cache.");
         let scoop_path = utils::resolve_scoop_root(app)?;
-        let paths = populate_manifest_cache(&scoop_path)?;
+        let paths = populate_manifest_cache(&scoop_path).await?;
         *guard = Some(paths.clone());
         Ok((paths, true))
     } else {
@@ -114,7 +120,7 @@ pub async fn search_scoop<R: tauri::Runtime>(
 
     log::info!("Searching for term: '{}'", term);
 
-    let (manifest_paths, is_cold) = get_manifests(app.clone())?;
+    let (manifest_paths, is_cold) = get_manifests(app.clone()).await?;
     let pattern = build_search_regex(&term)?;
 
     let mut packages: Vec<ScoopPackage> = manifest_paths
@@ -176,7 +182,8 @@ pub async fn search_scoop<R: tauri::Runtime>(
         .collect();
 
     // Determine which of the found packages are already installed.
-    if let Ok(installed_pkgs) = get_installed_packages_full(app).await {
+    let state = app.state::<AppState>();
+    if let Ok(installed_pkgs) = get_installed_packages_full(app.clone(), state).await {
         let installed_set: HashSet<String> = installed_pkgs
             .into_iter()
             .map(|p| p.name.to_lowercase())
@@ -198,7 +205,7 @@ pub async fn search_scoop<R: tauri::Runtime>(
 /// cold-start routine so that the first search from the UI is instant.
 ///
 /// Returns Ok(()) on success or an error string if the cache population failed.
-pub fn warm_manifest_cache<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
-    let _ = get_manifests(app)?;
+pub async fn warm_manifest_cache<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
+    let _ = get_manifests(app).await?;
     Ok(())
 }

@@ -2,6 +2,7 @@
 mod cold_start;
 mod commands;
 mod models;
+mod state;
 pub mod utils;
 
 use tauri::Manager;
@@ -11,6 +12,20 @@ use tauri_plugin_log::{Target, TargetKind};
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
+        .setup(|app| {
+            let app_handle = app.handle().clone();
+            let scoop_path =
+                utils::resolve_scoop_root(app_handle).expect("Failed to resolve scoop root path");
+
+            let rscoop_state = state::AppState {
+                scoop_path,
+                installed_packages: tokio::sync::Mutex::new(None),
+            };
+
+            app.manage(rscoop_state);
+
+            Ok(())
+        })
         .on_page_load(|window, _payload| {
             cold_start::run_cold_start(window.app_handle().clone());
         })

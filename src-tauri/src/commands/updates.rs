@@ -1,13 +1,14 @@
 //! Command for checking for available updates for installed Scoop packages.
 use crate::commands::installed::get_installed_packages_full;
 use crate::models::ScoopPackage as InstalledPackage;
-use crate::utils::{locate_package_manifest, resolve_scoop_root};
+use crate::state::AppState;
+use crate::utils::locate_package_manifest;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, State};
 
 /// Represents a package that has a newer version available.
 #[derive(Serialize, Debug)]
@@ -62,13 +63,14 @@ fn check_package_for_update(
 #[tauri::command]
 pub async fn check_for_updates<R: Runtime>(
     app: AppHandle<R>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<UpdatablePackage>, String> {
     log::info!("Checking for updates using filesystem");
-    let scoop_dir = resolve_scoop_root(app.clone())?;
-    let installed_packages = get_installed_packages_full(app.clone()).await?;
+
+    let installed_packages = get_installed_packages_full(app.clone(), state.clone()).await?;
 
     // Get a set of held packages for efficient lookup.
-    let held_packages: HashSet<String> = crate::commands::hold::list_held_packages(app)
+    let held_packages: HashSet<String> = crate::commands::hold::list_held_packages(app, state.clone())
         .await?
         .into_iter()
         .collect();
@@ -78,7 +80,7 @@ pub async fn check_for_updates<R: Runtime>(
         .par_iter()
         .filter(|p| !held_packages.contains(&p.name)) // Exclude held packages
         .filter_map(|package| {
-            match check_package_for_update(&scoop_dir, package) {
+            match check_package_for_update(&state.scoop_path, package) {
                 Ok(Some(updatable)) => Some(updatable),
                 Ok(None) => None, // Package is up-to-date
                 Err(e) => {

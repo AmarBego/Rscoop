@@ -1,12 +1,12 @@
 //! Command for fetching all installed Scoop packages from the filesystem.
 use crate::models::ScoopPackage;
-use crate::utils;
+use crate::state::AppState;
 use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use serde::Deserialize;
 use std::fs;
 use std::path::Path;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, State};
 
 /// Represents the structure of a `manifest.json` file for an installed package.
 #[derive(Deserialize, Debug)]
@@ -71,12 +71,19 @@ fn load_package_details(package_path: &Path) -> Result<ScoopPackage, String> {
 /// Fetches a list of all installed Scoop packages by scanning the filesystem.
 #[tauri::command]
 pub async fn get_installed_packages_full<R: Runtime>(
-    app: AppHandle<R>,
+    _app: AppHandle<R>,
+    state: State<'_, AppState>,
 ) -> Result<Vec<ScoopPackage>, String> {
+    let mut cache_guard = state.installed_packages.lock().await;
+
+    // Check if the cache is populated
+    if let Some(packages) = cache_guard.as_ref() {
+        log::info!("Returning cached installed packages list.");
+        return Ok(packages.clone());
+    }
     log::info!("Fetching installed packages from filesystem");
 
-    let scoop_path = utils::resolve_scoop_root(app)?;
-    let apps_path = scoop_path.join("apps");
+    let apps_path = state.scoop_path.join("apps");
 
     if !apps_path.is_dir() {
         log::warn!(
@@ -106,6 +113,9 @@ pub async fn get_installed_packages_full<R: Runtime>(
             }
         })
         .collect();
+
+    // Populate the cache
+    *cache_guard = Some(packages.clone());
 
     log::info!("Found {} installed packages", packages.len());
     Ok(packages)
