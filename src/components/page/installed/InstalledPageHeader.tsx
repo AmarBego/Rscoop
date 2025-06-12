@@ -1,4 +1,5 @@
 import { For, Show, Accessor, Setter } from "solid-js";
+import { Search } from 'lucide-solid';
 import { 
   Filter, Eye, LayoutGrid, List, ArrowUpCircle
 } from 'lucide-solid';
@@ -16,6 +17,9 @@ interface InstalledPageHeaderProps {
 
   isCheckingForUpdates: Accessor<boolean>;
   onCheckForUpdates: () => void;
+
+  searchQuery: Accessor<string>;
+  setSearchQuery: Setter<string>;
 }
 
 function InstalledPageHeader(props: InstalledPageHeaderProps) {
@@ -39,6 +43,24 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
             <span class="hidden md:inline">Filter</span>
           </label>
           <div tabindex="0" class="dropdown-content menu p-4 shadow bg-base-300 rounded-box w-64 z-[1]">
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Search</span>
+              </label>
+              <div class="join">
+                <span class="join-item btn btn-disabled bg-base-300 border-none"> <Search class="w-4 h-4" /></span>
+                <input 
+                  type="text"
+                  placeholder="Search by name..."
+                  class="input input-bordered w-full join-item"
+                  value={props.searchQuery()}
+                  onInput={(e) => props.setSearchQuery(e.currentTarget.value)}
+                />
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
             <div class="form-control">
               <label class="label">
                 <span class="label-text">Bucket</span>

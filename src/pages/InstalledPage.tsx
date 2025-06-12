@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, createSignal, createMemo } from "solid-js";
 import PackageInfoModal from "../components/PackageInfoModal";
 import OperationModal from "../components/OperationModal";
 import { useInstalledPackages } from "../hooks/useInstalledPackages";
@@ -34,6 +34,15 @@ function InstalledPage() {
     checkForUpdates,
   } = useInstalledPackages();
 
+  const [searchQuery, setSearchQuery] = createSignal("");
+
+  const filteredPackages = createMemo(() => {
+    const query = searchQuery().toLowerCase();
+    if (!query) return processedPackages();
+
+    return processedPackages().filter(p => p.name.toLowerCase().includes(query));
+  });
+
   return (
     <div class="p-4 sm:p-6 md:p-8">
       <InstalledPageHeader 
@@ -42,6 +51,8 @@ function InstalledPage() {
         uniqueBuckets={uniqueBuckets}
         selectedBucket={selectedBucket}
         setSelectedBucket={setSelectedBucket}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
         viewMode={viewMode}
         setViewMode={setViewMode}
         isCheckingForUpdates={isCheckingForUpdates}
@@ -62,16 +73,16 @@ function InstalledPage() {
         </div>
       </Show>
 
-      <Show when={!loading() && !error() && processedPackages().length === 0}>
+      <Show when={!loading() && !error() && filteredPackages().length === 0}>
         <div class="text-center py-16">
           <p class="text-xl">No packages installed match the current filter</p>
         </div>
       </Show>
 
-      <Show when={!loading() && !error() && processedPackages().length > 0}>
+      <Show when={!loading() && !error() && filteredPackages().length > 0}>
         <Show when={viewMode() === 'list'}
           fallback={<PackageGridView 
-            packages={processedPackages} 
+            packages={filteredPackages}
             onViewInfo={handleFetchPackageInfo}
             onUpdate={handleUpdate}
             onHold={handleHold}
