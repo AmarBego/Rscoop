@@ -1,17 +1,14 @@
-# What's New
+# Version 1.1.1
 
-This release focuses on a major internal refactoring to improve performance, reduce log spam, and modernize the application's core architecture. While many of these changes are under the hood, they result in a faster and more reliable experience.
+This release introduces key improvements to data handling and the user interface, focusing on reliability and a smoother user experience.
 
-✨ Features & Improvements
+✨ **Features & Improvements**
 
-Centralized State Management: Introduced a shared AppState to manage the Scoop path and cache installed packages. This eliminates redundant filesystem lookups and improves overall performance.
+*   **Enhanced Search Experience**: The search functionality on the "Installed" page has been significantly improved.
+    *   An active search will no longer be dismissed when clicking on package names, context menus, or modals.
+    *   Fixed a bug where the search filter was not applied to the list view.
+    *   Corrected UI issues with the context menu in list view to prevent overflow and scrolling problems.
 
-Faster Commands: The installed, hold, and updates commands have been refactored to use the new shared state, making them significantly faster and more efficient. 
+*   **Improved Data Integrity**: To ensure data is always fresh, cache invalidation has been added for installed packages and manifests. This triggers after an install or uninstall operation, preventing stale data.
 
-Reduced Log Spam: By caching data and removing redundant operations, we've cleaned up the application logs, making it easier to debug and monitor.
-
-Improved Cold Start: The application now warms the manifest cache during the cold start process, ensuring that the first search is faster and more responsive.
-
-Modernized Architecture: The state initialization now uses the .setup() hook, aligning with the latest Tauri best practices and making the codebase cleaner and more maintainable.
-
-These changes lay the groundwork for future features and ensure that Rscoop remains fast and reliable as it grows.
+*   **Smoother App Initialization**: The core application event handling for startup has been refactored for a more robust and smooth initialization process.
