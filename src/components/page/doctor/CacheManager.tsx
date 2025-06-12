@@ -22,6 +22,7 @@ function getCacheIdentifier(entry: CacheEntry): CacheIdentifier {
 function CacheManager() {
     const [cacheContents, setCacheContents] = createSignal<CacheEntry[]>([]);
     const [selectedItems, setSelectedItems] = createSignal<Set<CacheIdentifier>>(new Set());
+    const [filter, setFilter] = createSignal("");
     const [isLoading, setIsLoading] = createSignal(true);
     const [error, setError] = createSignal<string | null>(null);
 
@@ -33,9 +34,20 @@ function CacheManager() {
         content: null as any,
     });
 
-    const isAllSelected = createMemo(() => 
-        cacheContents().length > 0 && selectedItems().size === cacheContents().length
-    );
+    const filteredCacheContents = createMemo(() => {
+        const f = filter().toLowerCase();
+        if (!f) return cacheContents();
+        return cacheContents().filter(s => 
+            s.name.toLowerCase().includes(f) || 
+            s.version.toLowerCase().includes(f)
+        );
+    });
+
+    const isAllSelected = createMemo(() => {
+        const contents = filteredCacheContents();
+        if (contents.length === 0) return false;
+        return contents.every(item => selectedItems().has(getCacheIdentifier(item)));
+    });
 
     const fetchCacheContents = async () => {
         setIsLoading(true);
@@ -67,11 +79,23 @@ function CacheManager() {
     };
 
     const toggleSelectAll = () => {
-        if (isAllSelected()) {
-            setSelectedItems(new Set<CacheIdentifier>());
+        const currentItems = filteredCacheContents();
+        const currentIdentifiers = new Set(currentItems.map(getCacheIdentifier));
+
+        // If all currently visible items are selected, unselect them.
+        // Otherwise, select all currently visible items.
+        const allVisibleSelected = currentItems.every(item => selectedItems().has(getCacheIdentifier(item)));
+
+        if (allVisibleSelected && currentItems.length > 0) {
+            // Unselect only the visible items
+            setSelectedItems(prev => {
+                const next = new Set(prev);
+                currentIdentifiers.forEach(id => next.delete(id));
+                return next;
+            });
         } else {
-            const allIdentifiers = cacheContents().map(getCacheIdentifier);
-            setSelectedItems(new Set<CacheIdentifier>(allIdentifiers));
+            // Select all visible items, adding to any existing selection
+            setSelectedItems(prev => new Set([...prev, ...currentIdentifiers]));
         }
     };
 
@@ -139,6 +163,25 @@ function CacheManager() {
                             Cache Manager
                         </h2>
                         <div class="flex items-center gap-2">
+                            <Show when={cacheContents().length > 0}>
+                                <button 
+                                    class="btn btn-warning btn-sm"
+                                    onClick={handleClearSelected}
+                                    disabled={selectedItems().size === 0 || isLoading()}
+                                >
+                                    <Trash2 class="w-4 h-4 mr-2" />
+                                    Remove Selected ({selectedItems().size})
+                                </button>
+                                <button 
+                                    class="btn btn-error btn-sm"
+                                    onClick={handleClearAll}
+                                    disabled={isLoading()}
+                                >
+                                    <Archive class="w-4 h-4 mr-2" />
+                                    Remove All
+                                </button>
+                                <div class="divider divider-horizontal m-1" />
+                            </Show>
                             <button 
                                 class="btn btn-ghost btn-sm"
                                 onClick={fetchCacheContents} 
@@ -149,7 +192,17 @@ function CacheManager() {
                         </div>
                     </div>
 
-                    <Show when={error()}>
+                    <input
+                        type="text"
+                        placeholder="Filter by name or version..."
+                        class="input input-bordered w-full mb-4"
+                        value={filter()}
+                        onInput={(e) => setFilter(e.currentTarget.value)}
+                        disabled={isLoading() || !!error() || cacheContents().length === 0}
+                    />
+
+                    <div class="max-h-[60vh] overflow-y-auto">
+                        <Show when={error()}>
                         <div role="alert" class="alert alert-error">
                             <AlertTriangle />
                             <span>{error()}</span>
@@ -165,25 +218,10 @@ function CacheManager() {
                     </Show>
 
                     <Show when={cacheContents().length > 0}>
-                        <div class="flex items-center justify-end gap-4 mb-4">
-                            <button 
-                                class="btn btn-warning btn-sm"
-                                onClick={handleClearSelected}
-                                disabled={selectedItems().size === 0 || isLoading()}
-                            >
-                                <Trash2 class="w-4 h-4 mr-2" />
-                                Remove Selected ({selectedItems().size})
-                            </button>
-                            <button 
-                                class="btn btn-error btn-sm"
-                                onClick={handleClearAll}
-                                disabled={isLoading()}
-                            >
-                                <Archive class="w-4 h-4 mr-2" />
-                                Remove All
-                            </button>
-                        </div>
+
+
                         <div class="overflow-x-auto">
+                            {/* TODO: sticky header, cant figure it out for the life of me */}
                             <table class="table table-sm">
                                 <thead>
                                     <tr>
@@ -203,7 +241,7 @@ function CacheManager() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <For each={cacheContents()}>
+                                    <For each={filteredCacheContents()}>
                                         {(item) => {
                                             const id = getCacheIdentifier(item);
                                             return (
@@ -229,6 +267,7 @@ function CacheManager() {
                             </table>
                         </div>
                     </Show>
+                    </div>
                 </div>
             </div>
 

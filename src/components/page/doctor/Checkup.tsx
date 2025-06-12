@@ -25,9 +25,9 @@ function Checkup(props: CheckupProps) {
                     <h2 class="card-title text-xl">
                         System Health Check
                     </h2>
+
                     <button class="btn btn-ghost btn-sm" onClick={props.onRerun} disabled={props.isLoading}>
-                        <RefreshCw class="w-4 h-4" classList={{ "animate-spin": props.isLoading }} />
-                        Re-run
+                        <RefreshCw classList={{ "animate-spin": props.isLoading }} />
                     </button>
                 </div>
                  <p class="text-base-content/80 mb-4">
