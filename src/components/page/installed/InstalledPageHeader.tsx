@@ -24,6 +24,7 @@ interface InstalledPageHeaderProps {
 function InstalledPageHeader(props: InstalledPageHeaderProps) {
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
   let searchContainerRef: HTMLDivElement | undefined;
+  let searchInputRef: HTMLInputElement | undefined;
 
   createEffect(() => {
     if (!isSearchOpen()) return;
@@ -39,6 +40,12 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
     onCleanup(() => document.removeEventListener("mousedown", handleClickOutside));
   });
 
+  createEffect(() => {
+    if (isSearchOpen()) {
+      setTimeout(() => searchInputRef?.focus(), 50);
+    }
+  });
+
   return (
     <div class="flex justify-between items-center mb-6 h-10">
       <Show
@@ -48,12 +55,12 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
             <div class="join w-full">
               <span class="join-item btn btn-disabled bg-base-200 border-none"> <Search class="w-4 h-4" /></span>
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search by name..."
                 class="input input-bordered w-full join-item bg-base-200"
                 value={props.searchQuery()}
                 onInput={(e) => props.setSearchQuery(e.currentTarget.value)}
-                autofocus
               />
             </div>
             <button class="btn btn-ghost btn-circle" onClick={() => {
