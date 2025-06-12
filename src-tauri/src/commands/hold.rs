@@ -14,7 +14,10 @@ fn get_current_install_json_path(
 ) -> Result<PathBuf, String> {
     let package_path = scoop_dir.join("apps").join(package_name);
     if !package_path.is_dir() {
-        return Err(format!("Package directory for '{}' not found.", package_name));
+        return Err(format!(
+            "Package directory for '{}' not found.",
+            package_name
+        ));
     }
 
     let current_path = package_path.join("current");
@@ -63,8 +66,8 @@ fn modify_hold_status<R: Runtime>(
     let install_json_path = get_current_install_json_path(&scoop_dir, package_name)?;
     let content = fs::read_to_string(&install_json_path).map_err(|e| e.to_string())?;
 
-    let mut value: Value =
-        serde_json::from_str(&content).map_err(|e| format!("Invalid JSON in install.json: {}", e))?;
+    let mut value: Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Invalid JSON in install.json: {}", e))?;
 
     let obj = value
         .as_object_mut()
@@ -76,8 +79,8 @@ fn modify_hold_status<R: Runtime>(
         obj.remove("hold");
     }
 
-    let new_content =
-        serde_json::to_string_pretty(&value).map_err(|e| format!("Failed to serialize JSON: {}", e))?;
+    let new_content = serde_json::to_string_pretty(&value)
+        .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
     fs::write(&install_json_path, new_content)
         .map_err(|e| format!("Failed to write to install.json: {}", e))
 }

@@ -31,7 +31,10 @@ fn load_package_details(package_path: &Path) -> Result<ScoopPackage, String> {
 
     let current_path = package_path.join("current");
     if !current_path.is_dir() {
-        return Err(format!("'current' directory not found for {}", package_name));
+        return Err(format!(
+            "'current' directory not found for {}",
+            package_name
+        ));
     }
 
     // Read and parse manifest.json
@@ -107,4 +110,3 @@ pub async fn get_installed_packages_full<R: Runtime>(
     log::info!("Found {} installed packages", packages.len());
     Ok(packages)
 }
- 

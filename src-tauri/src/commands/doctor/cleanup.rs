@@ -28,12 +28,7 @@ async fn run_cleanup_command(
 #[tauri::command]
 pub async fn cleanup_all_apps(window: Window) -> Result<(), String> {
     log::info!("Running 'scoop cleanup --all'");
-    run_cleanup_command(
-        window,
-        "scoop cleanup --all",
-        "Cleanup Old App Versions",
-    )
-    .await
+    run_cleanup_command(window, "scoop cleanup --all", "Cleanup Old App Versions").await
 }
 
 /// Cleans up the download cache for all apps.
@@ -47,4 +42,3 @@ pub async fn cleanup_outdated_cache(window: Window) -> Result<(), String> {
     )
     .await
 }
- 

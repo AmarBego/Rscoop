@@ -45,12 +45,17 @@ pub fn get_scoop_path<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, S
 /// Sets the Scoop path in the store.
 #[tauri::command]
 pub fn set_scoop_path<R: Runtime>(app: AppHandle<R>, path: String) -> Result<(), String> {
-    with_store_mut(app, move |store| store.set("scoop_path", serde_json::json!(path)))
+    with_store_mut(app, move |store| {
+        store.set("scoop_path", serde_json::json!(path))
+    })
 }
 
 /// Gets a generic configuration value from the store by its key.
 #[tauri::command]
-pub fn get_config_value<R: Runtime>(app: AppHandle<R>, key: String) -> Result<Option<Value>, String> {
+pub fn get_config_value<R: Runtime>(
+    app: AppHandle<R>,
+    key: String,
+) -> Result<Option<Value>, String> {
     with_store_get(app, |store| store.get(&key).map(|v| v.clone()))
 }
 

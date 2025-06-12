@@ -116,9 +116,7 @@ fn get_filesystem_type(path: &Path) -> Result<String, String> {
         .iter()
         .position(|&c| c == 0)
         .unwrap_or(fs_name_buf.len());
-    Ok(String::from_utf16_lossy(
-        &fs_name_buf[..fs_name_nul_pos],
-    ))
+    Ok(String::from_utf16_lossy(&fs_name_buf[..fs_name_nul_pos]))
 }
 
 /// Checks if the Scoop installation directory is on an NTFS filesystem.

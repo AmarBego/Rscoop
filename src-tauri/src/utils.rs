@@ -54,7 +54,10 @@ pub fn resolve_scoop_root<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, Stri
         return Ok(program_data);
     }
 
-    Err("Unable to determine Scoop root directory. Please configure it explicitly in Settings.".to_string())
+    Err(
+        "Unable to determine Scoop root directory. Please configure it explicitly in Settings."
+            .to_string(),
+    )
 }
 
 // -----------------------------------------------------------------------------
@@ -120,11 +123,15 @@ fn locate_package_manifest_impl(
     if let Some(source) = package_source {
         if !source.is_empty() && source != "None" {
             let specific_bucket_path = buckets_dir.join(&source);
-            return search_buckets(specific_bucket_path)
-                .map_err(|_| format!("Package '{}' not found in bucket '{}'.", package_name, source));
+            return search_buckets(specific_bucket_path).map_err(|_| {
+                format!(
+                    "Package '{}' not found in bucket '{}'.",
+                    package_name, source
+                )
+            });
         }
     }
-    
+
     for entry in std::fs::read_dir(buckets_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         if let Ok(found) = search_buckets(entry.path()) {

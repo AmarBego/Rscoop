@@ -66,5 +66,13 @@ pub async fn execute_scoop(
         _ => return Err("Invalid operation or missing package name.".to_string()),
     };
 
-    powershell::run_and_stream_command(window, cmd, op_name, EVENT_OUTPUT, EVENT_FINISHED, EVENT_CANCEL).await
+    powershell::run_and_stream_command(
+        window,
+        cmd,
+        op_name,
+        EVENT_OUTPUT,
+        EVENT_FINISHED,
+        EVENT_CANCEL,
+    )
+    .await
 }

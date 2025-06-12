@@ -96,4 +96,3 @@ pub async fn check_for_updates<R: Runtime>(
     log::info!("Found {} updatable packages", updatable_packages.len());
     Ok(updatable_packages)
 }
- 

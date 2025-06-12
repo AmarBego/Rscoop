@@ -11,4 +11,4 @@ pub mod settings;
 pub mod uninstall;
 pub mod update;
 pub mod updates;
-pub mod virustotal; 
+pub mod virustotal;

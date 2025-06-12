@@ -37,4 +37,3 @@ pub fn get_package_manifest<R: Runtime>(
     fs::read_to_string(&manifest_path)
         .map_err(|e| format!("Failed to read manifest for {}: {}", package_name, e))
 }
- 

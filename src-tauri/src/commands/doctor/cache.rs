@@ -3,7 +3,7 @@ use crate::utils;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::fs;
-use std::path::{Path};
+use std::path::Path;
 use tauri::{AppHandle, Runtime};
 
 /// Represents a single entry in the Scoop cache.
@@ -46,9 +46,7 @@ fn parse_cache_entry_from_path(path: &Path) -> Option<CacheEntry> {
 /// This function reads the cache directory, parses each file to extract cache information,
 /// and returns a sorted list of cache entries.
 #[tauri::command]
-pub async fn list_cache_contents<R: Runtime>(
-    app: AppHandle<R>,
-) -> Result<Vec<CacheEntry>, String> {
+pub async fn list_cache_contents<R: Runtime>(app: AppHandle<R>) -> Result<Vec<CacheEntry>, String> {
     log::info!("Listing cache contents from filesystem");
 
     let cache_path = utils::resolve_scoop_root(app)?.join("cache");
@@ -58,8 +56,8 @@ pub async fn list_cache_contents<R: Runtime>(
         return Ok(vec![]);
     }
 
-    let read_dir = fs::read_dir(&cache_path)
-        .map_err(|e| format!("Failed to read cache directory: {}", e))?;
+    let read_dir =
+        fs::read_dir(&cache_path).map_err(|e| format!("Failed to read cache directory: {}", e))?;
 
     let mut entries: Vec<CacheEntry> = read_dir
         .par_bridge()
@@ -117,8 +115,8 @@ fn clear_specific_files(cache_path: &Path, files_to_delete: &[String]) -> Result
 fn clear_entire_cache(cache_path: &Path) -> Result<(), String> {
     log::info!("Clearing all files from cache directory.");
 
-    let dir_entries = fs::read_dir(cache_path)
-        .map_err(|e| format!("Failed to read cache directory: {}", e))?;
+    let dir_entries =
+        fs::read_dir(cache_path).map_err(|e| format!("Failed to read cache directory: {}", e))?;
 
     dir_entries
         .par_bridge()
@@ -134,4 +132,3 @@ fn clear_entire_cache(cache_path: &Path) -> Result<(), String> {
 
     Ok(())
 }
- 

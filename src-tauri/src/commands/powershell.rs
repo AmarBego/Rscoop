@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::process::Stdio;
-use tauri::{Window, Emitter, Listener};
+use tauri::{Emitter, Listener, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot};
@@ -59,7 +59,13 @@ fn spawn_output_stream_handler(
                 }
             }
 
-            if let Err(e) = window.emit(&output_event, StreamOutput { line, source: source.to_string() }) {
+            if let Err(e) = window.emit(
+                &output_event,
+                StreamOutput {
+                    line,
+                    source: source.to_string(),
+                },
+            ) {
                 log::error!("Failed to emit output event: {}", e);
             }
         }
@@ -102,16 +108,34 @@ pub async fn run_and_stream_command(
         .spawn()
         .map_err(|e| format!("Failed to spawn command '{}': {}", command_str, e))?;
 
-    let stdout = child.stdout.take().expect("Child process did not have a handle to stdout");
-    let stderr = child.stderr.take().expect("Child process did not have a handle to stderr");
+    let stdout = child
+        .stdout
+        .take()
+        .expect("Child process did not have a handle to stdout");
+    let stderr = child
+        .stderr
+        .take()
+        .expect("Child process did not have a handle to stderr");
 
     let (error_tx, mut error_rx) = mpsc::channel::<String>(100);
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
 
     setup_cancellation_handler(&window, cancel_event, cancel_tx);
 
-    spawn_output_stream_handler(stdout, "stdout", window.clone(), output_event.to_string(), error_tx.clone());
-    spawn_output_stream_handler(stderr, "stderr", window.clone(), output_event.to_string(), error_tx);
+    spawn_output_stream_handler(
+        stdout,
+        "stdout",
+        window.clone(),
+        output_event.to_string(),
+        error_tx.clone(),
+    );
+    spawn_output_stream_handler(
+        stderr,
+        "stderr",
+        window.clone(),
+        output_event.to_string(),
+        error_tx,
+    );
 
     tokio::select! {
         status_res = child.wait() => {
@@ -131,7 +155,12 @@ async fn handle_command_completion(
     finished_event: &str,
     error_rx: &mut mpsc::Receiver<String>,
 ) -> Result<(), String> {
-    let status = status_res.map_err(|e| format!("Failed to wait on child process for {}: {}", operation_name, e))?;
+    let status = status_res.map_err(|e| {
+        format!(
+            "Failed to wait on child process for {}: {}",
+            operation_name, e
+        )
+    })?;
     log::info!("{} finished with status: {}", operation_name, status);
 
     let has_errors = error_rx.try_recv().is_ok();
@@ -140,10 +169,19 @@ async fn handle_command_completion(
     let message = if was_successful {
         format!("{} completed successfully", operation_name)
     } else {
-        format!("{} failed. Please check the output for details.", operation_name)
+        format!(
+            "{} failed. Please check the output for details.",
+            operation_name
+        )
     };
 
-    if let Err(e) = window.emit(finished_event, CommandResult { success: was_successful, message: message.clone() }) {
+    if let Err(e) = window.emit(
+        finished_event,
+        CommandResult {
+            success: was_successful,
+            message: message.clone(),
+        },
+    ) {
         log::error!("Failed to emit finished event: {}", e);
     }
 
@@ -162,9 +200,18 @@ async fn handle_cancellation(
     finished_event: &str,
 ) -> Result<(), String> {
     if let Err(e) = child.kill().await {
-        let err_msg = format!("Failed to kill child process for '{}': {}", operation_name, e);
+        let err_msg = format!(
+            "Failed to kill child process for '{}': {}",
+            operation_name, e
+        );
         log::error!("{}", err_msg);
-        if let Err(e) = window.emit(finished_event, CommandResult { success: false, message: err_msg.clone() }) {
+        if let Err(e) = window.emit(
+            finished_event,
+            CommandResult {
+                success: false,
+                message: err_msg.clone(),
+            },
+        ) {
             log::error!("Failed to emit finished event on kill failure: {}", e);
         }
         return Err(err_msg);
@@ -172,9 +219,14 @@ async fn handle_cancellation(
 
     let cancel_msg = format!("{} was cancelled.", operation_name);
     log::info!("{}", cancel_msg);
-    if let Err(e) = window.emit(finished_event, CommandResult { success: false, message: cancel_msg.clone() }) {
+    if let Err(e) = window.emit(
+        finished_event,
+        CommandResult {
+            success: false,
+            message: cancel_msg.clone(),
+        },
+    ) {
         log::error!("Failed to emit cancellation event: {}", e);
     }
     Err(cancel_msg)
 }
- 

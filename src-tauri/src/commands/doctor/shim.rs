@@ -35,8 +35,7 @@ pub struct AddShimArgs {
 // Statically compiled regex for parsing shim files efficiently.
 static PATH_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"path\s*=\s*['"](.*?)['"]"#).unwrap());
 static ARGS_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"args\s*=\s*(.*)"#).unwrap());
-static SOURCE_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"[\\/]apps[\\/]([^\\/]+)[\\/]").unwrap());
+static SOURCE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"[\\/]apps[\\/]([^\\/]+)[\\/]").unwrap());
 
 /// Parses the content of a `.shim` file to extract the target path and arguments.
 fn parse_shim_file_content(content: &str) -> (Option<String>, Option<String>) {
@@ -159,13 +158,16 @@ pub async fn alter_shim<R: Runtime>(app: AppHandle<R>, shim_name: String) -> Res
         }
     };
 
-    let was_altered = attempt_rename(&scoop_path.join("shims"))? 
+    let was_altered = attempt_rename(&scoop_path.join("shims"))?
         || attempt_rename(&scoop_path.join("global").join("shims"))?;
 
     if was_altered {
         Ok(())
     } else {
-        Err(format!("Could not find a manageable shim for '{}'.", shim_name))
+        Err(format!(
+            "Could not find a manageable shim for '{}'.",
+            shim_name
+        ))
     }
 }
 
@@ -246,4 +248,3 @@ pub async fn add_shim<R: Runtime>(app: AppHandle<R>, args: AddShimArgs) -> Resul
 
     Ok(())
 }
- 
