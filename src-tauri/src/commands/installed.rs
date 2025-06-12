@@ -120,3 +120,12 @@ pub async fn get_installed_packages_full<R: Runtime>(
     log::info!("Found {} installed packages", packages.len());
     Ok(packages)
 }
+
+/// Invalidates the cached list of installed packages in AppState.
+/// This should be called after operations that change the installed packages,
+/// such as installing or uninstalling a package.
+pub async fn invalidate_installed_cache(state: State<'_, AppState>) {
+    let mut cache_guard = state.installed_packages.lock().await;
+    *cache_guard = None;
+    log::info!("Installed packages cache invalidated.");
+}

@@ -9,6 +9,7 @@ import DoctorPage from "./pages/DoctorPage.tsx";
 import { once } from "@tauri-apps/api/event";
 import { info } from "@tauri-apps/plugin-log";
 import { createStoredSignal } from "./hooks/createStoredSignal";
+import { listen } from "@tauri-apps/api/event";
 
 function App() {
     // Persist selected view across sessions.
@@ -17,11 +18,8 @@ function App() {
         "search"
     );
 
-    // Persist readiness flag so we can skip the initial flicker on subsequent launches.
-    const [readyFlag, setReadyFlag] = createStoredSignal<"true" | "false">(
-        "rscoop-ready",
-        "false"
-    );
+    // Always start with false on app launch to ensure loading screen shows
+    const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
 
     const isReady = createMemo(() => readyFlag() === "true");
 
@@ -29,7 +27,7 @@ function App() {
 
     onMount(() => {
         // Listen for the primary cold-start-finished event.
-        once<boolean>("cold-start-finished", (event) => {
+        listen<boolean>("cold-start-finished", (event) => {
             info(`Received cold-start-finished event with payload: ${event.payload}`);
             if (event.payload) {
                 setReadyFlag("true");

@@ -57,7 +57,7 @@ function PackageListView(props: PackageListViewProps) {
         <tbody>
           <For each={props.packages()}>
             {(pkg, index) => (
-              <tr>
+              <tr data-no-close-search>
                 <td>
                   <div class="flex items-center gap-2">
                     <button class="btn btn-ghost btn-sm" onClick={() => props.onViewInfo(pkg)}>
@@ -82,7 +82,7 @@ function PackageListView(props: PackageListViewProps) {
                   <div
                     class="dropdown dropdown-end"
                     classList={{
-                      'dropdown-top': index() > props.packages().length / 2 && props.packages().length > 5,
+                      'dropdown-top': index() * 2 >= props.packages().length - 1,
                     }}
                   >
                     <label tabindex="0" class="btn btn-ghost btn-xs btn-circle">

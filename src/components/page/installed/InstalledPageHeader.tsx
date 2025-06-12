@@ -30,6 +30,11 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
     if (!isSearchOpen()) return;
 
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-no-close-search]')) {
+        return;
+      }
+
       if (searchContainerRef && !searchContainerRef.contains(event.target as Node)) {
         setIsSearchOpen(false);
         props.setSearchQuery("");

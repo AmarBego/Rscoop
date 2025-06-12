@@ -26,7 +26,7 @@ function ManifestModal(props: ManifestModalProps) {
   const isOpen = () => props.loading || !!props.error || !!props.manifestContent;
 
   return (
-    <dialog class="modal" open={isOpen()}>
+    <dialog class="modal" open={isOpen()} data-no-close-search>
       <div class="modal-box max-w-5xl bg-base-200">
         <h3 class="font-bold text-lg">Manifest for {props.packageName}</h3>
         

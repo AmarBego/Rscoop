@@ -22,7 +22,7 @@ function PackageGridView(props: PackageGridViewProps) {
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       <For each={props.packages()}>
         {(pkg) => (
-          <div class="card bg-base-200 shadow-xl transition-transform transform hover:scale-101">
+          <div class="card bg-base-200 shadow-xl transition-transform transform hover:scale-101" data-no-close-search>
             <div class="card-body">
               <div class="flex justify-between items-start mb-2">
                 <h2 class="card-title">

@@ -1,6 +1,9 @@
 //! Commands for uninstalling packages and clearing the cache.
 use crate::commands::scoop::{self, ScoopOp};
-use tauri::Window;
+use crate::commands::search::invalidate_manifest_cache;
+use crate::commands::installed::invalidate_installed_cache;
+use crate::state::AppState;
+use tauri::{Window, State};
 
 /// Uninstalls a Scoop package.
 ///
@@ -14,6 +17,7 @@ use tauri::Window;
 #[tauri::command]
 pub async fn uninstall_package(
     window: Window,
+    state: State<'_, AppState>,
     package_name: String,
     bucket: String,
 ) -> Result<(), String> {
@@ -24,7 +28,10 @@ pub async fn uninstall_package(
         &package_name,
         &bucket,
     )
-    .await
+    .await?;
+    invalidate_manifest_cache().await;
+    invalidate_installed_cache(state).await;
+    Ok(())
 }
 
 /// Clears the cache for a Scoop package.

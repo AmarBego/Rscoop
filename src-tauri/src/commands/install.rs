@@ -1,6 +1,9 @@
 //! Command for installing Scoop packages.
 use crate::commands::scoop::{self, ScoopOp};
-use tauri::Window;
+use crate::commands::search::invalidate_manifest_cache;
+use crate::commands::installed::invalidate_installed_cache;
+use crate::state::AppState;
+use tauri::{Window, State};
 
 /// Installs a Scoop package, optionally from a specific bucket.
 ///
@@ -11,6 +14,7 @@ use tauri::Window;
 #[tauri::command]
 pub async fn install_package(
     window: Window,
+    state: State<'_, AppState>,
     package_name: String,
     bucket: String,
 ) -> Result<(), String> {
@@ -26,5 +30,8 @@ pub async fn install_package(
         bucket_opt.unwrap_or("default")
     );
 
-    scoop::execute_scoop(window, ScoopOp::Install, Some(&package_name), bucket_opt).await
+    scoop::execute_scoop(window, ScoopOp::Install, Some(&package_name), bucket_opt).await?;
+    invalidate_manifest_cache().await;
+    invalidate_installed_cache(state).await;
+    Ok(())
 }

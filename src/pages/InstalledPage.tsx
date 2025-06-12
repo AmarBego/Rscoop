@@ -92,7 +92,7 @@ function InstalledPage() {
           />}
         >
           <PackageListView 
-            packages={processedPackages}
+            packages={filteredPackages}
             onSort={handleSort}
             sortKey={sortKey}
             sortDirection={sortDirection}
