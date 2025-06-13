@@ -44,6 +44,9 @@ jobs:
 
       # One command builds frontend, compiles Rust, and bundles installers
       - name: Build & bundle application (Tauri)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri -- build
 
       - name: Extract metadata (product name & version)
@@ -88,3 +91,25 @@ jobs:
           asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
           asset_name: ${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
           asset_content_type: application/octet-stream
+
+      - name: Generate and upload updater artifacts
+        shell: pwsh
+        run: |
+          $msiPath = "./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
+          $signature = Get-Content -Raw "$msiPath.sig"
+          $date = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
+          $json = @{
+            version = "${{ steps.meta.outputs.version }}"
+            pub_date = $date
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $signature
+                url = "https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
+              }
+            }
+          } | ConvertTo-Json -Depth 4
+          
+          Set-Content -Path "./update.json" -Value $json
+          
+          Invoke-WebRequest -Uri "${{ steps.create_release.outputs.upload_url }}?name=update.json" -Method Post -Headers @{ "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}" } -ContentType "application/json" -InFile "./update.json"
+          Invoke-WebRequest -Uri "${{ steps.create_release.outputs.upload_url }}?name=${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig" -Method Post -Headers @{ "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}" } -ContentType "application/octet-stream" -InFile "$msiPath.sig"

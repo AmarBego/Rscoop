@@ -25,10 +25,20 @@
     }
   },
   "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgxMkUyQTdCQkJEQjI2NTUKUldSVkp0dTdleW91Z2FmUlZJa2pRMEkwNFo5TlVxQkt0YmhIb3pXVGl2RExlSFphL29NdDE4QXEK",
+      "endpoints": [
+        "https://github.com/AmarBego/Rscoop/releases/latest/download/update.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    },
     "store": null,
     "dialog": null
   },
   "bundle": {
+    "createUpdaterArtifacts": true,
     "active": true,
     "targets": "all",
     "icon": [

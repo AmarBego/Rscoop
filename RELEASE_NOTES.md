@@ -1,5 +1,12 @@
 ### Release Notes
 
+#### 🚀 Features
+
+*   **Automatic Updates:** The application now automatically checks for new versions on startup. If an update is available, you will be notified within the app and can choose to install it with a single click. This ensures you always have the latest features and bug fixes.
+
+#### ✨ Improvements
+
+*   **NONE**
 #### 🐛 Bug Fixes
 
-*   **Fixed VirusTotal API Key Integration:** The VirusTotal API key is now correctly saved to Scoop's `config.json` file (located at `%USERPROFILE%\.config\scoop\config.json`). Previously, it was being saved to the wrong location, which prevented the feature from working. The settings page now properly reads and writes the key to the correct file, making the VirusTotal integration fully functional.
+*   **NONE**

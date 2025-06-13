@@ -10,6 +10,8 @@ import { once } from "@tauri-apps/api/event";
 import { info } from "@tauri-apps/plugin-log";
 import { createStoredSignal } from "./hooks/createStoredSignal";
 import { listen } from "@tauri-apps/api/event";
+import { check, Update } from "@tauri-apps/plugin-updater";
+import { relaunch } from "@tauri-apps/plugin-process";
 
 function App() {
     // Persist selected view across sessions.
@@ -24,8 +26,36 @@ function App() {
     const isReady = createMemo(() => readyFlag() === "true");
 
     const [error, setError] = createSignal<string | null>(null);
+    const [update, setUpdate] = createSignal<Update | null>(null);
+    const [isInstalling, setIsInstalling] = createSignal(false);
 
-    onMount(() => {
+    const handleInstallUpdate = async () => {
+        if (!update()) return;
+        setIsInstalling(true);
+        try {
+            await update()!.downloadAndInstall();
+            await relaunch();
+        } catch (e) {
+            console.error("Failed to install update", e);
+            setError("Failed to install the update. Please try restarting the application.");
+            setIsInstalling(false);
+        }
+    };
+
+    onMount(async () => {
+        try {
+            info("Checking for application updates...");
+            const updateResult = await check();
+            if (updateResult) {
+                info(`Update ${updateResult.version} is available.`);
+                setUpdate(updateResult);
+            } else {
+                info("Application is up to date.");
+            }
+        } catch (e) {
+            console.error("Failed to check for updates", e);
+        }
+
         // Listen for the primary cold-start-finished event.
         listen<boolean>("cold-start-finished", (event) => {
             info(`Received cold-start-finished event with payload: ${event.payload}`);
@@ -58,6 +88,26 @@ function App() {
 
     return (
         <>
+            <Show when={update() && !error()}>
+                <div class="bg-sky-600 text-white p-2 text-center text-sm flex justify-center items-center gap-4">
+                    <span>An update to version {update()!.version} is available.</span>
+                    <button
+                        class="bg-sky-800 hover:bg-sky-900 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isInstalling()}
+                        onClick={handleInstallUpdate}
+                    >
+                        {isInstalling() ? "Installing..." : "Install Now"}
+                    </button>
+                    <button
+                        class="hover:bg-sky-700 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50"
+                        disabled={isInstalling()}
+                        onClick={() => setUpdate(null)}
+                    >
+                        Later
+                    </button>
+                </div>
+            </Show>
+
             <Show when={!isReady() && !error()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold mb-4">Rscoop</h1>

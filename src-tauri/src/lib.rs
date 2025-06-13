@@ -13,6 +13,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::new().build())
         .setup(|app| {
+            #[cfg(windows)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())
+                .expect("failed to add updater plugin");
+
             let app_handle = app.handle().clone();
             let scoop_path =
                 utils::resolve_scoop_root(app_handle).expect("Failed to resolve scoop root path");
