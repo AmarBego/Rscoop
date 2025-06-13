@@ -2,11 +2,12 @@
 
 #### 🚀 Features
 
-*   **Automatic Updates:** The application now automatically checks for new versions on startup. If an update is available, you will be notified within the app and can choose to install it with a single click. This ensures you always have the latest features and bug fixes.
+*   **NONE**
 
 #### ✨ Improvements
 
-*   **NONE**
+*   **Release Workflow:** Updated release workflow to use GitHub CLI for creating releases and uploading assets. This change simplifies the workflow and ensures better handling of release notes and asset uploads.
+
 #### 🐛 Bug Fixes
 
 *   **NONE**
