@@ -60,28 +60,41 @@ jobs:
       - name: Compress executable with UPX
         run: upx --best --lzma src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
 
-      - name: Setup GitHub CLI
-        uses: cli/setup-gh@v1
-
-      - name: Create GitHub Release and Upload Assets
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body_path: RELEASE_NOTES.md
+
+      - name: Upload main executable
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
+          asset_name: ${{ steps.meta.outputs.product }}.exe
+          asset_content_type: application/octet-stream
+
+      - name: Upload MSI installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
+          asset_name: ${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
+          asset_content_type: application/octet-stream
+
+      - name: Generate and upload updater artifacts
+        shell: pwsh
         run: |
-          # Check if RELEASE_NOTES.md exists
-          if (Test-Path -Path "RELEASE_NOTES.md") {
-            $notes = Get-Content RELEASE_NOTES.md -Raw
-          } else {
-            $notes = "Release ${{ github.ref_name }}"
-          }
-          
-          # Create release
-          gh release create ${{ github.ref_name }} --title "${{ github.ref_name }}" --notes "$notes"
-          
-          # Upload executables
-          gh release upload ${{ github.ref_name }} ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
-          gh release upload ${{ github.ref_name }} ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
-          
-          # Generate update artifacts
           $msiPath = "./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
           $signature = Get-Content -Raw "$msiPath.sig"
           $date = Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ"
@@ -97,7 +110,23 @@ jobs:
           } | ConvertTo-Json -Depth 4
           
           Set-Content -Path "./update.json" -Value $json
-          
-          # Upload update artifacts
-          gh release upload ${{ github.ref_name }} ./update.json
-          gh release upload ${{ github.ref_name }} "$msiPath.sig"
+
+      - name: Upload update.json
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./update.json
+          asset_name: update.json
+          asset_content_type: application/json
+
+      - name: Upload MSI signature
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig
+          asset_name: ${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig
+          asset_content_type: application/octet-stream
