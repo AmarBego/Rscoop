@@ -26,8 +26,8 @@ function SettingsPage() {
         setIsLoading(true);
         setError(null);
         try {
-            const key = await invoke<string>("get_config_value", { key: "virustotal_api_key" });
-            setApiKey(key);
+            const key = await invoke<string | null>("get_virustotal_api_key");
+            setApiKey(key ?? "");
             if (key) {
                 // If an API key is present, assume the user wants the feature enabled.
                 if (!settings.virustotal.enabled) {
@@ -76,7 +76,7 @@ function SettingsPage() {
         }
 
         try {
-            await invoke("set_config_value", { key: "virustotal_api_key", value: apiKey() });
+            await invoke("set_virustotal_api_key", { key: apiKey() });
             // Enable the feature if a valid API key is being saved.
             if (apiKey() && !settings.virustotal.enabled) {
                 setVirusTotalSettings({ enabled: true });
