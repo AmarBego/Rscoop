@@ -1,28 +1,21 @@
 import { createSignal, onMount, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { ScoopPackage, ScoopInfo } from "../types/scoop";
 import { createStoredSignal } from "./createStoredSignal";
 import heldStore from "../stores/held";
 import installedPackagesStore from "../stores/installedPackagesStore";
+import { usePackageOperations } from "./usePackageOperations";
+import { usePackageInfo } from "./usePackageInfo";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
-interface OperationNextStep {
-  buttonLabel: string;
-  onNext: () => void;
-}
-
 export function useInstalledPackages() {
   const { packages, loading, error, uniqueBuckets, isCheckingForUpdates, fetch, refetch } = installedPackagesStore;
-
   const [operatingOn, setOperatingOn] = createSignal<string | null>(null);
-  const [selectedPackage, setSelectedPackage] = createSignal<ScoopPackage | null>(null);
-  const [info, setInfo] = createSignal<ScoopInfo | null>(null);
-  const [infoLoading, setInfoLoading] = createSignal(false);
-  const [infoError, setInfoError] = createSignal<string | null>(null);
-  const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
-  const [operationNextStep, setOperationNextStep] = createSignal<OperationNextStep | null>(null);
 
+  // Use shared hooks
+  const packageOperations = usePackageOperations();
+  const packageInfo = usePackageInfo();
+  
   const [viewMode, setViewMode] = createStoredSignal<'grid' | 'list'>('installedViewMode', 'grid');
   const [sortKey, setSortKey] = createStoredSignal<SortKey>('installedSortKey', 'name');
   const [sortDirection, setSortDirection] = createStoredSignal<'asc' | 'desc'>('installedSortDirection', 'asc');
@@ -47,54 +40,12 @@ export function useInstalledPackages() {
     }
   };
 
-  const handleUpdate = (pkg: ScoopPackage) => {
-    setOperationTitle(`Updating ${pkg.name}`);
-    invoke("update_package", { packageName: pkg.name }).catch(err => {
-      console.error("Update invocation failed:", err);
-    });
-  };
-
-  const handleUpdateAll = () => {
-    setOperationTitle("Updating all packages");
-    invoke("update_all_packages").catch(err => {
-      console.error("Update all invocation failed:", err);
-    });
-  };
-
-  const handleUninstall = (pkg: ScoopPackage) => {
-    if (selectedPackage()?.name === pkg.name) {
-      handleCloseInfoModal();
-    }
-
-    setOperationTitle(`Uninstalling ${pkg.name}`);
-    setOperationNextStep({
-      buttonLabel: "Clear Cache",
-      onNext: () => {
-        setOperationTitle(`Clearing cache for ${pkg.name}`);
-        setOperationNextStep(null);
-        invoke("clear_package_cache", {
-          packageName: pkg.name,
-          bucket: pkg.source,
-        }).catch(err => console.error("Clear cache invocation failed:", err));
-      },
-    });
-
-    invoke("uninstall_package", {
-      packageName: pkg.name,
-      bucket: pkg.source,
-    }).catch(err => {
-      console.error("Uninstall invocation failed:", err);
-      setOperationNextStep(null);
-    });
-  };
-
   const handleHold = async (pkgName: string) => {
     setOperatingOn(pkgName);
     try {
       await invoke("hold_package", { packageName: pkgName });
     } catch (err) {
       console.error(`Failed to hold package ${pkgName}:`, err);
-      // In a real app, you might show a toast notification here
     } finally {
       await heldStore.refetch();
       installedPackagesStore.checkForUpdates();
@@ -112,40 +63,6 @@ export function useInstalledPackages() {
       await heldStore.refetch();
       installedPackagesStore.checkForUpdates();
       setOperatingOn(null);
-    }
-  };
-
-  const handleFetchPackageInfo = async (pkg: ScoopPackage) => {
-    if (selectedPackage()?.name === pkg.name) {
-      handleCloseInfoModal();
-      return;
-    }
-    setSelectedPackage(pkg);
-    setInfoLoading(true);
-    setInfoError(null);
-    setInfo(null);
-    try {
-      const result = await invoke<ScoopInfo>("get_package_info", { packageName: pkg.name });
-      setInfo(result);
-    } catch (err) {
-      console.error(`Failed to fetch info for ${pkg.name}:`, err);
-      setInfoError(`Failed to load info for ${pkg.name}`);
-    } finally {
-      setInfoLoading(false);
-    }
-  };
-
-  const handleCloseInfoModal = () => {
-    setSelectedPackage(null);
-    setInfo(null);
-    setInfoError(null);
-  };
-  
-  const handleCloseOperationModal = (wasSuccess: boolean) => {
-    setOperationTitle(null);
-    setOperationNextStep(null);
-    if (wasSuccess) {
-      fetchInstalledPackages();
     }
   };
 
@@ -182,22 +99,34 @@ export function useInstalledPackages() {
     isCheckingForUpdates,
     processedPackages,
     updatableCount,
-    viewMode, setViewMode,
-    sortKey, sortDirection,
-    selectedBucket, setSelectedBucket,
-    selectedPackage, info, infoLoading, infoError,
-    operationTitle,
-    operationNextStep,
+    viewMode, 
+    setViewMode,
+    sortKey, 
+    sortDirection,
+    selectedBucket, 
+    setSelectedBucket,
     operatingOn,
+    
+    // From usePackageInfo
+    selectedPackage: packageInfo.selectedPackage,
+    info: packageInfo.info,
+    infoLoading: packageInfo.loading,
+    infoError: packageInfo.error,
+    handleFetchPackageInfo: packageInfo.fetchPackageInfo,
+    handleCloseInfoModal: packageInfo.closeModal,
+    
+    // From usePackageOperations
+    operationTitle: packageOperations.operationTitle,
+    operationNextStep: packageOperations.operationNextStep,
+    handleUpdate: packageOperations.handleUpdate,
+    handleUpdateAll: packageOperations.handleUpdateAll,
+    handleUninstall: packageOperations.handleUninstall,
+    handleCloseOperationModal: packageOperations.closeOperationModal,
+    
+    // Local methods
     handleSort,
-    handleUpdate,
-    handleUpdateAll,
-    handleUninstall,
     handleHold,
     handleUnhold,
-    handleFetchPackageInfo,
-    handleCloseInfoModal,
-    handleCloseOperationModal,
     fetchInstalledPackages,
     checkForUpdates,
   };

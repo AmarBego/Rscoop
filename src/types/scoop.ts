@@ -6,6 +6,7 @@ export interface ScoopPackage {
   is_installed: boolean;
   info: string;
   match_source: "name" | "binary" | "none" | "path";
+  available_version?: string;
 }
 
 export interface ScoopInfo {
