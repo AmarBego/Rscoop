@@ -18,8 +18,9 @@ export interface AboutSectionRef {
   checkForUpdates: (manual: boolean) => Promise<void>;
 }
 
-interface AboutSectionProps {
+export interface AboutSectionProps {
   ref: (ref: AboutSectionRef) => void;
+  isScoopInstalled?: boolean;
 }
 
 export default function AboutSection(props: AboutSectionProps) {
@@ -30,6 +31,17 @@ export default function AboutSection(props: AboutSectionProps) {
   
   const checkForUpdates = async (manual: boolean) => {
     try {
+      // Don't check for updates if installed via Scoop
+      if (props.isScoopInstalled) {
+        if (manual) {
+          await message("This app was installed via Scoop. Please use Scoop to update this application instead.", {
+            title: "Updates via Scoop",
+            kind: "info"
+          });
+        }
+        return;
+      }
+      
       setUpdateStatus('checking');
       setUpdateError(null);
       
@@ -134,7 +146,13 @@ export default function AboutSection(props: AboutSectionProps) {
         </p>
         
         <div class="flex flex-col space-y-2 mt-4">
-          {updateStatus() === 'idle' && (
+          {props.isScoopInstalled && (
+            <div class="alert alert-info text-sm">
+              <span>This app was installed via Scoop. Use <code>scoop update rscoop</code> to update.</span>
+            </div>
+          )}
+          
+          {!props.isScoopInstalled && updateStatus() === 'idle' && (
             <button 
               class="btn btn-sm btn-outline btn-accent w-full"
               onClick={() => checkForUpdates(true)}

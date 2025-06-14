@@ -7,7 +7,11 @@ import HeldPackagesManagement from "../components/page/settings/HeldPackagesMana
 import AboutSection, { AboutSectionRef } from "../components/page/settings/AboutSection";
 import heldStore from "../stores/held";
 
-function SettingsPage() {
+interface SettingsPageProps {
+    isScoopInstalled?: boolean;
+}
+
+function SettingsPage(props: SettingsPageProps) {
     const { refetch: refetchHeldPackages } = heldStore;
     const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
     let aboutSectionRef: AboutSectionRef | undefined;
@@ -39,7 +43,10 @@ function SettingsPage() {
                         onUnhold={handleUnhold}
                         operationInProgress={!!operationTitle()}
                     />
-                    <AboutSection ref={(r) => (aboutSectionRef = r)} />
+                    <AboutSection 
+                        ref={(r) => (aboutSectionRef = r)} 
+                        isScoopInstalled={props.isScoopInstalled} 
+                    />
                 </div>
             </div>
             <OperationModal

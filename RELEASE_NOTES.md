@@ -2,17 +2,18 @@
 
 #### 🚀 Features
 
-*   **Update Checking:** Implemented a new "About" section in the settings page with robust update functionality powered by Tauri's updater. This includes:
-    *   Automatic, silent update checks when opening the settings page.
-    *   Manual update checks with user feedback.
-    *   Update notifications with release notes.
-    *   Download progress tracking for updates.
+* **Scoop-Aware Updates:** Added intelligence to detect when rScoop is installed via Scoop and disable the built-in updater:
+  * Automatically detects installation source at startup
+  * Disables update notifications when installed through Scoop
+  * Shows helpful guidance to use `scoop update rscoop` instead
+  * Prevents update conflicts between Scoop and the built-in updater
 
 #### ✨ Improvements
 
-*   **Settings Page Refactor:** The settings page has been broken down into smaller, more manageable components for better organization and maintainability.
-*   **Shared Operation Hooks:** Centralized package operations (like install, uninstall, update) into shared `usePackageOperations` and `usePackageInfo` hooks. This reduces code duplication and improves consistency across the application.
+* **Smarter Update System:** Enhanced the update system to conditionally load only when appropriate:
+  * The updater plugin is no longer loaded when running under Scoop
+  * Improved startup performance for Scoop installations
 
 #### 🐛 Bug Fixes
 
-*   **NONE**
+* **NONE**

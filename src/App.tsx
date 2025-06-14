@@ -12,6 +12,7 @@ import { createStoredSignal } from "./hooks/createStoredSignal";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { invoke } from "@tauri-apps/api/core";
 
 function App() {
     // Persist selected view across sessions.
@@ -22,6 +23,9 @@ function App() {
 
     // Always start with false on app launch to ensure loading screen shows
     const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
+    
+    // Track if the app is installed via Scoop
+    const [isScoopInstalled, setIsScoopInstalled] = createSignal<boolean>(false);
 
     const isReady = createMemo(() => readyFlag() === "true");
 
@@ -44,13 +48,22 @@ function App() {
 
     onMount(async () => {
         try {
-            info("Checking for application updates...");
-            const updateResult = await check();
-            if (updateResult) {
-                info(`Update ${updateResult.version} is available.`);
-                setUpdate(updateResult);
+            // Check if app is installed via Scoop
+            const scoopInstalled = await invoke<boolean>("is_scoop_installation");
+            setIsScoopInstalled(scoopInstalled);
+            
+            // Only check for updates if not installed via Scoop
+            if (!scoopInstalled) {
+                info("Checking for application updates...");
+                const updateResult = await check();
+                if (updateResult) {
+                    info(`Update ${updateResult.version} is available.`);
+                    setUpdate(updateResult);
+                } else {
+                    info("Application is up to date.");
+                }
             } else {
-                info("Application is up to date.");
+                info("App is installed via Scoop. Auto-update disabled.");
             }
         } catch (e) {
             console.error("Failed to check for updates", e);
@@ -151,7 +164,7 @@ function App() {
 
     return (
         <>
-            <Show when={update() && !error()}>
+            <Show when={update() && !error() && !isScoopInstalled()}>
                 <div class="bg-sky-600 text-white p-2 text-center text-sm flex justify-center items-center gap-4">
                     <span>An update to version {update()!.version} is available.</span>
                     <button
@@ -199,7 +212,7 @@ function App() {
                                 <InstalledPage />
                             </Show>
                             <Show when={view() === "settings"}>
-                                <SettingsPage />
+                                <SettingsPage isScoopInstalled={isScoopInstalled()} />
                             </Show>
                             <Show when={view() === "doctor"}>
                                 <DoctorPage />

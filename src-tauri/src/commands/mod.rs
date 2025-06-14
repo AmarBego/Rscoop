@@ -1,3 +1,4 @@
+pub mod app_info;
 pub mod doctor;
 pub mod hold;
 pub mod info;

@@ -14,9 +14,18 @@ pub fn run() {
         .plugin(tauri_plugin_log::Builder::new().build())
         .setup(|app| {
             #[cfg(windows)]
-            app.handle()
-                .plugin(tauri_plugin_updater::Builder::new().build())
-                .expect("failed to add updater plugin");
+            {
+                // Check if installed via Scoop
+                let is_scoop = utils::is_scoop_installation();
+                log::info!("Application installed via Scoop: {}", is_scoop);
+                
+                // Only set up updater if not installed via Scoop
+                if !is_scoop {
+                    app.handle()
+                        .plugin(tauri_plugin_updater::Builder::new().build())
+                        .expect("failed to add updater plugin");
+                }
+            }
 
             let app_handle = app.handle().clone();
             let scoop_path =
@@ -75,7 +84,8 @@ pub fn run() {
             commands::doctor::shim::add_shim,
             commands::hold::list_held_packages,
             commands::hold::hold_package,
-            commands::hold::unhold_package
+            commands::hold::unhold_package,
+            commands::app_info::is_scoop_installation
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
