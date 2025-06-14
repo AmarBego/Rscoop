@@ -6,12 +6,12 @@ import InstalledPage from "./pages/InstalledPage.tsx";
 import { View } from "./types/scoop.ts";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
-import { once } from "@tauri-apps/api/event";
-import { info } from "@tauri-apps/plugin-log";
-import { createStoredSignal } from "./hooks/createStoredSignal";
 import { listen } from "@tauri-apps/api/event";
+import { info, error as logError } from "@tauri-apps/plugin-log";
+import { createStoredSignal } from "./hooks/createStoredSignal";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 
 function App() {
     // Persist selected view across sessions.
@@ -56,25 +56,74 @@ function App() {
             console.error("Failed to check for updates", e);
         }
 
-        // Listen for the primary cold-start-finished event.
-        listen<boolean>("cold-start-finished", (event) => {
-            info(`Received cold-start-finished event with payload: ${event.payload}`);
-            if (event.payload) {
-                setReadyFlag("true");
-            } else {
-                setError(
-                    "Cold start failed. Please ensure Scoop is installed correctly and restart."
-                );
-                setReadyFlag("false");
+        // Setup event listeners for both global and window-specific events
+        const setupColdStartListeners = async () => {
+            const webview = getCurrentWebviewWindow();
+            const unlistenFunctions: (() => void)[] = [];
+            
+            // Listen for window-specific cold-start-finished event
+            try {
+                const unlisten1 = await webview.listen<boolean>("cold-start-finished", (event) => {
+                    info(`Received window-specific cold-start-finished event with payload: ${event.payload}`);
+                    handleColdStartEvent(event.payload);
+                });
+                unlistenFunctions.push(unlisten1);
+            } catch (e) {
+                logError(`Failed to register window-specific cold-start-finished listener: ${e}`);
             }
-        });
+            
+            // Listen for global cold-start-finished event as fallback
+            try {
+                const unlisten2 = await listen<boolean>("cold-start-finished", (event) => {
+                    info(`Received global cold-start-finished event with payload: ${event.payload}`);
+                    handleColdStartEvent(event.payload);
+                });
+                unlistenFunctions.push(unlisten2);
+            } catch (e) {
+                logError(`Failed to register global cold-start-finished listener: ${e}`);
+            }
+            
+            // Listen for window-specific scoop-ready event
+            try {
+                const unlisten3 = await webview.listen<boolean>("scoop-ready", (event) => {
+                    info(`Received window-specific scoop-ready event with payload: ${event.payload}`);
+                    handleColdStartEvent(event.payload);
+                });
+                unlistenFunctions.push(unlisten3);
+            } catch (e) {
+                logError(`Failed to register window-specific scoop-ready listener: ${e}`);
+            }
+            
+            // Listen for global scoop-ready event as fallback
+            try {
+                const unlisten4 = await listen<boolean>("scoop-ready", (event) => {
+                    info(`Received global scoop-ready event with payload: ${event.payload}`);
+                    handleColdStartEvent(event.payload);
+                });
+                unlistenFunctions.push(unlisten4);
+            } catch (e) {
+                logError(`Failed to register global scoop-ready listener: ${e}`);
+            }
+            
+            return () => {
+                // Clean up all listeners when component unmounts
+                unlistenFunctions.forEach(unlisten => {
+                    try {
+                        unlisten();
+                    } catch (e) {
+                        logError(`Failed to unlisten: ${e}`);
+                    }
+                });
+            };
+        };
+        
+        const cleanup = await setupColdStartListeners();
 
-        // Fallback for older backends that might only emit scoop-ready.
-        once<boolean>("scoop-ready", (event) => {
-            info(`Received scoop-ready event with payload: ${event.payload}`);
-            // Only update if the primary event hasn't already fired.
+        // Handle cold start event payload
+        const handleColdStartEvent = (payload: boolean) => {
+            // Only update if not already ready
             if (!isReady() && !error()) {
-                if (event.payload) {
+                if (payload) {
                     setReadyFlag("true");
                 } else {
                     setError(
@@ -83,7 +132,21 @@ function App() {
                     setReadyFlag("false");
                 }
             }
-        });
+        };
+
+        // Force ready state after a timeout as a fallback
+        const timeoutId = setTimeout(() => {
+            if (!isReady() && !error()) {
+                info("Forcing ready state after timeout");
+                setReadyFlag("true");
+            }
+        }, 10000); // 10 second timeout
+        
+        // Clean up on unmount
+        return () => {
+            clearTimeout(timeoutId);
+            cleanup();
+        };
     });
 
     return (

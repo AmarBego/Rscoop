@@ -1,8 +1,8 @@
 import { ShieldCheck, Download, RefreshCw } from "lucide-solid";
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, Show } from "solid-js";
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
-import { ask } from '@tauri-apps/plugin-dialog';
+import { ask, message } from '@tauri-apps/plugin-dialog';
 import pkgJson from "../../../../package.json";
 
 // Define the types we need
@@ -14,13 +14,21 @@ interface UpdateEvent {
   };
 }
 
-export default function AboutSection() {
+export interface AboutSectionRef {
+  checkForUpdates: (manual: boolean) => Promise<void>;
+}
+
+interface AboutSectionProps {
+  ref: (ref: AboutSectionRef) => void;
+}
+
+export default function AboutSection(props: AboutSectionProps) {
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
   const [updateInfo, setUpdateInfo] = createSignal<any>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
   const [downloadProgress, setDownloadProgress] = createSignal<{downloaded: number; total: number | null}>({ downloaded: 0, total: null });
   
-  const checkForUpdates = async () => {
+  const checkForUpdates = async (manual: boolean) => {
     try {
       setUpdateStatus('checking');
       setUpdateError(null);
@@ -47,10 +55,12 @@ export default function AboutSection() {
         }
       } else {
         setUpdateStatus('idle');
-        await ask("You're already using the latest version!", {
-          title: "No Updates Available",
-          kind: "info"
-        });
+        if (manual) {
+          await message("You're already using the latest version!", {
+            title: "No Updates Available",
+            kind: "info"
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to check for updates:', error);
@@ -107,10 +117,7 @@ export default function AboutSection() {
     }
   };
 
-  onMount(() => {
-    // Check for updates when the component mounts
-    checkForUpdates();
-  });
+  props.ref({ checkForUpdates });
 
   return (
     <div class="card bg-base-200 shadow-xl">
@@ -130,7 +137,7 @@ export default function AboutSection() {
           {updateStatus() === 'idle' && (
             <button 
               class="btn btn-sm btn-outline btn-accent w-full"
-              onClick={checkForUpdates}
+              onClick={() => checkForUpdates(true)}
             >
               <RefreshCw class="w-4 h-4 mr-1" />
               Check for updates
@@ -195,7 +202,7 @@ export default function AboutSection() {
               <div class="text-error text-center text-xs">{updateError()}</div>
               <button 
                 class="btn btn-sm btn-outline btn-error w-full"
-                onClick={checkForUpdates}
+                onClick={() => checkForUpdates(true)}
               >
                 <RefreshCw class="w-4 h-4 mr-1" />
                 Try again

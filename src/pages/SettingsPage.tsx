@@ -1,15 +1,20 @@
-import { createSignal } from "solid-js";
+import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import OperationModal from "../components/OperationModal";
 import ScoopConfiguration from "../components/page/settings/ScoopConfiguration";
 import VirusTotalSettings from "../components/page/settings/VirusTotalSettings";
 import HeldPackagesManagement from "../components/page/settings/HeldPackagesManagement";
-import AboutSection from "../components/page/settings/AboutSection";
+import AboutSection, { AboutSectionRef } from "../components/page/settings/AboutSection";
 import heldStore from "../stores/held";
 
 function SettingsPage() {
     const { refetch: refetchHeldPackages } = heldStore;
     const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
+    let aboutSectionRef: AboutSectionRef | undefined;
+
+    onMount(() => {
+        aboutSectionRef?.checkForUpdates(false);
+    });
 
     const handleUnhold = (packageName: string) => {
         setOperationTitle(`Removing hold from ${packageName}...`);
@@ -34,7 +39,7 @@ function SettingsPage() {
                         onUnhold={handleUnhold}
                         operationInProgress={!!operationTitle()}
                     />
-                    <AboutSection />
+                    <AboutSection ref={(r) => (aboutSectionRef = r)} />
                 </div>
             </div>
             <OperationModal
