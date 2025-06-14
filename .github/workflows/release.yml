@@ -60,39 +60,8 @@ jobs:
       - name: Compress executable with UPX
         run: upx --best --lzma src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref_name }}
-          release_name: ${{ github.ref_name }}
-          draft: false
-          prerelease: false
-          body_path: RELEASE_NOTES.md
-
-      - name: Upload main executable
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
-          asset_name: ${{ steps.meta.outputs.product }}.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload MSI installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
-          asset_name: ${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
-          asset_content_type: application/octet-stream
-
-      - name: Generate and upload updater artifacts
+      - name: Generate updater artifacts
+        id: updater
         shell: pwsh
         run: |
           $msiPath = "./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi"
@@ -111,22 +80,19 @@ jobs:
           
           Set-Content -Path "./update.json" -Value $json
 
-      - name: Upload update.json
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release with artifacts
+        uses: ncipollo/release-action@v1
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./update.json
-          asset_name: update.json
-          asset_content_type: application/json
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          bodyFile: RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          artifacts: >-
+            ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe,
+            ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi,
+            ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig,
+            ./update.json
+          artifactErrorsFailBuild: true
 
-      - name: Upload MSI signature
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig
-          asset_name: ${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig
-          asset_content_type: application/octet-stream
