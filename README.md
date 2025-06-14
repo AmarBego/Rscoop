@@ -48,10 +48,6 @@ For core actions, Rscoop acts as a seamless wrapper around the battle-tested off
 | ![Package Details Modal](pics/information.png) | ![Operation Modal](pics/installation.png) | ![Settings Page](pics/settings.png) |
 
 
-## ⚠️ Early Development Stage
-
-This project is still in its early stages. While it's packed with features, it has not yet been tested for many bugs or edge cases. Please use it with this in mind and feel free to report any issues you find!
-
 ## ❤️ Acknowledgements & Tech Stack
 
 Rscoop wouldn't be possible without the incredible work of the open-source community.
