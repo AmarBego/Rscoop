@@ -10,6 +10,10 @@
     "shell:default",
     "log:default",
     "store:default",
-    "log:default"
+    "log:default",
+    "updater:default",
+    "dialog:default",
+    "process:default",
+    "process:allow-restart"
   ]
 }
