@@ -9,7 +9,7 @@ use regex::Regex;
 use serde_json::Value;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use tauri::{Manager};
+use tauri::Manager;
 use tokio::sync::Mutex;
 
 // Global cache for manifest paths to avoid re-scanning the filesystem on every search.
@@ -205,7 +205,9 @@ pub async fn search_scoop<R: tauri::Runtime>(
 /// cold-start routine so that the first search from the UI is instant.
 ///
 /// Returns Ok(()) on success or an error string if the cache population failed.
-pub async fn warm_manifest_cache<R: tauri::Runtime>(app: tauri::AppHandle<R>) -> Result<(), String> {
+pub async fn warm_manifest_cache<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(), String> {
     let _ = get_manifests(app).await?;
     Ok(())
 }

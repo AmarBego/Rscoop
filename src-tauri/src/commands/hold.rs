@@ -57,11 +57,7 @@ fn is_package_held(scoop_dir: &std::path::Path, package_name: &str) -> Result<bo
 }
 
 /// Modifies the hold status of a package by updating its `install.json`.
-fn modify_hold_status(
-    scoop_dir: &Path,
-    package_name: &str,
-    hold: bool,
-) -> Result<(), String> {
+fn modify_hold_status(scoop_dir: &Path, package_name: &str, hold: bool) -> Result<(), String> {
     let install_json_path = get_current_install_json_path(scoop_dir, package_name)?;
     let content = fs::read_to_string(&install_json_path).map_err(|e| e.to_string())?;
 

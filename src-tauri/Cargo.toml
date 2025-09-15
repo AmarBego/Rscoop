@@ -47,4 +47,5 @@ tauri-plugin-process = "2.2.1"
 
 [target."cfg(windows)".dependencies]
 tauri-plugin-updater = "2.7.1"
+tauri-plugin-single-instance = "2"
 

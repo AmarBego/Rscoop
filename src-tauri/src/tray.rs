@@ -1,15 +1,16 @@
+use crate::commands::powershell::create_powershell_command;
+use crate::utils::{get_scoop_app_shortcuts, launch_scoop_app, ScoopAppShortcut};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager, Emitter,
+    Emitter, Manager,
 };
-use crate::utils::{get_scoop_app_shortcuts, launch_scoop_app, ScoopAppShortcut};
-use crate::commands::powershell::create_powershell_command;
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 
 pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     // Create a shared map to store app shortcuts for menu events
-    let shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>> = Arc::new(Mutex::new(HashMap::new()));
+    let shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>> =
+        Arc::new(Mutex::new(HashMap::new()));
     app.manage(shortcuts_map.clone());
 
     // Build the dynamic menu
@@ -62,11 +63,18 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                 }
                 id if id.starts_with("app_") => {
                     // Handle Scoop app launches
-                    let shortcuts_map = app.state::<Arc<Mutex<HashMap<String, ScoopAppShortcut>>>>();
+                    let shortcuts_map =
+                        app.state::<Arc<Mutex<HashMap<String, ScoopAppShortcut>>>>();
                     if let Ok(shortcuts) = shortcuts_map.inner().lock() {
                         if let Some(shortcut) = shortcuts.get(id) {
-                            if let Err(e) = launch_scoop_app(&shortcut.target_path, &shortcut.working_directory) {
-                                log::error!("Failed to launch app {}: {}", shortcut.display_name, e);
+                            if let Err(e) =
+                                launch_scoop_app(&shortcut.target_path, &shortcut.working_directory)
+                            {
+                                log::error!(
+                                    "Failed to launch app {}: {}",
+                                    shortcut.display_name,
+                                    e
+                                );
                             }
                         }
                     }
@@ -80,14 +88,15 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 }
 
 fn build_tray_menu(
-    app: &tauri::AppHandle, 
-    shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>>
+    app: &tauri::AppHandle,
+    shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>>,
 ) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     // Basic menu items
     let show = tauri::menu::MenuItemBuilder::with_id("show", "Show Rscoop").build(app)?;
     let hide = tauri::menu::MenuItemBuilder::with_id("hide", "Hide Rscoop").build(app)?;
-    let refresh_apps = tauri::menu::MenuItemBuilder::with_id("refresh_apps", "Refresh Apps").build(app)?;
-    
+    let refresh_apps =
+        tauri::menu::MenuItemBuilder::with_id("refresh_apps", "Refresh Apps").build(app)?;
+
     let mut menu_items: Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>> = Vec::new();
     menu_items.push(Box::new(show));
     menu_items.push(Box::new(hide));
@@ -99,7 +108,7 @@ fn build_tray_menu(
                 // Add separator before apps
                 let separator = tauri::menu::PredefinedMenuItem::separator(app)?;
                 menu_items.push(Box::new(separator));
-                
+
                 // Add "Scoop Apps" label
                 let apps_label = tauri::menu::MenuItemBuilder::with_id("apps_label", "Scoop Apps")
                     .enabled(false)
@@ -109,13 +118,14 @@ fn build_tray_menu(
                 // Store shortcuts in the map and create menu items
                 if let Ok(mut map) = shortcuts_map.lock() {
                     map.clear();
-                    
+
                     for shortcut in shortcuts {
                         let menu_id = format!("app_{}", shortcut.name);
                         map.insert(menu_id.clone(), shortcut.clone());
-                        
-                        let menu_item = tauri::menu::MenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
-                            .build(app)?;
+
+                        let menu_item =
+                            tauri::menu::MenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
+                                .build(app)?;
                         menu_items.push(Box::new(menu_item));
                     }
                 }
@@ -142,20 +152,20 @@ fn build_tray_menu(
     for item in menu_items {
         menu_builder = menu_builder.item(&*item);
     }
-    
+
     menu_builder.build()
 }
 
 /// Refresh the tray menu with updated Scoop apps
 pub async fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), String> {
     log::info!("Refreshing tray menu...");
-    
+
     let shortcuts_map = app.state::<Arc<Mutex<HashMap<String, ScoopAppShortcut>>>>();
-    
+
     // Rebuild the menu
     let new_menu = build_tray_menu(app, shortcuts_map.inner().clone())
         .map_err(|e| format!("Failed to build new menu: {}", e))?;
-    
+
     // Update the tray icon menu
     if let Some(tray) = app.tray_by_id("main") {
         tray.set_menu(Some(new_menu))
@@ -164,16 +174,16 @@ pub async fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), String> {
     } else {
         return Err("Tray icon not found".to_string());
     }
-    
+
     Ok(())
 }
 
 #[cfg(windows)]
 pub async fn show_system_notification(app: &tauri::AppHandle) {
     log::info!("Attempting to show system notification");
-    
+
     // Try multiple notification methods for better compatibility
-    
+
     // Method 1: Use Windows 10/11 native toast notifications via PowerShell (without window)
     let toast_command = r#"
 try {
@@ -216,26 +226,32 @@ try {
                 log::info!("Toast notification sent successfully");
                 return;
             } else {
-                log::warn!("Toast notification failed: {}", String::from_utf8_lossy(&output.stderr));
+                log::warn!(
+                    "Toast notification failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
             }
         }
         Err(e) => {
             log::warn!("Failed to execute toast notification command: {}", e);
         }
     }
-    
+
     // Method 2: Fallback to simple balloon tip using msg command (without window)
     log::info!("Trying fallback notification method");
     let msg_command = r#"msg * "Rscoop minimized to system tray. Click the tray icon to restore. You can disable this in settings.""#;
-    
+
     let fallback_result = create_powershell_command(msg_command).output().await;
-    
+
     match fallback_result {
         Ok(output) => {
             if output.status.success() {
                 log::info!("Fallback notification sent successfully");
             } else {
-                log::warn!("Fallback notification failed: {}", String::from_utf8_lossy(&output.stderr));
+                log::warn!(
+                    "Fallback notification failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
                 // Method 3: Use frontend notification as last resort
                 show_frontend_notification(app).await;
             }

@@ -6,14 +6,27 @@ mod state;
 mod tray;
 pub mod utils;
 
-use tauri::{
-    Manager, WindowEvent,
-};
+use tauri::{Manager, WindowEvent};
 use tauri_plugin_log::{Target, TargetKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default();
+
+    // Add single instance plugin only on Windows
+    #[cfg(windows)]
+    {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            // When a second instance is attempted, show and focus the existing window
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+                let _ = window.unminimize();
+            }
+        }));
+    }
+
+    builder
         .plugin(tauri_plugin_log::Builder::new().build())
         .setup(|app| {
             #[cfg(windows)]
@@ -21,7 +34,7 @@ pub fn run() {
                 // Check if installed via Scoop
                 let is_scoop = utils::is_scoop_installation();
                 log::info!("Application installed via Scoop: {}", is_scoop);
-                
+
                 // Only set up updater if not installed via Scoop
                 if !is_scoop {
                     app.handle()
@@ -55,11 +68,11 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 let app_handle = window.app_handle().clone();
-                
+
                 // Check if close to tray is enabled in settings
                 let close_to_tray = match commands::settings::get_config_value(
-                    app_handle.clone(), 
-                    "window.closeToTray".to_string()
+                    app_handle.clone(),
+                    "window.closeToTray".to_string(),
                 ) {
                     Ok(Some(value)) => value.as_bool().unwrap_or(true), // Default to true
                     _ => true, // Default to true if setting doesn't exist
@@ -69,7 +82,7 @@ pub fn run() {
                     // Check if first notification has been shown
                     let first_notification_shown = match commands::settings::get_config_value(
                         app_handle.clone(),
-                        "window.firstTrayNotificationShown".to_string()
+                        "window.firstTrayNotificationShown".to_string(),
                     ) {
                         Ok(Some(value)) => value.as_bool().unwrap_or(false),
                         _ => false,
@@ -85,9 +98,9 @@ pub fn run() {
                         let _ = commands::settings::set_config_value(
                             app_handle.clone(),
                             "window.firstTrayNotificationShown".to_string(),
-                            serde_json::json!(true)
+                            serde_json::json!(true),
                         );
-                        
+
                         // Show the notification immediately
                         let app_clone = app_handle.clone();
                         std::thread::spawn(move || {

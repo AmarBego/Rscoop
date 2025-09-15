@@ -1,9 +1,9 @@
 //! Commands for uninstalling packages and clearing the cache.
+use crate::commands::installed::invalidate_installed_cache;
 use crate::commands::scoop::{self, ScoopOp};
 use crate::commands::search::invalidate_manifest_cache;
-use crate::commands::installed::invalidate_installed_cache;
 use crate::state::AppState;
-use tauri::{Window, State};
+use tauri::{State, Window};
 
 /// Uninstalls a Scoop package.
 ///

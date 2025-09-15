@@ -1,5 +1,5 @@
-use tauri;
 use std::env;
+use tauri;
 
 /// Checks if the application is installed via Scoop package manager
 #[tauri::command]

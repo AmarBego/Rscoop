@@ -70,10 +70,11 @@ pub async fn check_for_updates<R: Runtime>(
     let installed_packages = get_installed_packages_full(app.clone(), state.clone()).await?;
 
     // Get a set of held packages for efficient lookup.
-    let held_packages: HashSet<String> = crate::commands::hold::list_held_packages(app, state.clone())
-        .await?
-        .into_iter()
-        .collect();
+    let held_packages: HashSet<String> =
+        crate::commands::hold::list_held_packages(app, state.clone())
+            .await?
+            .into_iter()
+            .collect();
 
     // Check for updates in parallel.
     let updatable_packages: Vec<UpdatablePackage> = installed_packages

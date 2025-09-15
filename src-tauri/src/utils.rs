@@ -1,7 +1,7 @@
 use crate::commands::settings;
 use std::env;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
 #[cfg(windows)]
@@ -173,10 +173,11 @@ fn locate_package_manifest_impl(
 // -----------------------------------------------------------------------------
 
 /// Scans the Windows Start Menu for Scoop Apps shortcuts
-/// 
+///
 /// Returns a list of shortcuts found in %AppData%\Microsoft\Windows\Start Menu\Programs\Scoop Apps
 pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
-    let app_data = env::var("APPDATA").map_err(|_| "Could not find APPDATA environment variable")?;
+    let app_data =
+        env::var("APPDATA").map_err(|_| "Could not find APPDATA environment variable")?;
     let scoop_apps_path = PathBuf::from(app_data)
         .join("Microsoft")
         .join("Windows")
@@ -184,16 +185,24 @@ pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
         .join("Programs")
         .join("Scoop Apps");
 
-    log::info!("Scanning for Scoop Apps shortcuts in: {}", scoop_apps_path.display());
+    log::info!(
+        "Scanning for Scoop Apps shortcuts in: {}",
+        scoop_apps_path.display()
+    );
 
     if !scoop_apps_path.exists() {
-        log::warn!("Scoop Apps directory not found: {}", scoop_apps_path.display());
+        log::warn!(
+            "Scoop Apps directory not found: {}",
+            scoop_apps_path.display()
+        );
         return Ok(Vec::new());
     }
 
     let mut shortcuts = Vec::new();
 
-    for entry in fs::read_dir(&scoop_apps_path).map_err(|e| format!("Failed to read Scoop Apps directory: {}", e))? {
+    for entry in fs::read_dir(&scoop_apps_path)
+        .map_err(|e| format!("Failed to read Scoop Apps directory: {}", e))?
+    {
         let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
         let path = entry.path();
 
@@ -254,10 +263,12 @@ fn parse_shortcut(path: &PathBuf) -> Result<ShortcutInfo, String> {
     let mut cmd = Command::new("powershell");
     cmd.args([
         "-NoProfile",
-        "-NoLogo", 
+        "-NoLogo",
         "-NonInteractive",
-        "-WindowStyle", "Hidden",
-        "-ExecutionPolicy", "Bypass",
+        "-WindowStyle",
+        "Hidden",
+        "-ExecutionPolicy",
+        "Bypass",
         "-Command",
         &ps_script,
     ])
@@ -268,7 +279,8 @@ fn parse_shortcut(path: &PathBuf) -> Result<ShortcutInfo, String> {
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
 
-    let output = cmd.output()
+    let output = cmd
+        .output()
         .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
 
     if !output.status.success() {
@@ -279,13 +291,10 @@ fn parse_shortcut(path: &PathBuf) -> Result<ShortcutInfo, String> {
     }
 
     let json_str = String::from_utf8_lossy(&output.stdout);
-    let json_value: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+    let json_value: serde_json::Value =
+        serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse JSON: {}", e))?;
 
-    let target_path = json_value["TargetPath"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
+    let target_path = json_value["TargetPath"].as_str().unwrap_or("").to_string();
     let working_directory = json_value["WorkingDirectory"]
         .as_str()
         .unwrap_or("")
@@ -314,19 +323,19 @@ pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<()
     #[cfg(windows)]
     {
         use std::process::Command;
-        
+
         let mut cmd = Command::new(target_path);
-        
+
         if !working_directory.is_empty() {
             cmd.current_dir(working_directory);
         }
-        
+
         cmd.spawn()
             .map_err(|e| format!("Failed to launch app: {}", e))?;
-        
+
         Ok(())
     }
-    
+
     #[cfg(not(windows))]
     {
         Err("App launching is only supported on Windows".to_string())
