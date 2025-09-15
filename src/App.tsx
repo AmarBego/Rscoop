@@ -1,6 +1,7 @@
 import { createSignal, Show, onMount, createMemo } from "solid-js";
 import "./App.css";
 import Header from "./components/Header.tsx";
+import TrayNotificationToast from "./components/TrayNotificationToast.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
 import InstalledPage from "./pages/InstalledPage.tsx";
 import { View } from "./types/scoop.ts";
@@ -236,6 +237,7 @@ function App() {
                     </div>
                 </div>
             </Show>
+            <TrayNotificationToast />
         </>
     );
 }

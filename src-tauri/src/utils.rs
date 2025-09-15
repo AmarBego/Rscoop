@@ -1,7 +1,20 @@
 use crate::commands::settings;
 use std::env;
 use std::path::PathBuf;
+use std::fs;
 use tauri::{AppHandle, Runtime};
+
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
+#[derive(Debug, Clone)]
+pub struct ScoopAppShortcut {
+    pub name: String,
+    pub display_name: String,
+    pub target_path: String,
+    pub working_directory: String,
+    pub icon_path: Option<String>,
+}
 
 /// Checks if the application is installed via Scoop
 pub fn is_scoop_installation() -> bool {
@@ -153,4 +166,169 @@ fn locate_package_manifest_impl(
         "Package '{}' not found in any bucket.",
         package_name
     ))
+}
+
+// -----------------------------------------------------------------------------
+// Scoop Apps Shortcuts helpers
+// -----------------------------------------------------------------------------
+
+/// Scans the Windows Start Menu for Scoop Apps shortcuts
+/// 
+/// Returns a list of shortcuts found in %AppData%\Microsoft\Windows\Start Menu\Programs\Scoop Apps
+pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
+    let app_data = env::var("APPDATA").map_err(|_| "Could not find APPDATA environment variable")?;
+    let scoop_apps_path = PathBuf::from(app_data)
+        .join("Microsoft")
+        .join("Windows")
+        .join("Start Menu")
+        .join("Programs")
+        .join("Scoop Apps");
+
+    log::info!("Scanning for Scoop Apps shortcuts in: {}", scoop_apps_path.display());
+
+    if !scoop_apps_path.exists() {
+        log::warn!("Scoop Apps directory not found: {}", scoop_apps_path.display());
+        return Ok(Vec::new());
+    }
+
+    let mut shortcuts = Vec::new();
+
+    for entry in fs::read_dir(&scoop_apps_path).map_err(|e| format!("Failed to read Scoop Apps directory: {}", e))? {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let path = entry.path();
+
+        if path.extension().and_then(|s| s.to_str()) == Some("lnk") {
+            if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                if let Ok(shortcut_info) = parse_shortcut(&path) {
+                    shortcuts.push(ScoopAppShortcut {
+                        name: file_stem.to_string(),
+                        display_name: file_stem.replace("_", " ").to_string(),
+                        target_path: shortcut_info.target_path,
+                        working_directory: shortcut_info.working_directory,
+                        icon_path: shortcut_info.icon_path,
+                    });
+                } else {
+                    log::warn!("Failed to parse shortcut: {}", path.display());
+                }
+            }
+        }
+    }
+
+    log::info!("Found {} Scoop Apps shortcuts", shortcuts.len());
+    Ok(shortcuts)
+}
+
+#[derive(Debug)]
+struct ShortcutInfo {
+    target_path: String,
+    working_directory: String,
+    icon_path: Option<String>,
+}
+
+/// Parse a Windows .lnk shortcut file to extract target and working directory
+/// This is a simplified parser that extracts basic information
+#[cfg(windows)]
+fn parse_shortcut(path: &PathBuf) -> Result<ShortcutInfo, String> {
+    use std::process::{Command, Stdio};
+
+    // Use PowerShell to parse the shortcut file
+    let ps_script = format!(
+        r#"
+        try {{
+            $shell = New-Object -ComObject WScript.Shell
+            $shortcut = $shell.CreateShortcut('{}')
+            $result = @{{
+                'TargetPath' = $shortcut.TargetPath
+                'WorkingDirectory' = $shortcut.WorkingDirectory
+                'IconLocation' = $shortcut.IconLocation
+            }}
+            $result | ConvertTo-Json -Compress
+        }} catch {{
+            Write-Error $_.Exception.Message
+            exit 1
+        }}
+        "#,
+        path.display().to_string().replace("'", "''")
+    );
+
+    let mut cmd = Command::new("powershell");
+    cmd.args([
+        "-NoProfile",
+        "-NoLogo", 
+        "-NonInteractive",
+        "-WindowStyle", "Hidden",
+        "-ExecutionPolicy", "Bypass",
+        "-Command",
+        &ps_script,
+    ])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+
+    // Prevents a console window from appearing on Windows.
+    #[cfg(windows)]
+    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+
+    let output = cmd.output()
+        .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "PowerShell failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+
+    let json_str = String::from_utf8_lossy(&output.stdout);
+    let json_value: serde_json::Value = serde_json::from_str(&json_str)
+        .map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    let target_path = json_value["TargetPath"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let working_directory = json_value["WorkingDirectory"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+    let icon_location = json_value["IconLocation"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
+    Ok(ShortcutInfo {
+        target_path,
+        working_directory,
+        icon_path: icon_location,
+    })
+}
+
+#[cfg(not(windows))]
+fn parse_shortcut(_path: &PathBuf) -> Result<ShortcutInfo, String> {
+    Err("Shortcut parsing is only supported on Windows".to_string())
+}
+
+/// Launch a Scoop app using its target path
+pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<(), String> {
+    log::info!("Launching app: {} from {}", target_path, working_directory);
+
+    #[cfg(windows)]
+    {
+        use std::process::Command;
+        
+        let mut cmd = Command::new(target_path);
+        
+        if !working_directory.is_empty() {
+            cmd.current_dir(working_directory);
+        }
+        
+        cmd.spawn()
+            .map_err(|e| format!("Failed to launch app: {}", e))?;
+        
+        Ok(())
+    }
+    
+    #[cfg(not(windows))]
+    {
+        Err("App launching is only supported on Windows".to_string())
+    }
 }

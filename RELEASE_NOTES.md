@@ -2,17 +2,15 @@
 
 #### 🚀 Features
 
-* **Scoop-Aware Updates:** Added intelligence to detect when rScoop is installed via Scoop and disable the built-in updater:
-  * Automatically detects installation source at startup
-  * Disables update notifications when installed through Scoop
-  * Shows helpful guidance to use `scoop update rscoop` instead
-  * Prevents update conflicts between Scoop and the built-in updater
+* **System Tray Enhancements:**
+  * Added the ability to fully close the application from the system tray menu.
+  * Introduced a **Scoop Apps Launcher** accessible directly from the system tray:
+    * Automatically scans for Scoop-installed apps located in Program Files.
+    * Provides quick launch shortcuts without opening the main UI.
 
 #### ✨ Improvements
 
-* **Smarter Update System:** Enhanced the update system to conditionally load only when appropriate:
-  * The updater plugin is no longer loaded when running under Scoop
-  * Improved startup performance for Scoop installations
+* **NONE**
 
 #### 🐛 Bug Fixes
 

@@ -8,12 +8,20 @@ interface Settings {
     enabled: boolean;
     autoScanOnInstall: boolean;
   };
+  window: {
+    closeToTray: boolean;
+    firstTrayNotificationShown: boolean;
+  };
 }
 
 const defaultSettings: Settings = {
   virustotal: {
     enabled: false,
     autoScanOnInstall: false,
+  },
+  window: {
+    closeToTray: true,
+    firstTrayNotificationShown: false,
   },
 };
 
@@ -28,6 +36,10 @@ function createSettingsStore() {
         virustotal: {
           ...defaultSettings.virustotal,
           ...storedSettings.virustotal,
+        },
+        window: {
+          ...defaultSettings.window,
+          ...storedSettings.window,
         },
       };
     }
@@ -53,7 +65,16 @@ function createSettingsStore() {
     });
   };
 
-  return { settings, setVirusTotalSettings };
+  const setWindowSettings = (newWindowSettings: Partial<Settings['window']>) => {
+    saveSettings({
+      window: {
+        ...settings.window,
+        ...newWindowSettings,
+      },
+    });
+  };
+
+  return { settings, setVirusTotalSettings, setWindowSettings };
 }
 
 export default createRoot(createSettingsStore); 

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import OperationModal from "../components/OperationModal";
 import ScoopConfiguration from "../components/page/settings/ScoopConfiguration";
 import VirusTotalSettings from "../components/page/settings/VirusTotalSettings";
+import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSettings";
 import HeldPackagesManagement from "../components/page/settings/HeldPackagesManagement";
 import AboutSection, { AboutSectionRef } from "../components/page/settings/AboutSection";
 import heldStore from "../stores/held";
@@ -43,6 +44,7 @@ function SettingsPage(props: SettingsPageProps) {
                         onUnhold={handleUnhold}
                         operationInProgress={!!operationTitle()}
                     />
+                    <WindowBehaviorSettings />
                     <AboutSection 
                         ref={(r) => (aboutSectionRef = r)} 
                         isScoopInstalled={props.isScoopInstalled} 

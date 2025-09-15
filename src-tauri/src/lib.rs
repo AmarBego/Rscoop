@@ -3,9 +3,12 @@ mod cold_start;
 mod commands;
 mod models;
 mod state;
+mod tray;
 pub mod utils;
 
-use tauri::Manager;
+use tauri::{
+    Manager, WindowEvent,
+};
 use tauri_plugin_log::{Target, TargetKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -28,8 +31,14 @@ pub fn run() {
             }
 
             let app_handle = app.handle().clone();
-            let scoop_path =
-                utils::resolve_scoop_root(app_handle).expect("Failed to resolve scoop root path");
+            let scoop_path = match utils::resolve_scoop_root(app_handle) {
+                Ok(path) => path,
+                Err(e) => {
+                    log::warn!("Could not resolve scoop root path: {}", e);
+                    // Use a default path or allow user to configure later
+                    std::path::PathBuf::from("C:\\scoop")
+                }
+            };
 
             let rscoop_state = state::AppState {
                 scoop_path,
@@ -38,7 +47,61 @@ pub fn run() {
 
             app.manage(rscoop_state);
 
+            // Set up system tray
+            let _ = tray::setup_system_tray(&app.handle());
+
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                let app_handle = window.app_handle().clone();
+                
+                // Check if close to tray is enabled in settings
+                let close_to_tray = match commands::settings::get_config_value(
+                    app_handle.clone(), 
+                    "window.closeToTray".to_string()
+                ) {
+                    Ok(Some(value)) => value.as_bool().unwrap_or(true), // Default to true
+                    _ => true, // Default to true if setting doesn't exist
+                };
+
+                if close_to_tray {
+                    // Check if first notification has been shown
+                    let first_notification_shown = match commands::settings::get_config_value(
+                        app_handle.clone(),
+                        "window.firstTrayNotificationShown".to_string()
+                    ) {
+                        Ok(Some(value)) => value.as_bool().unwrap_or(false),
+                        _ => false,
+                    };
+
+                    // Hide the window instead of closing the app
+                    let _ = window.hide();
+                    api.prevent_close();
+
+                    // Show notification if it's the first time
+                    if !first_notification_shown {
+                        // Mark that we've shown the first notification
+                        let _ = commands::settings::set_config_value(
+                            app_handle.clone(),
+                            "window.firstTrayNotificationShown".to_string(),
+                            serde_json::json!(true)
+                        );
+                        
+                        // Show the notification immediately
+                        let app_clone = app_handle.clone();
+                        std::thread::spawn(move || {
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            rt.block_on(async {
+                                tray::show_system_notification(&app_clone).await;
+                            });
+                        });
+                    }
+                } else {
+                    // Let the window close normally (exit app)
+                    // Don't call prevent_close(), so the app will exit
+                }
+            }
         })
         .on_page_load(|window, _payload| {
             cold_start::run_cold_start(window.app_handle().clone());
@@ -85,7 +148,9 @@ pub fn run() {
             commands::hold::list_held_packages,
             commands::hold::hold_package,
             commands::hold::unhold_package,
-            commands::app_info::is_scoop_installation
+            commands::app_info::is_scoop_installation,
+            tray::show_tray_notification,
+            tray::refresh_tray_apps_menu
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

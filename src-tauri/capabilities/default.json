@@ -10,7 +10,6 @@
     "shell:default",
     "log:default",
     "store:default",
-    "log:default",
     "updater:default",
     "dialog:default",
     "process:default",
