@@ -51,19 +51,21 @@ export default function AboutSection(props: AboutSectionProps) {
         setUpdateStatus('available');
         setUpdateInfo(update);
         
-        // Option to automatically prompt the user
-        const shouldInstall = await ask(
-          `Update to ${update.version} is available!\n\nRelease notes: ${update.body || 'No release notes provided'}`,
-          {
-            title: "Update Available",
-            kind: "info",
-            okLabel: "Install Now",
-            cancelLabel: "Later"
+        // Only show dialog if user manually clicked "Check for updates"
+        if (manual) {
+          const shouldInstall = await ask(
+            `Update to ${update.version} is available!\n\nRelease notes: ${update.body || 'No release notes provided'}`,
+            {
+              title: "Update Available",
+              kind: "info",
+              okLabel: "Install Now",
+              cancelLabel: "Later"
+            }
+          );
+          
+          if (shouldInstall) {
+            await installAvailableUpdate();
           }
-        );
-        
-        if (shouldInstall) {
-          await installAvailableUpdate();
         }
       } else {
         setUpdateStatus('idle');
@@ -170,13 +172,14 @@ export default function AboutSection(props: AboutSectionProps) {
           )}
           
           {updateStatus() === 'available' && (
-            <div class="space-y-2">
+            <div class="space-y-3">
               <div class="text-center text-sm text-success font-medium">
                 Update available: v{updateInfo()?.version}
               </div>
               <Show when={updateInfo()?.body}>
-                <div class="text-xs text-base-content/70 max-h-20 overflow-y-auto p-2 bg-base-300 rounded">
-                  {updateInfo()?.body}
+                <div class="text-xs text-base-content/80 max-h-32 overflow-y-auto p-3 bg-base-300 rounded border-l-4 border-success">
+                  <div class="font-semibold text-success mb-2">Release Notes:</div>
+                  <div class="whitespace-pre-wrap leading-relaxed">{updateInfo()?.body}</div>
                 </div>
               </Show>
               <button 

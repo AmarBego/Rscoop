@@ -4,9 +4,6 @@ use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
-
 #[derive(Debug, Clone)]
 pub struct ScoopAppShortcut {
     pub name: String,
@@ -175,7 +172,7 @@ fn locate_package_manifest_impl(
 /// Scans the Windows Start Menu for Scoop Apps shortcuts
 ///
 /// Returns a list of shortcuts found in %AppData%\Microsoft\Windows\Start Menu\Programs\Scoop Apps
-pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
+pub fn get_scoop_app_shortcuts_with_path(scoop_path: &std::path::Path) -> Result<Vec<ScoopAppShortcut>, String> {
     let app_data =
         env::var("APPDATA").map_err(|_| "Could not find APPDATA environment variable")?;
     let scoop_apps_path = PathBuf::from(app_data)
@@ -208,7 +205,7 @@ pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
 
         if path.extension().and_then(|s| s.to_str()) == Some("lnk") {
             if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
-                if let Ok(shortcut_info) = parse_shortcut(&path) {
+                if let Ok(shortcut_info) = parse_shortcut(&path, scoop_path) {
                     shortcuts.push(ScoopAppShortcut {
                         name: file_stem.to_string(),
                         display_name: file_stem.replace("_", " ").to_string(),
@@ -227,6 +224,36 @@ pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
     Ok(shortcuts)
 }
 
+/// Legacy wrapper for backwards compatibility - tries to find Scoop root automatically
+pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
+    // Try to find Scoop root automatically for backwards compatibility
+    let scoop_root = get_scoop_root_fallback();
+    get_scoop_app_shortcuts_with_path(&scoop_root)
+}
+
+/// Get Scoop root directory as fallback when AppState is not available
+fn get_scoop_root_fallback() -> PathBuf {
+    // Try multiple common locations for Scoop
+    let possible_paths = vec![
+        env::var("SCOOP").ok().map(PathBuf::from),
+        env::var("USERPROFILE").ok().map(|p| PathBuf::from(p).join("scoop")),
+        Some(PathBuf::from("C:\\ProgramData\\scoop")),
+        Some(PathBuf::from("C:\\scoop")),
+    ];
+
+    for path_opt in possible_paths {
+        if let Some(path) = path_opt {
+            if path.exists() && path.is_dir() {
+                log::info!("Using Scoop root fallback: {}", path.display());
+                return path;
+            }
+        }
+    }
+
+    log::warn!("Could not find Scoop root directory, using default");
+    PathBuf::from("C:\\scoop") // Default fallback
+}
+
 #[derive(Debug)]
 struct ShortcutInfo {
     target_path: String,
@@ -235,109 +262,138 @@ struct ShortcutInfo {
 }
 
 /// Parse a Windows .lnk shortcut file to extract target and working directory
-/// This is a simplified parser that extracts basic information
+/// Uses the lnk crate to parse LNK files directly
 #[cfg(windows)]
-fn parse_shortcut(path: &PathBuf) -> Result<ShortcutInfo, String> {
-    use std::process::{Command, Stdio};
-
-    // Use PowerShell to parse the shortcut file
-    let ps_script = format!(
-        r#"
-        try {{
-            $shell = New-Object -ComObject WScript.Shell
-            $shortcut = $shell.CreateShortcut('{}')
-            $result = @{{
-                'TargetPath' = $shortcut.TargetPath
-                'WorkingDirectory' = $shortcut.WorkingDirectory
-                'IconLocation' = $shortcut.IconLocation
-            }}
-            $result | ConvertTo-Json -Compress
-        }} catch {{
-            Write-Error $_.Exception.Message
-            exit 1
-        }}
-        "#,
-        path.display().to_string().replace("'", "''")
-    );
-
-    let mut cmd = Command::new("powershell");
-    cmd.args([
-        "-NoProfile",
-        "-NoLogo",
-        "-NonInteractive",
-        "-WindowStyle",
-        "Hidden",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-Command",
-        &ps_script,
-    ])
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
-
-    // Prevents a console window from appearing on Windows.
-    #[cfg(windows)]
-    cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-
-    let output = cmd
-        .output()
-        .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
-
-    if !output.status.success() {
-        return Err(format!(
-            "PowerShell failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<ShortcutInfo, String> {
+    log::debug!("Parsing LNK shortcut: {}", path.display());
+    
+    // Use the lnk crate to parse the shortcut file
+    match lnk::ShellLink::open(path, lnk::encoding::WINDOWS_1252) {
+        Ok(shortcut) => {
+            // Extract target path - try different methods to get the target
+            let mut target_path = {
+                let string_data = shortcut.string_data();
+                // Try relative path first
+                if let Some(relative_path) = string_data.relative_path() {
+                    relative_path.to_string()
+                } else {
+                    String::new()
+                }
+            };
+            
+            // If target path is still empty, try to get it from link info
+            if target_path.is_empty() {
+                if let Some(link_info) = shortcut.link_info() {
+                    if let Some(local_path) = link_info.local_base_path() {
+                        target_path = local_path.to_string();
+                    }
+                }
+            }
+            
+            // Convert relative path to absolute path if needed
+            if !target_path.is_empty() && target_path.starts_with("..") {
+                // The relative path is relative to the shortcut's directory
+                if let Some(shortcut_dir) = path.parent() {
+                    let absolute_path = shortcut_dir.join(&target_path);
+                    if let Ok(canonical_path) = absolute_path.canonicalize() {
+                        target_path = canonical_path.to_string_lossy().to_string();
+                        log::debug!("Resolved relative path to: {}", target_path);
+                    } else {
+                        log::warn!("Failed to canonicalize path: {}", absolute_path.display());
+                    }
+                }
+            }
+            
+            // Extract working directory
+            let working_directory = {
+                let string_data = shortcut.string_data();
+                if let Some(working_dir) = string_data.working_dir() {
+                    working_dir.to_string()
+                } else {
+                    String::new()
+                }
+            };
+            
+            // If no working directory specified, use target path's parent directory
+            let working_directory = if working_directory.is_empty() && !target_path.is_empty() {
+                if let Some(parent) = std::path::Path::new(&target_path).parent() {
+                    parent.to_string_lossy().to_string()
+                } else {
+                    env::var("USERPROFILE").unwrap_or_else(|_| "C:\\".to_string())
+                }
+            } else if working_directory.is_empty() {
+                env::var("USERPROFILE").unwrap_or_else(|_| "C:\\".to_string())
+            } else {
+                working_directory
+            };
+            
+            // Extract icon location if available
+            let icon_path = {
+                let string_data = shortcut.string_data();
+                string_data.icon_location().as_ref().map(|s| s.to_string())
+            };
+            
+            log::info!("Successfully parsed LNK file - Target: '{}', Working Dir: '{}'", target_path, working_directory);
+            
+            Ok(ShortcutInfo {
+                target_path,
+                working_directory,
+                icon_path,
+            })
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to parse LNK file: {}", e);
+            log::warn!("{}", error_msg);
+            
+            // Return error instead of fallback for cleaner error handling
+            Err(error_msg)
+        }
     }
-
-    let json_str = String::from_utf8_lossy(&output.stdout);
-    let json_value: serde_json::Value =
-        serde_json::from_str(&json_str).map_err(|e| format!("Failed to parse JSON: {}", e))?;
-
-    let target_path = json_value["TargetPath"].as_str().unwrap_or("").to_string();
-    let working_directory = json_value["WorkingDirectory"]
-        .as_str()
-        .unwrap_or("")
-        .to_string();
-    let icon_location = json_value["IconLocation"]
-        .as_str()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string());
-
-    Ok(ShortcutInfo {
-        target_path,
-        working_directory,
-        icon_path: icon_location,
-    })
 }
 
 #[cfg(not(windows))]
-fn parse_shortcut(_path: &PathBuf) -> Result<ShortcutInfo, String> {
+fn parse_shortcut(_path: &PathBuf, _scoop_root: &std::path::Path) -> Result<ShortcutInfo, String> {
     Err("Shortcut parsing is only supported on Windows".to_string())
 }
 
 /// Launch a Scoop app using its target path
 pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<(), String> {
-    log::info!("Launching app: {} from {}", target_path, working_directory);
+    log::info!("Launching app: '{}' from '{}'", target_path, working_directory);
 
-    #[cfg(windows)]
-    {
-        use std::process::Command;
-
-        let mut cmd = Command::new(target_path);
-
-        if !working_directory.is_empty() {
-            cmd.current_dir(working_directory);
-        }
-
-        cmd.spawn()
-            .map_err(|e| format!("Failed to launch app: {}", e))?;
-
-        Ok(())
+    // Validate that we have a target path
+    if target_path.is_empty() {
+        return Err("No target path specified for app launch".to_string());
     }
 
-    #[cfg(not(windows))]
-    {
-        Err("App launching is only supported on Windows".to_string())
+    // Check if the target path exists
+    if !std::path::Path::new(target_path).exists() {
+        return Err(format!("Target executable not found: {}", target_path));
+    }
+
+    use std::process::Command;
+
+    let mut cmd = Command::new(target_path);
+
+    // Set working directory if provided and valid
+    if !working_directory.is_empty() {
+        let working_dir_path = std::path::Path::new(working_directory);
+        if working_dir_path.exists() {
+            cmd.current_dir(working_directory);
+        } else {
+            log::warn!("Working directory does not exist: {}, using default", working_directory);
+        }
+    }
+
+    // Detach the process so it doesn't block
+    match cmd.spawn() {
+        Ok(_) => {
+            log::info!("Successfully launched app: {}", target_path);
+            Ok(())
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to launch app '{}': {}", target_path, e);
+            log::error!("{}", error_msg);
+            Err(error_msg)
+        }
     }
 }

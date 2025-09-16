@@ -1,11 +1,13 @@
-use crate::commands::powershell::create_powershell_command;
-use crate::utils::{get_scoop_app_shortcuts, launch_scoop_app, ScoopAppShortcut};
+use crate::utils::{get_scoop_app_shortcuts_with_path, launch_scoop_app, ScoopAppShortcut};
+use crate::commands::settings;
+use crate::state::AppState;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager,
+    Manager,
 };
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
     // Create a shared map to store app shortcuts for menu events
@@ -101,8 +103,15 @@ fn build_tray_menu(
     menu_items.push(Box::new(show));
     menu_items.push(Box::new(hide));
 
-    // Get Scoop apps shortcuts
-    match get_scoop_app_shortcuts() {
+    // Get Scoop apps shortcuts using the app state
+    let shortcuts_result = if let Some(app_state) = app.try_state::<AppState>() {
+        get_scoop_app_shortcuts_with_path(&app_state.scoop_path)
+    } else {
+        // Fallback to automatic detection if state is not available
+        crate::utils::get_scoop_app_shortcuts()
+    };
+
+    match shortcuts_result {
         Ok(shortcuts) => {
             if !shortcuts.is_empty() {
                 // Add separator before apps
@@ -178,110 +187,31 @@ pub async fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[cfg(windows)]
-pub async fn show_system_notification(app: &tauri::AppHandle) {
-    log::info!("Attempting to show system notification");
-
-    // Try multiple notification methods for better compatibility
-
-    // Method 1: Use Windows 10/11 native toast notifications via PowerShell (without window)
-    let toast_command = r#"
-try {
-    Add-Type -AssemblyName Windows.UI
-    Add-Type -AssemblyName Windows.Data
+/// Blocking version for use in threads
+pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
+    log::info!("Displaying blocking native dialog for tray notification");
     
-    $template = @"
-<toast>
-    <visual>
-        <binding template="ToastText02">
-            <text id="1">Rscoop</text>
-            <text id="2">Application minimized to system tray. Click the tray icon to restore. You can disable this in settings.</text>
-        </binding>
-    </visual>
-    <actions>
-        <action content="Show" arguments="show" />
-    </actions>
-</toast>
-"@
-    
-    $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
-    $xml.LoadXml($template)
-    
-    $toast = New-Object Windows.UI.Notifications.ToastNotification($xml)
-    $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Rscoop")
-    $notifier.Show($toast)
-    
-    Write-Output "Toast notification sent successfully"
-} catch {
-    Write-Error "Failed to show toast notification: $($_.Exception.Message)"
-    exit 1
-}
-"#;
-
-    let toast_result = create_powershell_command(toast_command).output().await;
-
-    match toast_result {
-        Ok(output) => {
-            if output.status.success() {
-                log::info!("Toast notification sent successfully");
-                return;
-            } else {
-                log::warn!(
-                    "Toast notification failed: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            }
-        }
-        Err(e) => {
-            log::warn!("Failed to execute toast notification command: {}", e);
-        }
+    // Show a nice native dialog with information about tray behavior
+    let result = app
+        .dialog()
+        .message("rScoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?")
+        .title("rScoop - Minimized to Tray")
+        .kind(MessageDialogKind::Info)
+        .buttons(MessageDialogButtons::OkCancelCustom("Close and Disable Tray".to_string(), "Keep in Tray".to_string()))
+        .blocking_show();
+        
+    // If user chose to close and disable tray, disable the setting and exit
+    if result {
+        // Disable close to tray setting
+        let _ = settings::set_config_value(
+            app.clone(),
+            "window.closeToTray".to_string(),
+            serde_json::json!(false),
+        );
+        
+        log::info!("User chose to disable tray functionality. Exiting application.");
+        app.exit(0);
     }
-
-    // Method 2: Fallback to simple balloon tip using msg command (without window)
-    log::info!("Trying fallback notification method");
-    let msg_command = r#"msg * "Rscoop minimized to system tray. Click the tray icon to restore. You can disable this in settings.""#;
-
-    let fallback_result = create_powershell_command(msg_command).output().await;
-
-    match fallback_result {
-        Ok(output) => {
-            if output.status.success() {
-                log::info!("Fallback notification sent successfully");
-            } else {
-                log::warn!(
-                    "Fallback notification failed: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-                // Method 3: Use frontend notification as last resort
-                show_frontend_notification(app).await;
-            }
-        }
-        Err(e) => {
-            log::warn!("Failed to execute fallback notification: {}", e);
-            show_frontend_notification(app).await;
-        }
-    }
-}
-
-#[cfg(not(windows))]
-pub async fn show_system_notification(app: &tauri::AppHandle) {
-    // For non-Windows systems, use frontend notification
-    log::info!("Application minimized to system tray. Click the tray icon to restore. You can disable this in settings.");
-    show_frontend_notification(app).await;
-}
-
-async fn show_frontend_notification(app: &tauri::AppHandle) {
-    log::info!("Using frontend notification as fallback");
-    if let Err(e) = app.emit("show-tray-notification", ()) {
-        log::error!("Failed to emit frontend notification: {}", e);
-    }
-}
-
-#[tauri::command]
-pub async fn show_tray_notification(app: tauri::AppHandle) -> Result<(), String> {
-    app.emit("show-tray-notification", ())
-        .map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 #[tauri::command]

@@ -87,7 +87,7 @@ function WindowBehaviorSettings() {
                     {settings.window.closeToTray && (
                         <div class="form-control">
                             <p class="text-sm text-base-content/70 mb-2">
-                                When enabled, closing the window will minimize RSCoop to the system tray instead of exiting the application
+                                When enabled, closing the window will minimize rScoop to the system tray instead of exiting the application
                             </p>
                         </div>
                     )}

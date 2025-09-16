@@ -101,13 +101,10 @@ pub fn run() {
                             serde_json::json!(true),
                         );
 
-                        // Show the notification immediately
+                        // Show the native dialog on a separate thread to avoid blocking
                         let app_clone = app_handle.clone();
                         std::thread::spawn(move || {
-                            let rt = tokio::runtime::Runtime::new().unwrap();
-                            rt.block_on(async {
-                                tray::show_system_notification(&app_clone).await;
-                            });
+                            tray::show_system_notification_blocking(&app_clone);
                         });
                     }
                 } else {
@@ -162,7 +159,6 @@ pub fn run() {
             commands::hold::hold_package,
             commands::hold::unhold_package,
             commands::app_info::is_scoop_installation,
-            tray::show_tray_notification,
             tray::refresh_tray_apps_menu
         ])
         .run(tauri::generate_context!())
