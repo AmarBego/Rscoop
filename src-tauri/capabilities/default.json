@@ -13,6 +13,15 @@
     "updater:default",
     "dialog:default",
     "process:default",
-    "process:allow-restart"
+    "process:allow-restart",
+    "opener:default",
+    {
+      "identifier": "opener:allow-open-path",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    }
   ]
 }

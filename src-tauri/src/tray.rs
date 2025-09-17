@@ -1,6 +1,6 @@
-use crate::utils::{get_scoop_app_shortcuts_with_path, launch_scoop_app, ScoopAppShortcut};
 use crate::commands::settings;
 use crate::state::AppState;
+use crate::utils::{get_scoop_app_shortcuts_with_path, launch_scoop_app, ScoopAppShortcut};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{
@@ -190,7 +190,7 @@ pub async fn refresh_tray_menu(app: &tauri::AppHandle) -> Result<(), String> {
 /// Blocking version for use in threads
 pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
     log::info!("Displaying blocking native dialog for tray notification");
-    
+
     // Show a nice native dialog with information about tray behavior
     let result = app
         .dialog()
@@ -199,7 +199,7 @@ pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
         .kind(MessageDialogKind::Info)
         .buttons(MessageDialogButtons::OkCancelCustom("Close and Disable Tray".to_string(), "Keep in Tray".to_string()))
         .blocking_show();
-        
+
     // If user chose to close and disable tray, disable the setting and exit
     if result {
         // Disable close to tray setting
@@ -208,7 +208,7 @@ pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
             "window.closeToTray".to_string(),
             serde_json::json!(false),
         );
-        
+
         log::info!("User chose to disable tray functionality. Exiting application.");
         app.exit(0);
     }

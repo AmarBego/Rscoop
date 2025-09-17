@@ -1,6 +1,6 @@
 import { Component, For } from "solid-js";
 import { View } from "../types/scoop.ts";
-import { Package, Search, Settings, Stethoscope } from "lucide-solid";
+import { Package, Search, Settings, Stethoscope, FolderOpen } from "lucide-solid";
 import installedPackagesStore from '../stores/installedPackagesStore';
 
 interface HeaderProps {
@@ -11,6 +11,7 @@ interface HeaderProps {
 const Header: Component<HeaderProps> = (props) => {
   const navItems: { view: View; label: string; icon: typeof Search }[] = [
     { view: "search", label: "Search", icon: Search },
+    { view: "bucket", label: "Buckets", icon: FolderOpen },
     { view: "installed", label: "Installed", icon: Package },
     { view: "doctor", label: "Doctor", icon: Stethoscope },
     { view: "settings", label: "Settings", icon: Settings },

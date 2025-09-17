@@ -44,3 +44,17 @@ pub struct SearchResult {
     pub packages: Vec<ScoopPackage>,
     pub is_cold: bool,
 }
+
+// -----------------------------------------------------------------------------
+// BucketInfo
+// -----------------------------------------------------------------------------
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct BucketInfo {
+    pub name: String,
+    pub path: String,
+    pub manifest_count: u32,
+    pub is_git_repo: bool,
+    pub git_url: Option<String>,
+    pub git_branch: Option<String>,
+    pub last_updated: Option<String>,
+}

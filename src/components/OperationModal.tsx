@@ -149,62 +149,62 @@ function OperationModal(props: OperationModalProps) {
   };
 
   return (
-    <dialog class="modal backdrop-blur-sm" open={!!props.title}>
-      <div class="modal-box w-11/12 max-w-5xl">
-        <h3 class="font-bold text-lg">{props.title}</h3>
-        <div 
-          ref={scrollRef}
-          class="bg-black text-white font-mono text-sm p-4 rounded-lg my-4 max-h-96 overflow-y-auto"
-        >
-          <For each={output()}>
-            {(line) => (
-              <p classList={{ 'text-red-400': line.source === 'stderr' }}>
-                <LineWithLinks line={line.line} />
-              </p>
-            )}
-          </For>
-          <Show when={!result() && !scanWarning()}>
-            <div class="flex items-center animate-pulse mt-2">
-              <span class="loading loading-spinner loading-xs mr-2"></span>
-              In progress...
-            </div>
+    <Show when={!!props.title}>
+      <div class="modal modal-open backdrop-blur-sm" role="dialog">
+        <div class="modal-box w-11/12 max-w-5xl">
+          <h3 class="font-bold text-lg">{props.title}</h3>
+          <div 
+            ref={scrollRef}
+            class="bg-black text-white font-mono text-sm p-4 rounded-lg my-4 max-h-96 overflow-y-auto"
+          >
+            <For each={output()}>
+              {(line) => (
+                <p classList={{ 'text-red-400': line.source === 'stderr' }}>
+                  <LineWithLinks line={line.line} />
+                </p>
+              )}
+            </For>
+            <Show when={!result() && !scanWarning()}>
+              <div class="flex items-center animate-pulse mt-2">
+                <span class="loading loading-spinner loading-xs mr-2"></span>
+                In progress...
+              </div>
+            </Show>
+          </div>
+          
+          <Show when={scanWarning()}>
+              <div class="alert alert-warning">
+                  <ShieldAlert class="w-6 h-6" />
+                  <span>{scanWarning()!.message}</span>
+              </div>
           </Show>
-        </div>
-        
-        <Show when={scanWarning()}>
-            <div class="alert alert-warning">
-                <ShieldAlert class="w-6 h-6" />
-                <span>{scanWarning()!.message}</span>
-            </div>
-        </Show>
 
-        <Show when={result()}>
-            <div class="alert" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
-                <span>{result()!.message}</span>
-            </div>
-        </Show>
+          <Show when={result()}>
+              <div class="alert" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
+                  <span>{result()!.message}</span>
+              </div>
+          </Show>
 
-        <div class="modal-action">
-            <Show when={scanWarning()}>
-                <button class="btn btn-warning" onClick={handleInstallAnyway}>
-                    <AlertTriangle class="w-4 h-4 mr-2" />
-                    Install Anyway
-                </button>
-            </Show>
-            <Show when={showNextStep()}>
-                <button class="btn btn-info" onClick={handleNextStepClick}>
-                    {props.nextStep?.buttonLabel}
-                </button>
-            </Show>
-            <button class="btn" onClick={handleCloseOrCancel}>
-                { result() || scanWarning() ? 'Close' : 'Cancel' }
-            </button>
+          <div class="modal-action">
+              <Show when={scanWarning()}>
+                  <button class="btn btn-warning" onClick={handleInstallAnyway}>
+                      <AlertTriangle class="w-4 h-4 mr-2" />
+                      Install Anyway
+                  </button>
+              </Show>
+              <Show when={showNextStep()}>
+                  <button class="btn btn-info" onClick={handleNextStepClick}>
+                      {props.nextStep?.buttonLabel}
+                  </button>
+              </Show>
+              <button class="btn" onClick={handleCloseOrCancel}>
+                  { result() || scanWarning() ? 'Close' : 'Cancel' }
+              </button>
+          </div>
         </div>
+        <div class="modal-backdrop" onClick={() => {if (result()) { props.onClose(result()?.success ?? false) } else { props.onClose(false) }}}></div>
       </div>
-      <form method="dialog" class="modal-backdrop">
-        <button onClick={() => {if (result()) { props.onClose(result()?.success ?? false) } else { props.onClose(false) }}}>close</button>
-      </form>
-    </dialog>
+    </Show>
   );
 }
 

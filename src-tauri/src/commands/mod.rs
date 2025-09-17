@@ -1,4 +1,8 @@
 pub mod app_info;
+pub mod bucket;
+pub mod bucket_install;
+pub mod bucket_parser;
+pub mod bucket_search;
 pub mod doctor;
 pub mod hold;
 pub mod info;

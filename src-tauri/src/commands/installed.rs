@@ -129,3 +129,19 @@ pub async fn invalidate_installed_cache(state: State<'_, AppState>) {
     *cache_guard = None;
     log::info!("Installed packages cache invalidated.");
 }
+
+/// Gets the installation path for a specific package.
+#[tauri::command]
+pub async fn get_package_path<R: Runtime>(
+    _app: AppHandle<R>,
+    state: State<'_, AppState>,
+    package_name: String,
+) -> Result<String, String> {
+    let package_path = state.scoop_path.join("apps").join(&package_name);
+    
+    if !package_path.exists() {
+        return Err(format!("Package '{}' is not installed", package_name));
+    }
+    
+    Ok(package_path.to_string_lossy().to_string())
+}

@@ -17,3 +17,4 @@
 #### 🐛 Bug Fixes
 
 * **Fixed being able to open multiple instances**
+* **Fixed weird transitions in package modals**

@@ -172,7 +172,9 @@ fn locate_package_manifest_impl(
 /// Scans the Windows Start Menu for Scoop Apps shortcuts
 ///
 /// Returns a list of shortcuts found in %AppData%\Microsoft\Windows\Start Menu\Programs\Scoop Apps
-pub fn get_scoop_app_shortcuts_with_path(scoop_path: &std::path::Path) -> Result<Vec<ScoopAppShortcut>, String> {
+pub fn get_scoop_app_shortcuts_with_path(
+    scoop_path: &std::path::Path,
+) -> Result<Vec<ScoopAppShortcut>, String> {
     let app_data =
         env::var("APPDATA").map_err(|_| "Could not find APPDATA environment variable")?;
     let scoop_apps_path = PathBuf::from(app_data)
@@ -236,7 +238,9 @@ fn get_scoop_root_fallback() -> PathBuf {
     // Try multiple common locations for Scoop
     let possible_paths = vec![
         env::var("SCOOP").ok().map(PathBuf::from),
-        env::var("USERPROFILE").ok().map(|p| PathBuf::from(p).join("scoop")),
+        env::var("USERPROFILE")
+            .ok()
+            .map(|p| PathBuf::from(p).join("scoop")),
         Some(PathBuf::from("C:\\ProgramData\\scoop")),
         Some(PathBuf::from("C:\\scoop")),
     ];
@@ -266,7 +270,7 @@ struct ShortcutInfo {
 #[cfg(windows)]
 fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<ShortcutInfo, String> {
     log::debug!("Parsing LNK shortcut: {}", path.display());
-    
+
     // Use the lnk crate to parse the shortcut file
     match lnk::ShellLink::open(path, lnk::encoding::WINDOWS_1252) {
         Ok(shortcut) => {
@@ -280,7 +284,7 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
                     String::new()
                 }
             };
-            
+
             // If target path is still empty, try to get it from link info
             if target_path.is_empty() {
                 if let Some(link_info) = shortcut.link_info() {
@@ -289,7 +293,7 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
                     }
                 }
             }
-            
+
             // Convert relative path to absolute path if needed
             if !target_path.is_empty() && target_path.starts_with("..") {
                 // The relative path is relative to the shortcut's directory
@@ -303,7 +307,7 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
                     }
                 }
             }
-            
+
             // Extract working directory
             let working_directory = {
                 let string_data = shortcut.string_data();
@@ -313,7 +317,7 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
                     String::new()
                 }
             };
-            
+
             // If no working directory specified, use target path's parent directory
             let working_directory = if working_directory.is_empty() && !target_path.is_empty() {
                 if let Some(parent) = std::path::Path::new(&target_path).parent() {
@@ -326,15 +330,19 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
             } else {
                 working_directory
             };
-            
+
             // Extract icon location if available
             let icon_path = {
                 let string_data = shortcut.string_data();
                 string_data.icon_location().as_ref().map(|s| s.to_string())
             };
-            
-            log::info!("Successfully parsed LNK file - Target: '{}', Working Dir: '{}'", target_path, working_directory);
-            
+
+            log::info!(
+                "Successfully parsed LNK file - Target: '{}', Working Dir: '{}'",
+                target_path,
+                working_directory
+            );
+
             Ok(ShortcutInfo {
                 target_path,
                 working_directory,
@@ -344,7 +352,7 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
         Err(e) => {
             let error_msg = format!("Failed to parse LNK file: {}", e);
             log::warn!("{}", error_msg);
-            
+
             // Return error instead of fallback for cleaner error handling
             Err(error_msg)
         }
@@ -358,7 +366,11 @@ fn parse_shortcut(_path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Shor
 
 /// Launch a Scoop app using its target path
 pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<(), String> {
-    log::info!("Launching app: '{}' from '{}'", target_path, working_directory);
+    log::info!(
+        "Launching app: '{}' from '{}'",
+        target_path,
+        working_directory
+    );
 
     // Validate that we have a target path
     if target_path.is_empty() {
@@ -380,7 +392,10 @@ pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<()
         if working_dir_path.exists() {
             cmd.current_dir(working_directory);
         } else {
-            log::warn!("Working directory does not exist: {}, using default", working_directory);
+            log::warn!(
+                "Working directory does not exist: {}, using default",
+                working_directory
+            );
         }
     }
 

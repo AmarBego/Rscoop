@@ -11,7 +11,7 @@ use tauri_plugin_log::{Target, TargetKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default();
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
 
     // Add single instance plugin only on Windows
     #[cfg(windows)]
@@ -131,6 +131,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::search::search_scoop,
             commands::installed::get_installed_packages_full,
+            commands::installed::get_package_path,
             commands::info::get_package_info,
             commands::install::install_package,
             commands::manifest::get_package_manifest,
@@ -158,6 +159,17 @@ pub fn run() {
             commands::hold::list_held_packages,
             commands::hold::hold_package,
             commands::hold::unhold_package,
+            commands::bucket::get_buckets,
+            commands::bucket::get_bucket_info,
+            commands::bucket::get_bucket_manifests,
+            commands::bucket_install::install_bucket,
+            commands::bucket_install::validate_bucket_install,
+            commands::bucket_install::remove_bucket,
+            commands::bucket_search::search_buckets,
+            commands::bucket_search::get_expanded_search_info,
+            commands::bucket_search::get_default_buckets,
+            commands::bucket_search::clear_bucket_cache,
+            commands::bucket_search::check_bucket_cache_exists,
             commands::app_info::is_scoop_installation,
             tray::refresh_tray_apps_menu
         ])

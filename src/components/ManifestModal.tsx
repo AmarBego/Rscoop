@@ -26,38 +26,38 @@ function ManifestModal(props: ManifestModalProps) {
   const isOpen = () => props.loading || !!props.error || !!props.manifestContent;
 
   return (
-    <dialog class="modal" open={isOpen()} data-no-close-search>
-      <div class="modal-box max-w-5xl bg-base-200">
-        <h3 class="font-bold text-lg">Manifest for {props.packageName}</h3>
-        
-        <Show when={props.loading}>
-            <div class="flex justify-center items-center h-64">
-                <span class="loading loading-spinner loading-lg"></span>
-            </div>
-        </Show>
+    <Show when={isOpen()}>
+      <div class="modal modal-open" role="dialog" data-no-close-search>
+        <div class="modal-box max-w-5xl bg-base-200">
+          <h3 class="font-bold text-lg">Manifest for {props.packageName}</h3>
+          
+          <Show when={props.loading}>
+              <div class="flex justify-center items-center h-64">
+                  <span class="loading loading-spinner loading-lg"></span>
+              </div>
+          </Show>
 
-        <Show when={props.error}>
-            <div role="alert" class="alert alert-error">
-                <span>{props.error}</span>
-            </div>
-        </Show>
+          <Show when={props.error}>
+              <div role="alert" class="alert alert-error">
+                  <span>{props.error}</span>
+              </div>
+          </Show>
 
-        <Show when={props.manifestContent}>
-            <div class="bg-base-200 text-sm p-4 rounded-lg my-4 max-h-[70vh] overflow-y-auto">
-                <pre><code ref={codeRef} class="language-json whitespace-pre-wrap"></code></pre>
-            </div>
-        </Show>
+          <Show when={props.manifestContent}>
+              <div class="bg-base-200 text-sm p-4 rounded-lg my-4 max-h-[70vh] overflow-y-auto">
+                  <pre><code ref={codeRef} class="language-json whitespace-pre-wrap"></code></pre>
+              </div>
+          </Show>
 
-        <div class="modal-action">
-          <form method="dialog">
-            <button class="btn" onClick={props.onClose}>Close</button>
-          </form>
+          <div class="modal-action">
+            <form method="dialog">
+              <button class="btn" onClick={props.onClose}>Close</button>
+            </form>
+          </div>
         </div>
+        <div class="modal-backdrop" onClick={props.onClose}></div>
       </div>
-      <form method="dialog" class="modal-backdrop">
-        <button onClick={props.onClose}>close</button>
-      </form>
-    </dialog>
+    </Show>
   );
 }
 

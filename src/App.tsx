@@ -3,6 +3,7 @@ import "./App.css";
 import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
 import InstalledPage from "./pages/InstalledPage.tsx";
+import BucketPage from "./pages/BucketPage.tsx";
 import { View } from "./types/scoop.ts";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
@@ -207,6 +208,9 @@ function App() {
                         <main class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
                             <Show when={view() === "search"}>
                                 <SearchPage />
+                            </Show>
+                            <Show when={view() === "bucket"}>
+                                <BucketPage />
                             </Show>
                             <Show when={view() === "installed"}>
                                 <InstalledPage />

@@ -26,4 +26,4 @@ export interface VirustotalResult {
   message: string;
 }
 
-export type View = "search" | "installed" | "settings" | "doctor"; 
+export type View = "search" | "installed" | "bucket" | "settings" | "doctor"; 

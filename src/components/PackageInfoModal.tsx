@@ -4,9 +4,10 @@ import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
-import { Download, MoreHorizontal, FileText, Trash2 } from "lucide-solid";
+import { Download, MoreHorizontal, FileText, Trash2, ExternalLink } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
+import { openPath } from '@tauri-apps/plugin-opener';
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
@@ -19,6 +20,7 @@ interface PackageInfoModalProps {
   onClose: () => void;
   onInstall?: (pkg: ScoopPackage) => void;
   onUninstall?: (pkg: ScoopPackage) => void;
+  showBackButton?: boolean;
 }
 
 // Component to render detail values. If it's a JSON string of an object/array, it pretty-prints and highlights it.
@@ -169,8 +171,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   };
 
   return (
-    <>
-      <dialog class="modal backdrop-blur-sm" open={!!props.pkg} data-no-close-search>
+    <Show when={!!props.pkg}>
+      <div class="modal modal-open backdrop-blur-sm" role="dialog" data-no-close-search>
         <div class="modal-box w-11/12 max-w-5xl bg-base-200 my-8">
           <div class="flex justify-between items-start">
             <h3 class="font-bold text-lg">Information for {props.pkg?.name}</h3>
@@ -185,6 +187,25 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                             View Manifest
                         </a>
                     </li>
+                    <Show when={props.pkg?.is_installed}>
+                        <li>
+                            <button type="button" onClick={async () => {
+                                if (props.pkg) {
+                                    try {
+                                        const packagePath = await invoke<string>("get_package_path", {
+                                            packageName: props.pkg.name
+                                        });
+                                        await openPath(packagePath);
+                                    } catch (error) {
+                                        console.error('Failed to open package path:', error);
+                                    }
+                                }
+                            }}>
+                                <ExternalLink class="w-4 h-4 mr-2" />
+                                Open in Explorer
+                            </button>
+                        </li>
+                    </Show>
                     <li><a><i>Placeholder 1</i></a></li>
                     <li><a><i>Placeholder 2</i></a></li>
                 </ul>
@@ -271,14 +292,14 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                   Uninstall
                 </button>
               </Show>
-              <button class="btn" onClick={props.onClose}>Close</button>
+              <button class="btn" onClick={props.onClose}>
+                {props.showBackButton ? "Back to Bucket" : "Close"}
+              </button>
             </form>
           </div>
         </div>
-        <form method="dialog" class="modal-backdrop">
-          <button onClick={props.onClose}>close</button>
-        </form>
-      </dialog>
+        <div class="modal-backdrop" onClick={props.onClose}></div>
+      </div>
       <ManifestModal
         packageName={props.pkg?.name ?? ""}
         manifestContent={manifestContent()}
@@ -286,7 +307,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         error={manifestError()}
         onClose={closeManifestModal}
       />
-    </>
+    </Show>
   );
 }
 
