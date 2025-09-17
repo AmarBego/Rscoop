@@ -14,6 +14,7 @@ import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
+import installedPackagesStore from "./stores/installedPackagesStore";
 
 function App() {
     // Persist selected view across sessions.
@@ -33,6 +34,9 @@ function App() {
     const [error, setError] = createSignal<string | null>(null);
     const [update, setUpdate] = createSignal<Update | null>(null);
     const [isInstalling, setIsInstalling] = createSignal(false);
+    
+    // Track if this is the first ever launch
+    const [isFirstLaunch, setIsFirstLaunch] = createSignal(false);
 
     const handleInstallUpdate = async () => {
         if (!update()) return;
@@ -48,6 +52,13 @@ function App() {
     };
 
     onMount(async () => {
+        // Check if this is the first launch
+        const hasLaunchedBefore = localStorage.getItem("rscoop-has-launched");
+        if (!hasLaunchedBefore) {
+            setIsFirstLaunch(true);
+            localStorage.setItem("rscoop-has-launched", "true");
+        }
+        
         try {
             // Check if app is installed via Scoop
             const scoopInstalled = await invoke<boolean>("is_scoop_installation");
@@ -182,6 +193,12 @@ function App() {
                     >
                         Later
                     </button>
+                </div>
+            </Show>
+
+            <Show when={isReady() && !error() && isFirstLaunch() && installedPackagesStore.packages().length === 0 && !installedPackagesStore.loading()}>
+                <div class="bg-yellow-500 text-black p-2 text-center text-sm">
+                    <strong>Known Bug:</strong> Upon fresh install restart the app to get it to work normally.
                 </div>
             </Show>
 
