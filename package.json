@@ -1,6 +1,7 @@
 {
   "name": "rscoop",
-  "version": "1.2.5",
+  "version": "1.3.0",
+  "notes": "See the notes https://github.com/AmarBego/Rscoop/releases/tag/v1.3.0",
   "description": "",
   "type": "module",
   "scripts": {

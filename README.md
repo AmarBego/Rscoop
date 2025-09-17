@@ -1,6 +1,6 @@
 # Rscoop - A Modern, Powerful GUI for Scoop
 
-![Rscoop Showcase Banner](pics/logo.png)
+<video src="pics/showcase.mp4" autoplay loop muted playsinline></video>
 
 Welcome to **Rscoop**, (rust-scoop) the ultimate graphical user interface for the [Scoop](https://scoop.sh/) package manager on Windows. Rscoop isn't just a pretty face; it's a powerhouse of functionality designed to be a complete replacement for the command line. Its intuitive, modern UI is incredibly easy to grasp, making package management a breeze for both new and experienced users.
 
@@ -18,6 +18,13 @@ Rscoop is more than just a package list. It's a full-fledged, native management 
 At its core, Rscoop leverages a custom-built Rust backend to handle the heavy lifting. We've re-engineered critical logic to be native to Rscoop, delivering incredible speed and responsiveness.
 - **Instant Search**: Find the exact package you need in milliseconds. Our native search implementation scans all your buckets instantly.
 - **Package & Update Discovery**: Listing installed packages and checking for available updates is faster than ever.
+
+### 🪣 Complete Bucket Management
+Rscoop introduces a full-featured bucket management system, allowing you to discover, add, and manage Scoop buckets without ever leaving the app.
+- **Browse & Search**: Explore thousands of community buckets, not just the default ones.
+- **Install & Remove**: Add or remove buckets with a single click.
+- **View Manifests**: Instantly view package manifests within any bucket.
+- **Offline Search**: A smart caching system downloads bucket data for lightning-fast offline searching.
 
 ### ⚙️ Advanced System & Package Control
 Rscoop provides a level of control that goes far beyond the standard command line. Manage every aspect of your Scoop installation and packages through an intuitive UI.
@@ -39,9 +46,9 @@ For core actions, Rscoop acts as a seamless wrapper around the battle-tested off
 
 ## 🖼️ Screenshots
 
-| Search Page | Installed Packages (Grid) | System Doctor | Shims |
-| :---: | :---: | :---: | :---: |
-| ![Search Page](pics/search.png) | ![Installed Packages Grid View](pics/installedGRID.png) | ![System Doctor Page](pics/doctor.png) | ![Shims Manager View](pics/shims.png) |
+| Search Page | Installed Packages (Grid) | Bucket Management | System Doctor | Shims |
+| :---: | :---: | :---: | :---: | :---: |
+| ![Search Page](pics/search.png) | ![Installed Packages Grid View](pics/installedGRID.png) | ![Bucket Management](pics/buckets.png) | ![System Doctor Page](pics/doctor.png) | ![Shims Manager View](pics/shims.png) |
 
 | Package Details | Operation in Progress | Settings |
 | :---: | :---: | :---: |
