@@ -1,6 +1,8 @@
 # Rscoop - A Modern, Powerful GUI for Scoop
 
-<video src="pics/showcase.mp4" autoplay loop muted playsinline></video>
+<video src="pics/showcase.gif" autoplay loop muted playsinline></video>
+
+*background isn't purple, just gif compression*
 
 Welcome to **Rscoop**, (rust-scoop) the ultimate graphical user interface for the [Scoop](https://scoop.sh/) package manager on Windows. Rscoop isn't just a pretty face; it's a powerhouse of functionality designed to be a complete replacement for the command line. Its intuitive, modern UI is incredibly easy to grasp, making package management a breeze for both new and experienced users.
 
