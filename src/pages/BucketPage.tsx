@@ -237,6 +237,14 @@ function BucketPage() {
         onClose={packageInfo.closeModal}
         onInstall={packageOperations.handleInstall}
         onUninstall={packageOperations.handleUninstall}
+        showBackButton={true}
+        onPackageStateChanged={() => {
+          // Refresh bucket manifests to reflect installation changes
+          const currentBucket = selectedBucket();
+          if (currentBucket) {
+            handleFetchManifests(currentBucket.name);
+          }
+        }}
       />
       
       <OperationModal

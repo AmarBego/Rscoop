@@ -37,6 +37,14 @@ export function useSearch() {
         }
     };
 
+    // Function to refresh search results after package operations
+    const refreshSearchResults = async () => {
+        if (searchTerm().trim() !== "") {
+            console.log('Refreshing search results after package operation...');
+            await handleSearch();
+        }
+    };
+
     createEffect(on(searchTerm, () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => handleSearch(), 300);
@@ -46,6 +54,15 @@ export function useSearch() {
     const binaryResults = () => results().filter((p) => p.match_source === "binary");
     const resultsToShow = () => {
         return activeTab() === "packages" ? packageResults() : binaryResults();
+    };
+
+    // Enhanced close operation modal that refreshes search results
+    const closeOperationModal = (wasSuccess: boolean) => {
+        packageOperations.closeOperationModal(wasSuccess);
+        if (wasSuccess) {
+            // Refresh search results to reflect installation state changes
+            refreshSearchResults();
+        }
     };
 
     return {
@@ -66,13 +83,13 @@ export function useSearch() {
         fetchPackageInfo: packageInfo.fetchPackageInfo,
         closeModal: packageInfo.closeModal,
         
-        // From usePackageOperations
+        // From usePackageOperations (with enhanced closeOperationModal)
         operationTitle: packageOperations.operationTitle,
         operationNextStep: packageOperations.operationNextStep,
         isScanning: packageOperations.isScanning,
         handleInstall: packageOperations.handleInstall,
         handleUninstall: packageOperations.handleUninstall,
         handleInstallConfirm: packageOperations.handleInstallConfirm,
-        closeOperationModal: packageOperations.closeOperationModal,
+        closeOperationModal, // Enhanced version that refreshes search
     };
 }

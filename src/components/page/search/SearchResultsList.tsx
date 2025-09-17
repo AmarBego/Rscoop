@@ -9,6 +9,7 @@ interface SearchResultsListProps {
     activeTab: "packages" | "includes";
     onViewInfo: (pkg: ScoopPackage) => void;
     onInstall: (pkg: ScoopPackage) => void;
+    onPackageStateChanged?: () => void; // Callback for when package state changes
 }
 
 function SearchResultsList(props: SearchResultsListProps) {
@@ -58,6 +59,8 @@ function SearchResultsList(props: SearchResultsListProps) {
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     props.onInstall(pkg);
+                                                    // Notify parent that package state may change
+                                                    props.onPackageStateChanged?.();
                                                 }}
                                             >
                                                 <Download />

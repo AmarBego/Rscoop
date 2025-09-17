@@ -1,4 +1,4 @@
-import { createSignal, createResource } from "solid-js";
+import { createSignal, createResource, createEffect, on } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface SearchableBucket {
@@ -56,6 +56,13 @@ export function useBucketSearch() {
       const exists = await invoke<boolean>("check_bucket_cache_exists");
       setCacheExists(exists);
       setIsExpandedSearch(exists);
+      
+      // IMPORTANT: If cache exists, we should be using expanded search
+      if (exists) {
+        setIncludeExpanded(true);
+        console.log("Cache exists - automatically enabling expanded search");
+      }
+      
       return exists;
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -73,11 +80,13 @@ export function useBucketSearch() {
       if (cacheExistsStatus) {
         // If cache exists, load expanded results immediately with stars sorting
         console.log("Cache exists, loading expanded search results...");
+        setIncludeExpanded(true); // Ensure expanded search is enabled
         const expandedResults = await searchBuckets(undefined, true, undefined, "stars");
         return expandedResults?.buckets || [];
       } else {
         // No cache, load default verified buckets (they should already be sorted by stars on backend)
         console.log("No cache, loading default buckets...");
+        setIncludeExpanded(false); // Ensure we're in default mode
         const buckets = await invoke<SearchableBucket[]>("get_default_buckets");
         setSearchResults(buckets);
         setTotalCount(buckets.length);
@@ -186,12 +195,14 @@ export function useBucketSearch() {
       const cacheExistsStatus = await checkCacheStatus();
       
       if (cacheExistsStatus) {
-        // Cache exists, load expanded results
+        // Cache exists, load expanded results and ensure we're in expanded mode
         console.log("Loading expanded results from cache...");
+        setIncludeExpanded(true); // Ensure expanded search is enabled
         await searchBuckets(undefined, true, undefined, "stars"); // Explicit stars sorting
       } else {
         // No cache, load default verified buckets
         console.log("Loading default verified buckets...");
+        setIncludeExpanded(false); // Ensure we're in default mode
         const buckets = await invoke<SearchableBucket[]>("get_default_buckets");
         setSearchResults(buckets);
         setTotalCount(buckets.length);
@@ -206,21 +217,20 @@ export function useBucketSearch() {
     }
   };
 
-  // Quick search with debouncing capability
-  let searchTimeout: number | undefined;
-  const debouncedSearch = (query: string, delay = 300) => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
+  // Debounced search effect like in useSearch.ts
+  let debounceTimer: number;
+  const handleSearch = async () => {
+    if (searchQuery().trim() === "") {
+      await clearSearch();
+      return;
     }
-    
-    searchTimeout = setTimeout(() => {
-      if (query.trim()) {
-        searchBuckets(query);
-      } else {
-        clearSearch();
-      }
-    }, delay);
+    await searchBuckets(searchQuery());
   };
+
+  createEffect(on(searchQuery, () => {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => handleSearch(), 300);
+  }));
 
   return {
     // State
@@ -255,7 +265,6 @@ export function useBucketSearch() {
     loadDefaults,
     disableExpandedSearch,
     checkCacheStatus,
-    debouncedSearch,
     getExpandedSearchInfo,
   };
 }

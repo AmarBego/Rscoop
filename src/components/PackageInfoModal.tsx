@@ -21,6 +21,7 @@ interface PackageInfoModalProps {
   onInstall?: (pkg: ScoopPackage) => void;
   onUninstall?: (pkg: ScoopPackage) => void;
   showBackButton?: boolean;
+  onPackageStateChanged?: () => void; // Callback for when package state changes
 }
 
 // Component to render detail values. If it's a JSON string of an object/array, it pretty-prints and highlights it.
@@ -270,7 +271,9 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                   class="btn btn-primary mr-2"
                   onClick={() => {
                     if (props.pkg) {
-                      props.onInstall!(props.pkg)
+                      props.onInstall!(props.pkg);
+                      // Notify parent that package state may change
+                      props.onPackageStateChanged?.();
                     }
                   }}
                 >
@@ -285,6 +288,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                   onClick={() => {
                     if (props.pkg) {
                       props.onUninstall?.(props.pkg);
+                      // Notify parent that package state may change
+                      props.onPackageStateChanged?.();
                     }
                   }}
                 >

@@ -48,6 +48,10 @@ function SearchPage() {
           activeTab={activeTab()}
           onViewInfo={fetchPackageInfo}
           onInstall={handleInstall}
+          onPackageStateChanged={() => {
+            // This will be called when install buttons are clicked
+            // The actual refresh will happen in closeOperationModal when the operation completes
+          }}
         />
       </div>
 
@@ -59,6 +63,10 @@ function SearchPage() {
         onClose={closeModal}
         onInstall={handleInstall}
         onUninstall={handleUninstall}
+        onPackageStateChanged={() => {
+          // This will be called when install/uninstall buttons are clicked
+          // The actual refresh will happen in closeOperationModal when the operation completes
+        }}
       />
       <OperationModal
         title={operationTitle()}

@@ -214,7 +214,7 @@ pub async fn warm_manifest_cache<R: tauri::Runtime>(
 
 /// Invalidates the global manifest cache.
 /// This should be called after operations that change the available packages,
-/// such as installing or uninstalling a package.
+/// such as installing or uninstalling a package or adding/removing buckets.
 pub async fn invalidate_manifest_cache() {
     let mut guard = MANIFEST_CACHE.lock().await;
     *guard = None;

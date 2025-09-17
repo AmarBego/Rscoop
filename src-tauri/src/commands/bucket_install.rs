@@ -7,6 +7,8 @@ use git2::{Repository, RemoteCallbacks, FetchOptions, Cred, CredentialType};
 use regex::Regex;
 use once_cell::sync::Lazy;
 
+use crate::commands::search::invalidate_manifest_cache;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BucketInstallOptions {
     pub name: String,
@@ -278,6 +280,9 @@ async fn install_bucket_internal(options: BucketInstallOptions) -> Result<Bucket
             // Count manifests
             let manifest_count = count_bucket_manifests(&bucket_path)?;
             
+            // Invalidate search cache so new bucket's packages are searchable
+            invalidate_manifest_cache().await;
+            
             log::info!("Successfully installed bucket '{}' with {} manifests", bucket_name, manifest_count);
             
             Ok(BucketInstallResult {
@@ -390,6 +395,9 @@ pub async fn remove_bucket(bucket_name: String) -> Result<BucketInstallResult, S
     
     match remove_bucket_directory(&bucket_path) {
         Ok(_) => {
+            // Invalidate search cache so removed bucket's packages are no longer searchable
+            invalidate_manifest_cache().await;
+            
             log::info!("Successfully removed bucket '{}'", bucket_name);
             Ok(BucketInstallResult {
                 success: true,

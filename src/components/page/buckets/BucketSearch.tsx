@@ -15,50 +15,25 @@ function BucketSearch(props: BucketSearchProps) {
   const [expandedInfo, setExpandedInfo] = createSignal<any>(null);
   const [tempDisableChineseBuckets, setTempDisableChineseBuckets] = createSignal(false);
   const [tempMinimumStars, setTempMinimumStars] = createSignal(2);
+  
+  // Input ref to maintain focus
+  let inputRef: HTMLInputElement | undefined;
 
-  // Handle search input changes with debouncing (like SearchPage)
-  let debounceTimer: number;
+  // Simple search input handler like SearchBar.tsx
   const handleSearchInput = (value: string) => {
     setSearchInput(value);
     bucketSearch.setSearchQuery(value);
-    
-    // Auto-switch sorting: relevance when searching, stars when not searching
-    if (value.trim()) {
-      // Has search query - switch to relevance if not already set
-      if (bucketSearch.sortBy() === "stars") {
-        bucketSearch.setSortBy("relevance");
-      }
-    } else {
-      // No search query - switch to stars for best defaults
-      bucketSearch.setSortBy("stars");
-    }
-    
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => {
-      bucketSearch.debouncedSearch(value);
-    }, 300);
-    
-    // Pass results to parent immediately when input changes
-    updateParentResults();
   };
 
-  // Load defaults when search becomes active
+  // Load defaults when search becomes active (simple like SearchPage)
   createEffect(() => {
-    if (props.isActive()) {
-      // Always load defaults when search becomes active and there's no search input
-      if (!searchInput()) {
-        bucketSearch.loadDefaults().then(() => {
-          updateParentResults();
-        });
-      } else {
-        // If there's already a search input, make sure to update parent with current results
-        updateParentResults();
-      }
+    if (props.isActive() && !searchInput()) {
+      bucketSearch.loadDefaults();
     }
   });
 
-  // Update parent with current results
-  const updateParentResults = () => {
+  // Watch search results and update parent (simple like SearchPage)
+  createEffect(() => {
     if (props.onSearchResults) {
       props.onSearchResults({
         results: bucketSearch.searchResults(),
@@ -68,11 +43,14 @@ function BucketSearch(props: BucketSearchProps) {
         isExpandedSearch: bucketSearch.isExpandedSearch(),
       });
     }
-  };
+  });
 
-  // Watch for changes in search results and update parent
+  // Maintain focus during search operations
   createEffect(() => {
-    updateParentResults();
+    if (!bucketSearch.isSearching() && document.activeElement !== inputRef && searchInput().length > 0) {
+      // Only restore focus if we were actively searching and input has content
+      setTimeout(() => inputRef?.focus(), 0);
+    }
   });
 
   const handleExpandedSearchClick = async () => {
@@ -135,20 +113,20 @@ function BucketSearch(props: BucketSearchProps) {
             <div class="relative flex-1">
               <span class="absolute inset-y-0 left-0 flex items-center pl-3 z-10">
                 <Show when={!bucketSearch.isSearching()} fallback={
-                  <Loader2 class="h-5 w-5 text-primary animate-spin" />
+                  <Loader2 class="h-5 w-5 text-gray-400 animate-spin" />
                 }>
                   <Search class="h-5 w-5 text-gray-400" />
                 </Show>
               </span>
 
               <input
+                ref={inputRef}
                 type="text"
                 placeholder="Search buckets by name..."
-                class="input input-bordered w-full pl-10 pr-4 focus:input-primary"
+                class="input input-bordered w-full pl-10 pr-4"
                 value={searchInput()}
                 onInput={(e) => handleSearchInput(e.currentTarget.value)}
                 disabled={bucketSearch.isSearching()}
-                autofocus={props.isActive()}
               />
             </div>
             
@@ -181,11 +159,14 @@ function BucketSearch(props: BucketSearchProps) {
                 <select 
                   class="select select-sm select-bordered"
                   value={bucketSearch.sortBy()}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     bucketSearch.setSortBy(e.currentTarget.value);
-                    if (searchInput()) {
-                      bucketSearch.searchBuckets();
+                    // Manually trigger search if we have a query
+                    if (searchInput().trim()) {
+                      await bucketSearch.searchBuckets(searchInput());
                     }
+                    // Restore focus to input
+                    inputRef?.focus();
                   }}
                 >
                   <option value="stars">Stars</option>
@@ -224,10 +205,8 @@ function BucketSearch(props: BucketSearchProps) {
               <Show when={bucketSearch.cacheExists() || bucketSearch.isExpandedSearch()}>
                 <button
                   onClick={async () => {
-                    const success = await bucketSearch.disableExpandedSearch();
-                    if (success) {
-                      updateParentResults();
-                    }
+                    await bucketSearch.disableExpandedSearch();
+                    // The effect will handle updating parent results
                   }}
                   class="btn btn-sm btn-outline btn-error"
                   disabled={bucketSearch.isSearching()}
