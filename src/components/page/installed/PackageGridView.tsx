@@ -29,12 +29,17 @@ function PackageGridView(props: PackageGridViewProps) {
                   <button class="hover:underline" onClick={() => props.onViewInfo(pkg)}>
                     {pkg.name}
                   </button>
-                  <Show when={pkg.available_version && !heldStore.isHeld(pkg.name)}>
+                  <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
                       <div class="tooltip" data-tip={`Update available: ${pkg.available_version}`}>
                         <ArrowUpCircle class="w-4 h-4 text-primary" />
                       </div>
                   </Show>
-                   <Show when={heldStore.isHeld(pkg.name)}>
+                  <Show when={pkg.is_versioned_install}>
+                      <div class="tooltip" data-tip="Versioned install - cannot be updated">
+                        <Lock class="w-4 h-4 text-cyan-400" />
+                      </div>
+                  </Show>
+                  <Show when={heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
                        <div class="tooltip" data-tip="This package is on hold">
                          <Lock class="w-4 h-4 text-warning" />
                        </div>
@@ -45,7 +50,7 @@ function PackageGridView(props: PackageGridViewProps) {
                       <MoreHorizontal class="w-4 h-4" />
                     </label>
                     <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-52 z-[1]">
-                      <Show when={pkg.available_version && !heldStore.isHeld(pkg.name)}>
+                      <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
                         <li>
                           <a onClick={() => props.onUpdate(pkg)}>
                             <ArrowUpCircle class="w-4 h-4 mr-2" />
@@ -56,17 +61,26 @@ function PackageGridView(props: PackageGridViewProps) {
                       <li>
                         <Show when={props.operatingOn() === pkg.name}
                             fallback={
-                                <Show when={heldStore.isHeld(pkg.name)}
+                                <Show when={pkg.is_versioned_install}
                                     fallback={
-                                        <a onClick={() => props.onHold(pkg.name)}>
-                                            <Lock class="w-4 h-4 mr-2" />
-                                            <span>Hold Package</span>
-                                        </a>
+                                        <Show when={heldStore.isHeld(pkg.name)}
+                                            fallback={
+                                                <a onClick={() => props.onHold(pkg.name)}>
+                                                    <Lock class="w-4 h-4 mr-2" />
+                                                    <span>Hold Package</span>
+                                                </a>
+                                            }
+                                        >
+                                            <a onClick={() => props.onUnhold(pkg.name)}>
+                                                <Unlock class="w-4 h-4 mr-2" />
+                                                <span>Unhold Package</span>
+                                            </a>
+                                        </Show>
                                     }
                                 >
-                                    <a onClick={() => props.onUnhold(pkg.name)}>
-                                        <Unlock class="w-4 h-4 mr-2" />
-                                        <span>Unhold Package</span>
+                                    <a class="btn-disabled cursor-not-allowed">
+                                        <Lock class="w-4 h-4 mr-2 text-cyan-400" />
+                                        <span>Cannot Unhold (Versioned)</span>
                                     </a>
                                 </Show>
                             }

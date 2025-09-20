@@ -8,9 +8,34 @@ import { usePackageInfo } from "./usePackageInfo";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
+// Types for scoop status
+interface AppStatusInfo {
+  name: string;
+  installed_version: string;
+  latest_version?: string;
+  missing_dependencies: string[];
+  info: string[];
+  is_outdated: boolean;
+  is_failed: boolean;
+  is_held: boolean;
+  is_deprecated: boolean;
+  is_removed: boolean;
+}
+
+interface ScoopStatus {
+  scoop_needs_update: boolean;
+  bucket_needs_update: boolean;
+  network_failure: boolean;
+  apps_with_issues: AppStatusInfo[];
+  is_everything_ok: boolean;
+}
+
 export function useInstalledPackages() {
   const { packages, loading, error, uniqueBuckets, isCheckingForUpdates, fetch, refetch } = installedPackagesStore;
   const [operatingOn, setOperatingOn] = createSignal<string | null>(null);
+  const [scoopStatus, setScoopStatus] = createSignal<ScoopStatus | null>(null);
+  const [statusLoading, setStatusLoading] = createSignal(false);
+  const [statusError, setStatusError] = createSignal<string | null>(null);
 
   // Use shared hooks
   const packageOperations = usePackageOperations();
@@ -25,6 +50,22 @@ export function useInstalledPackages() {
 
   const checkForUpdates = () => {
     installedPackagesStore.checkForUpdates();
+  };
+
+  const checkScoopStatus = async () => {
+    setStatusLoading(true);
+    setStatusError(null);
+    try {
+      // First refresh the packages list to catch any CLI installations
+      await refetch();
+      const status = await invoke<ScoopStatus>("check_scoop_status");
+      setScoopStatus(status);
+    } catch (err) {
+      console.error("Failed to check scoop status:", err);
+      setStatusError(err as string);
+    } finally {
+      setStatusLoading(false);
+    }
   };
 
   const fetchInstalledPackages = () => {
@@ -76,8 +117,8 @@ export function useInstalledPackages() {
     const sortedPkgs = [...pkgs];
     sortedPkgs.sort((a, b) => {
       if (key === 'name') {
-        const aHasUpdate = !!a.available_version && !heldStore.isHeld(a.name);
-        const bHasUpdate = !!b.available_version && !heldStore.isHeld(b.name);
+        const aHasUpdate = !!a.available_version && !heldStore.isHeld(a.name) && !a.is_versioned_install;
+        const bHasUpdate = !!b.available_version && !heldStore.isHeld(b.name) && !b.is_versioned_install;
         if (aHasUpdate && !bHasUpdate) return -1;
         if (!aHasUpdate && bHasUpdate) return 1;
       }
@@ -90,7 +131,7 @@ export function useInstalledPackages() {
     return sortedPkgs;
   });
 
-  const updatableCount = () => packages().filter(p => !!p.available_version && !heldStore.isHeld(p.name)).length;
+  const updatableCount = () => packages().filter(p => !!p.available_version && !heldStore.isHeld(p.name) && !p.is_versioned_install).length;
 
   return {
     loading,
@@ -106,6 +147,12 @@ export function useInstalledPackages() {
     selectedBucket, 
     setSelectedBucket,
     operatingOn,
+    
+    // Status functionality
+    scoopStatus,
+    statusLoading,
+    statusError,
+    checkScoopStatus,
     
     // From usePackageInfo
     selectedPackage: packageInfo.selectedPackage,

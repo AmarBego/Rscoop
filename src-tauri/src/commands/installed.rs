@@ -18,11 +18,33 @@ struct Manifest {
 /// Represents the structure of an `install.json` file for an installed package.
 #[derive(Deserialize, Debug)]
 struct InstallManifest {
-    bucket: String,
+    bucket: Option<String>,
+}
+
+/// Searches for a package manifest in all bucket directories to determine the bucket.
+fn find_package_bucket(scoop_path: &Path, package_name: &str) -> Option<String> {
+    let buckets_path = scoop_path.join("buckets");
+    
+    if let Ok(buckets) = fs::read_dir(&buckets_path) {
+        for bucket_entry in buckets.flatten() {
+            if bucket_entry.path().is_dir() {
+                let bucket_name = bucket_entry.file_name().to_string_lossy().to_string();
+                // Look in the correct path: buckets/{bucket}/bucket/{package}.json
+                let manifest_path = bucket_entry.path().join("bucket").join(format!("{}.json", package_name));
+                
+                if manifest_path.exists() {
+                    return Some(bucket_name);
+                }
+            }
+        }
+    }
+    
+    // Fallback: check if it's in the main bucket (which might not be in buckets dir)
+    None
 }
 
 /// Loads the details for a single installed package from its directory.
-fn load_package_details(package_path: &Path) -> Result<ScoopPackage, String> {
+fn load_package_details(package_path: &Path, scoop_path: &Path) -> Result<ScoopPackage, String> {
     let package_name = package_path
         .file_name()
         .and_then(|n| n.to_str())
@@ -51,6 +73,15 @@ fn load_package_details(package_path: &Path) -> Result<ScoopPackage, String> {
     let install_manifest: InstallManifest = serde_json::from_str(&install_manifest_content)
         .map_err(|e| format!("Failed to parse install.json for {}: {}", package_name, e))?;
 
+    // Determine bucket - either from install.json or by searching buckets
+    let bucket = install_manifest.bucket.clone()
+        .or_else(|| find_package_bucket(scoop_path, &package_name))
+        .unwrap_or_else(|| "main".to_string());
+
+    // Check if this is a versioned install - versioned installs don't have a bucket field in install.json
+    // AND cannot be found in any bucket directory (indicating custom/generated manifest)
+    let is_versioned_install = install_manifest.bucket.is_none();
+
     // Get the last modified time of the installation
     let updated_time = fs::metadata(&install_manifest_path)
         .and_then(|m| m.modified())
@@ -60,10 +91,11 @@ fn load_package_details(package_path: &Path) -> Result<ScoopPackage, String> {
     Ok(ScoopPackage {
         name: package_name,
         version: manifest.version,
-        source: install_manifest.bucket,
+        source: bucket,
         updated: updated_time,
         is_installed: true,
         info: manifest.description,
+        is_versioned_install,
         ..Default::default()
     })
 }
@@ -100,11 +132,12 @@ pub async fn get_installed_packages_full<R: Runtime>(
         .collect::<Vec<_>>();
 
     // Process packages in parallel for better performance
+    let scoop_path = &state.scoop_path;
     let packages: Vec<ScoopPackage> = app_dirs
         .par_iter()
         .filter_map(|entry| {
             let path = entry.path();
-            match load_package_details(&path) {
+            match load_package_details(&path, scoop_path) {
                 Ok(package) => Some(package),
                 Err(e) => {
                     log::warn!("Skipping package at '{}': {}", path.display(), e);
@@ -128,6 +161,18 @@ pub async fn invalidate_installed_cache(state: State<'_, AppState>) {
     let mut cache_guard = state.installed_packages.lock().await;
     *cache_guard = None;
     log::info!("Installed packages cache invalidated.");
+}
+
+/// Forces a refresh of the installed packages by invalidating cache and refetching.
+#[tauri::command]
+pub async fn refresh_installed_packages<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+) -> Result<Vec<ScoopPackage>, String> {
+    // First invalidate the cache
+    invalidate_installed_cache(state.clone()).await;
+    // Then fetch fresh data
+    get_installed_packages_full(app, state).await
 }
 
 /// Gets the installation path for a specific package.

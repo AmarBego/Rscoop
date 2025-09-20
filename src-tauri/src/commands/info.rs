@@ -120,6 +120,27 @@ pub fn get_package_info<R: Runtime>(
             "Installed".to_string(),
             installed_dir.to_string_lossy().to_string(),
         ));
+        
+        // Read the installed manifest to get the actual installed version
+        let installed_manifest_path = installed_dir.join("manifest.json");
+        if let Ok(installed_manifest_content) = fs::read_to_string(&installed_manifest_path) {
+            if let Ok(installed_manifest) = serde_json::from_str::<Value>(&installed_manifest_content) {
+                if let Some(installed_version) = installed_manifest.get("version").and_then(|v| v.as_str()) {
+                    // Replace the version in details with the installed version, or add it if not present
+                    if let Some(pos) = details.iter().position(|(key, _)| key == "Version") {
+                        details[pos] = ("Installed Version".to_string(), installed_version.to_string());
+                        // Also add the latest version from the bucket manifest
+                        if let Some(latest_version) = json_value.get("version").and_then(|v| v.as_str()) {
+                            if installed_version != latest_version {
+                                details.push(("Latest Version".to_string(), latest_version.to_string()));
+                            }
+                        }
+                    } else {
+                        details.push(("Installed Version".to_string(), installed_version.to_string()));
+                    }
+                }
+            }
+        }
     }
 
     details.sort_by(|a, b| a.0.cmp(&b.0));

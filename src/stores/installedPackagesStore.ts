@@ -58,9 +58,28 @@ const fetchInstalledPackages = async () => {
   }
 };
 
-const refetch = () => {
-    setIsLoaded(false);
-    fetchInstalledPackages();
+const refetch = async () => {
+  setIsLoaded(false);
+  setLoading(true);
+  setError(null);
+  try {
+    const installedPackages = await invoke<ScoopPackage[]>("refresh_installed_packages");
+    setPackages(installedPackages);
+    const buckets = new Set<string>(installedPackages.map(p => p.source));
+    setUniqueBuckets(['all', ...Array.from(buckets).sort()]);
+    setIsLoaded(true);
+
+    await Promise.all([
+      heldStore.refetch(),
+      checkForUpdates()
+    ]);
+  } catch (err) {
+    console.error("Failed to refresh installed packages:", err);
+    setError("Failed to refresh installed packages");
+    setPackages([]);
+  } finally {
+    setLoading(false);
+  }
 }
 
 const installedPackagesStore = {

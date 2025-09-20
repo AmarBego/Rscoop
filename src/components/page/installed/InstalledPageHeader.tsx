@@ -1,11 +1,14 @@
 import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
 import { 
-  Filter, Eye, LayoutGrid, List, ArrowUpCircle, Search, X
+  Filter, Eye, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle
 } from 'lucide-solid';
 
 interface InstalledPageHeaderProps {
   updatableCount: Accessor<number>;
   onUpdateAll: () => void;
+  onCheckStatus?: () => void;
+  statusLoading?: Accessor<boolean>;
+  scoopStatus?: Accessor<any>;
 
   uniqueBuckets: Accessor<string[]>;
   selectedBucket: Accessor<string>;
@@ -84,8 +87,31 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
             <Search class="w-5 h-5" />
           </button>
 
-          {/* Update All Button */}
-          <Show when={props.updatableCount() > 0}>
+          {/* Update All Button or Status Button */}
+          <Show when={props.updatableCount() > 0}
+            fallback={
+              <button 
+                class="btn btn-ghost gap-2" 
+                onClick={props.onCheckStatus}
+                disabled={props.statusLoading?.()}
+              >
+                <Show when={props.statusLoading?.()}
+                  fallback={
+                    <Show when={props.scoopStatus?.()?.is_everything_ok}
+                      fallback={<AlertCircle class="w-4 h-4" />}
+                    >
+                      <CheckCircle class="w-4 h-4" />
+                    </Show>
+                  }
+                >
+                  <span class="loading loading-spinner loading-sm"></span>
+                </Show>
+                <span class="hidden md:inline">
+                  {props.statusLoading?.() ? "Checking..." : "Check Status"}
+                </span>
+              </button>
+            }
+          >
             <button class="btn btn-primary gap-2" onClick={props.onUpdateAll}>
               <ArrowUpCircle class="w-4 h-4" />
               <span class="hidden md:inline">Update All&nbsp;</span>

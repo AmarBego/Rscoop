@@ -1,9 +1,13 @@
 import { Show } from "solid-js";
+import { RefreshCw, Eye } from "lucide-solid";
 import { BucketInfo } from "../../../hooks/useBuckets";
 
 interface BucketCardProps {
   bucket: BucketInfo;
   onViewBucket: (bucket: BucketInfo) => void;
+  onUpdateBucket?: (bucketName: string) => void;
+  isUpdating?: boolean;
+  updateResult?: string;
 }
 
 function BucketCard(props: BucketCardProps) {
@@ -13,10 +17,7 @@ function BucketCard(props: BucketCardProps) {
   };
 
   return (
-    <div 
-      class="card bg-base-200 shadow-sm hover:shadow-md hover:bg-base-300 cursor-pointer transition-all duration-200 hover:scale-[1.02] border border-base-300 hover:border-primary/30"
-      onClick={() => props.onViewBucket(props.bucket)}
-    >
+    <div class="card bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300">
       <div class="card-body p-4">
         <div class="flex items-start justify-between mb-3">
           <h3 class="card-title text-lg font-semibold">{props.bucket.name}</h3>
@@ -49,6 +50,42 @@ function BucketCard(props: BucketCardProps) {
             {props.bucket.git_url}
           </div>
         </Show>
+        
+        {/* Update result message */}
+        <Show when={props.updateResult}>
+          <div class="mt-2 text-xs p-2 rounded bg-base-100 border">
+            {props.updateResult}
+          </div>
+        </Show>
+        
+        {/* Action buttons */}
+        <div class="flex gap-2 mt-3">
+          <button 
+            class="btn btn-primary btn-sm flex-1 gap-2"
+            onClick={() => props.onViewBucket(props.bucket)}
+          >
+            <Eye class="w-4 h-4" />
+            View
+          </button>
+          
+          <Show when={props.bucket.is_git_repo && props.onUpdateBucket}>
+            <button 
+              class="btn btn-secondary btn-sm gap-2"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onUpdateBucket!(props.bucket.name);
+              }}
+              disabled={props.isUpdating}
+            >
+              <Show when={props.isUpdating}
+                fallback={<RefreshCw class="w-4 h-4" />}
+              >
+                <span class="loading loading-spinner loading-xs"></span>
+              </Show>
+              {props.isUpdating ? "Updating..." : "Update"}
+            </button>
+          </Show>
+        </div>
       </div>
     </div>
   );

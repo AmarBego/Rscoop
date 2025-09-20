@@ -1,6 +1,7 @@
 import { Show, createSignal, createMemo } from "solid-js";
 import PackageInfoModal from "../components/PackageInfoModal";
 import OperationModal from "../components/OperationModal";
+import ScoopStatusModal from "../components/ScoopStatusModal";
 import { useInstalledPackages } from "../hooks/useInstalledPackages";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
 import PackageListView from "../components/page/installed/PackageListView";
@@ -21,6 +22,10 @@ function InstalledPage() {
     operationTitle,
     operationNextStep,
     operatingOn,
+    scoopStatus,
+    statusLoading,
+    statusError,
+    checkScoopStatus,
     handleSort,
     handleUpdate,
     handleUpdateAll,
@@ -35,6 +40,12 @@ function InstalledPage() {
   } = useInstalledPackages();
 
   const [searchQuery, setSearchQuery] = createSignal("");
+  const [showStatusModal, setShowStatusModal] = createSignal(false);
+
+  const handleCheckStatus = async () => {
+    await checkScoopStatus();
+    setShowStatusModal(true);
+  };
 
   const filteredPackages = createMemo(() => {
     const query = searchQuery().toLowerCase();
@@ -48,6 +59,9 @@ function InstalledPage() {
       <InstalledPageHeader 
         updatableCount={updatableCount}
         onUpdateAll={handleUpdateAll}
+        onCheckStatus={handleCheckStatus}
+        statusLoading={statusLoading}
+        scoopStatus={scoopStatus}
         uniqueBuckets={uniqueBuckets}
         selectedBucket={selectedBucket}
         setSelectedBucket={setSelectedBucket}
@@ -118,6 +132,13 @@ function InstalledPage() {
         title={operationTitle()}
         onClose={handleCloseOperationModal}
         nextStep={operationNextStep() ?? undefined}
+      />
+      <ScoopStatusModal 
+        isOpen={showStatusModal()}
+        onClose={() => setShowStatusModal(false)}
+        status={scoopStatus()}
+        loading={statusLoading()}
+        error={statusError()}
       />
     </div>
   );

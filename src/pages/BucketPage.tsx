@@ -1,4 +1,5 @@
 import { createSignal, onMount, Show } from "solid-js";
+import { invoke } from "@tauri-apps/api/core";
 import { useBuckets, type BucketInfo } from "../hooks/useBuckets";
 import { usePackageInfo } from "../hooks/usePackageInfo";
 import { usePackageOperations } from "../hooks/usePackageOperations";
@@ -10,6 +11,14 @@ import BucketSearch from "../components/page/buckets/BucketSearch";
 import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
 import { SearchableBucket } from "../hooks/useBucketSearch";
+
+interface BucketUpdateResult {
+  success: boolean;
+  message: string;
+  bucket_name: string;
+  bucket_path?: string;
+  manifest_count?: number;
+}
 
 function BucketPage() {
   const { buckets, loading, error, fetchBuckets, getBucketManifests } = useBuckets();
@@ -28,6 +37,10 @@ function BucketPage() {
   const [searchLoading, setSearchLoading] = createSignal(false);
   const [searchError, setSearchError] = createSignal<string | null>(null);
   const [isExpandedSearch, setIsExpandedSearch] = createSignal(false);
+  
+  // Update state
+  const [updatingBuckets, setUpdatingBuckets] = createSignal<Set<string>>(new Set());
+  const [updateResults, setUpdateResults] = createSignal<{[key: string]: string}>({});
 
   onMount(() => {
     fetchBuckets();
@@ -140,6 +153,63 @@ function BucketPage() {
     }
   };
 
+  // Handle updating a single bucket
+  const handleUpdateBucket = async (bucketName: string) => {
+    console.log('Updating bucket:', bucketName);
+    
+    // Add to updating set
+    setUpdatingBuckets(prev => new Set([...prev, bucketName]));
+    
+    try {
+      const result = await invoke<BucketUpdateResult>("update_bucket", {
+        bucketName: bucketName
+      });
+      
+      // Store result message
+      setUpdateResults(prev => ({
+        ...prev,
+        [bucketName]: result.message
+      }));
+      
+      if (result.success) {
+        // Refresh bucket list to reflect any changes
+        await fetchBuckets();
+        
+        // If this bucket is currently selected, refresh its manifests
+        const currentBucket = selectedBucket();
+        if (currentBucket && currentBucket.name === bucketName) {
+          await handleFetchManifests(bucketName);
+        }
+      }
+      
+      console.log('Bucket update result:', result);
+    } catch (error) {
+      console.error('Failed to update bucket:', bucketName, error);
+      setUpdateResults(prev => ({
+        ...prev,
+        [bucketName]: `Failed to update: ${error}`
+      }));
+    } finally {
+      // Remove from updating set
+      setUpdatingBuckets(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bucketName);
+        return newSet;
+      });
+    }
+  };
+
+  // Handle updating all buckets
+  const handleUpdateAllBuckets = async () => {
+    console.log('Updating all buckets...');
+    const gitBuckets = buckets().filter(bucket => bucket.is_git_repo);
+    
+    // Update all git buckets in parallel
+    await Promise.all(
+      gitBuckets.map(bucket => handleUpdateBucket(bucket.name))
+    );
+  };
+
   return (
     <div class="p-4 sm:p-6 md:p-8">
       <div class="max-w-6xl mx-auto">
@@ -209,6 +279,10 @@ function BucketPage() {
                 buckets={buckets()}
                 onViewBucket={handleViewBucket}
                 onRefresh={fetchBuckets}
+                onUpdateBucket={handleUpdateBucket}
+                onUpdateAll={handleUpdateAllBuckets}
+                updatingBuckets={updatingBuckets()}
+                updateResults={updateResults()}
               />
             </div>
           </Show>

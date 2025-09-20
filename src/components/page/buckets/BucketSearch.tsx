@@ -88,10 +88,11 @@ function BucketSearch(props: BucketSearchProps) {
       {/* Search Button */}
       <div class="flex items-center gap-2">
         <Show when={!props.isActive()}>
+          <span class="text-sm text-base-content/70 hidden sm:block">Find new buckets to install</span>
           <button
             onClick={props.onToggle}
             class="btn btn-circle btn-outline hover:btn-primary transition-all duration-200"
-            aria-label="Search buckets"
+            aria-label="Search for new buckets to install"
           >
             <Search class="h-5 w-5" />
           </button>

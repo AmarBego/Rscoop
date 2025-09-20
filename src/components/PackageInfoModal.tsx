@@ -115,11 +115,13 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       'Name',
       'Description',
       'Bucket',
+      'Installed Version',
+      'Latest Version',
+      'Version',
       'Includes',
       'Installed',
       'Homepage',
-      'License',
-      'Version'
+      'License'
     ];
 
     const detailsMap = new Map(props.info.details);

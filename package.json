@@ -13,14 +13,14 @@
   "license": "MIT",
   "dependencies": {
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-dialog": "^2.2.2",
-    "@tauri-apps/plugin-log": "^2.4.0",
+    "@tauri-apps/plugin-dialog": "^2.4.0",
+    "@tauri-apps/plugin-log": "^2.7.0",
     "@tauri-apps/plugin-opener": "^2.5.0",
-    "@tauri-apps/plugin-process": "^2.2.1",
+    "@tauri-apps/plugin-process": "^2.3.0",
     "@tauri-apps/plugin-store": "^2.4.0",
-    "@tauri-apps/plugin-updater": "^2.7.1",
+    "@tauri-apps/plugin-updater": "^2.9.0",
     "highlight.js": "^11.11.1",
-    "lucide-solid": "^0.513.0",
+    "lucide-solid": "^0.544.0",
     "solid-js": "^1.9.3"
   },
   "devDependencies": {
@@ -28,8 +28,8 @@
     "@tauri-apps/cli": "^2",
     "daisyui": "^5.0.43",
     "tailwindcss": "^4.1.8",
-    "typescript": "~5.6.2",
-    "vite": "^6.0.3",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.6",
     "vite-plugin-solid": "^2.11.0"
   }
 }

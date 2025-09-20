@@ -34,6 +34,8 @@ pub struct ScoopPackage {
     pub info: String,
     #[serde(default)]
     pub match_source: MatchSource,
+    #[serde(default)]
+    pub is_versioned_install: bool,
 }
 
 // -----------------------------------------------------------------------------
@@ -57,4 +59,30 @@ pub struct BucketInfo {
     pub git_url: Option<String>,
     pub git_branch: Option<String>,
     pub last_updated: Option<String>,
+}
+
+// -----------------------------------------------------------------------------
+// Status Types
+// -----------------------------------------------------------------------------
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AppStatusInfo {
+    pub name: String,
+    pub installed_version: String,
+    pub latest_version: Option<String>,
+    pub missing_dependencies: Vec<String>,
+    pub info: Vec<String>,
+    pub is_outdated: bool,
+    pub is_failed: bool,
+    pub is_held: bool,
+    pub is_deprecated: bool,
+    pub is_removed: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ScoopStatus {
+    pub scoop_needs_update: bool,
+    pub bucket_needs_update: bool,
+    pub network_failure: bool,
+    pub apps_with_issues: Vec<AppStatusInfo>,
+    pub is_everything_ok: bool,
 }

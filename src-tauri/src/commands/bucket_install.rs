@@ -376,6 +376,165 @@ pub async fn validate_bucket_install(name: String, url: String) -> Result<Bucket
     })
 }
 
+// Command to update a bucket (git pull)
+#[command]
+pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String> {
+    log::info!("Updating bucket: {}", bucket_name);
+    
+    let bucket_path = get_bucket_path(&bucket_name)?;
+    
+    if !bucket_path.exists() {
+        return Ok(BucketInstallResult {
+            success: false,
+            message: format!("Bucket '{}' does not exist", bucket_name),
+            bucket_name,
+            bucket_path: None,
+            manifest_count: None,
+        });
+    }
+    
+    // Check if it's a git repository
+    if !bucket_path.join(".git").exists() {
+        return Ok(BucketInstallResult {
+            success: false,
+            message: format!("Bucket '{}' is not a git repository and cannot be updated", bucket_name),
+            bucket_name,
+            bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+            manifest_count: None,
+        });
+    }
+    
+    // Try to update the repository using git2
+    match Repository::open(&bucket_path) {
+        Ok(repo) => {
+            // Fetch from origin
+            let mut remote = match repo.find_remote("origin") {
+                Ok(remote) => remote,
+                Err(_) => {
+                    return Ok(BucketInstallResult {
+                        success: false,
+                        message: format!("Bucket '{}' has no origin remote", bucket_name),
+                        bucket_name,
+                        bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                        manifest_count: None,
+                    });
+                }
+            };
+            
+            // Set up callbacks for fetch
+            let mut callbacks = RemoteCallbacks::new();
+            callbacks.credentials(|_url, username_from_url, allowed_types| {
+                if allowed_types.contains(CredentialType::USERNAME) {
+                    Cred::username("git")
+                } else if allowed_types.contains(CredentialType::SSH_KEY) {
+                    let username = username_from_url.unwrap_or("git");
+                    Cred::ssh_key_from_agent(username)
+                } else if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
+                    Cred::default()
+                } else {
+                    Cred::default()
+                }
+            });
+            
+            let mut fetch_options = FetchOptions::new();
+            fetch_options.remote_callbacks(callbacks);
+            
+            // Fetch latest changes
+            match remote.fetch(&[] as &[&str], Some(&mut fetch_options), None) {
+                Ok(_) => {
+                    // Get current branch
+                    let head = match repo.head() {
+                        Ok(head) => head,
+                        Err(_) => {
+                            return Ok(BucketInstallResult {
+                                success: false,
+                                message: format!("Could not get current branch for bucket '{}'", bucket_name),
+                                bucket_name,
+                                bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                                manifest_count: None,
+                            });
+                        }
+                    };
+                    
+                    if let Some(branch_name) = head.shorthand() {
+                        // Try to merge origin/branch into current branch
+                        let remote_branch_name = format!("origin/{}", branch_name);
+                        match repo.find_branch(&remote_branch_name, git2::BranchType::Remote) {
+                            Ok(remote_branch) => {
+                                let remote_commit = remote_branch.get().peel_to_commit().unwrap();
+                                let local_commit = head.peel_to_commit().unwrap();
+                                
+                                // Check if update is needed
+                                if remote_commit.id() == local_commit.id() {
+                                    let manifest_count = count_bucket_manifests(&bucket_path)?;
+                                    return Ok(BucketInstallResult {
+                                        success: true,
+                                        message: format!("Bucket '{}' is already up to date", bucket_name),
+                                        bucket_name,
+                                        bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                                        manifest_count: Some(manifest_count),
+                                    });
+                                }
+                                
+                                // Perform fast-forward merge
+                                let mut checkout_builder = git2::build::CheckoutBuilder::new();
+                                checkout_builder.force();
+                                
+                                repo.reset(remote_commit.as_object(), git2::ResetType::Hard, Some(&mut checkout_builder))
+                                    .map_err(|e| format!("Failed to update bucket '{}': {}", bucket_name, e))?;
+                                
+                                let manifest_count = count_bucket_manifests(&bucket_path)?;
+                                
+                                // TODO: Invalidate search cache so updated packages are reflected
+                                // invalidate_manifest_cache().await;
+                                
+                                log::info!("Successfully updated bucket '{}' with {} manifests", bucket_name, manifest_count);
+                                
+                                Ok(BucketInstallResult {
+                                    success: true,
+                                    message: format!("Successfully updated bucket '{}' with {} manifests", bucket_name, manifest_count),
+                                    bucket_name,
+                                    bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                                    manifest_count: Some(manifest_count),
+                                })
+                            }
+                            Err(_) => Ok(BucketInstallResult {
+                                success: false,
+                                message: format!("Could not find remote branch for bucket '{}'", bucket_name),
+                                bucket_name,
+                                bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                                manifest_count: None,
+                            })
+                        }
+                    } else {
+                        Ok(BucketInstallResult {
+                            success: false,
+                            message: format!("Could not determine current branch for bucket '{}'", bucket_name),
+                            bucket_name,
+                            bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                            manifest_count: None,
+                        })
+                    }
+                }
+                Err(e) => Ok(BucketInstallResult {
+                    success: false,
+                    message: format!("Failed to fetch updates for bucket '{}': {}", bucket_name, e),
+                    bucket_name,
+                    bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                    manifest_count: None,
+                })
+            }
+        }
+        Err(e) => Ok(BucketInstallResult {
+            success: false,
+            message: format!("Failed to open bucket '{}' as git repository: {}", bucket_name, e),
+            bucket_name,
+            bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+            manifest_count: None,
+        })
+    }
+}
+
 // Command to remove a bucket
 #[command]
 pub async fn remove_bucket(bucket_name: String) -> Result<BucketInstallResult, String> {

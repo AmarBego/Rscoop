@@ -131,6 +131,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::search::search_scoop,
             commands::installed::get_installed_packages_full,
+            commands::installed::refresh_installed_packages,
             commands::installed::get_package_path,
             commands::info::get_package_info,
             commands::install::install_package,
@@ -140,6 +141,7 @@ pub fn run() {
             commands::update::update_all_packages,
             commands::uninstall::uninstall_package,
             commands::uninstall::clear_package_cache,
+            commands::status::check_scoop_status,
             commands::settings::get_config_value,
             commands::settings::set_config_value,
             commands::settings::get_scoop_path,
@@ -164,6 +166,7 @@ pub fn run() {
             commands::bucket::get_bucket_manifests,
             commands::bucket_install::install_bucket,
             commands::bucket_install::validate_bucket_install,
+            commands::bucket_install::update_bucket,
             commands::bucket_install::remove_bucket,
             commands::bucket_search::search_buckets,
             commands::bucket_search::get_expanded_search_info,
