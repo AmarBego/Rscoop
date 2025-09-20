@@ -86,16 +86,21 @@ function BucketSearch(props: BucketSearchProps) {
   return (
     <>
       {/* Search Button */}
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-3">
         <Show when={!props.isActive()}>
-          <span class="text-sm text-base-content/70 hidden sm:block">Find new buckets to install</span>
-          <button
-            onClick={props.onToggle}
-            class="btn btn-circle btn-outline hover:btn-primary transition-all duration-200"
-            aria-label="Search for new buckets to install"
-          >
-            <Search class="h-5 w-5" />
-          </button>
+          <div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-primary/20 hover:border-primary/40 transition-all duration-200">
+            <div class="flex flex-col">
+              <span class="text-sm font-semibold text-primary">Discover New Buckets</span>
+              <span class="text-xs text-base-content/60 hidden sm:block">Explore community package repositories</span>
+            </div>
+            <button
+              onClick={props.onToggle}
+              class="btn btn-circle btn-primary hover:btn-primary hover:scale-110 transition-all duration-200 shadow-lg"
+              aria-label="Search for new buckets to install"
+            >
+              <Search class="h-5 w-5" />
+            </button>
+          </div>
         </Show>
       </div>
 
@@ -124,7 +129,7 @@ function BucketSearch(props: BucketSearchProps) {
                 ref={inputRef}
                 type="text"
                 placeholder="Search buckets by name..."
-                class="input input-bordered w-full pl-10 pr-4"
+                class="input input-bordered w-full pl-10 pr-4 bg-base-300 transition-colors duration-200"
                 value={searchInput()}
                 onInput={(e) => handleSearchInput(e.currentTarget.value)}
                 disabled={bucketSearch.isSearching()}
@@ -181,9 +186,7 @@ function BucketSearch(props: BucketSearchProps) {
               <Show when={bucketSearch.searchResults().length > 0 && !bucketSearch.isSearching()}>
                 <div class="text-base-content/70">
                   {bucketSearch.searchResults().length} of {bucketSearch.totalCount()} buckets
-                  <Show when={bucketSearch.isExpandedSearch()}>
-                    <span class="text-primary ml-1">(expanded)</span>
-                  </Show>
+
                 </div>
               </Show>
             </div>
@@ -199,7 +202,7 @@ function BucketSearch(props: BucketSearchProps) {
                   disabled={bucketSearch.isSearching()}
                 >
                   <AlertTriangle class="h-4 w-4 mr-1" />
-                  Search All Buckets
+                  Community Buckets
                 </button>
               </Show>
               
@@ -233,17 +236,21 @@ function BucketSearch(props: BucketSearchProps) {
       {/* Expanded Search Confirmation Dialog */}
       <Show when={showExpandedDialog()}>
         <div class="modal modal-open backdrop-blur-sm">
-          <div class="modal-box">
-            <h3 class="font-bold text-lg mb-4">Expand Search to All Buckets</h3>
+          <div class="modal-box bg-base-200 w-11/12 max-w-2xl max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="font-bold text-lg">Expand Search to All Buckets</h3>
+              <Show when={expandedInfo()}>
+                <div class="flex items-center gap-2 text-warning">
+                  <AlertTriangle class="h-5 w-5" />
+                  <span class="font-medium text-sm">Large Dataset Warning</span>
+                </div>
+              </Show>
+            </div>
             
             <Show when={expandedInfo()}>
               <div class="space-y-4">
-                <div class="flex items-center gap-2 text-warning">
-                  <AlertTriangle class="h-5 w-5" />
-                  <span class="font-medium">Large Dataset Warning</span>
-                </div>
                 
-                <div class="bg-base-200 p-4 rounded-lg space-y-2">
+                <div class="bg-base-400 p-4 rounded-lg space-y-2">
                   <div class="flex justify-between">
                     <span>Estimated download size:</span>
                     <span class="font-bold">{expandedInfo()?.estimated_size_mb} MB</span>
@@ -258,16 +265,10 @@ function BucketSearch(props: BucketSearchProps) {
                   {expandedInfo()?.description}
                 </p>
 
-                <div class="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
-                  <p class="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>✨ Performance Optimization:</strong> The 14MB markdown file is downloaded, parsed into an optimized 0.3-3MB cache, then deleted. 
-                    Subsequent searches will be lightning-fast with zero network requests and minimal memory usage!
-                  </p>
-                </div>
 
                 <div class="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
                   <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Note:</strong> This will download ~14MB initially, but only ~4MB will be stored permanently as optimized cache. 
+                    <strong>Note:</strong> This will download ~14MB initially, but only ~0.3-4MB (depending on filters)will be stored as optimized cache. 
                     The search will include community buckets of varying quality and maintenance levels.
                     After the initial download, all searches will be instant and offline-capable.
                   </p>
@@ -292,7 +293,7 @@ function BucketSearch(props: BucketSearchProps) {
                   
                   {/* Minimum Star Limit */}
                   <div class="flex justify-between items-center">
-                    <span class="text-sm">Minimum Star Limit</span>
+                    <span class="text-sm">Minimum Github Stars</span>
                     <input 
                       type="number" 
                       class="input input-bordered input-sm w-20" 
@@ -314,7 +315,7 @@ function BucketSearch(props: BucketSearchProps) {
                 Cancel
               </button>
               <button 
-                class="btn btn-warning" 
+                class="btn btn-secondary" 
                 onClick={confirmExpandedSearch}
                 disabled={bucketSearch.isSearching()}
               >

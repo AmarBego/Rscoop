@@ -253,7 +253,7 @@ function BucketPage() {
             <div class={`transition-all duration-300 ${
               isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}>
-              <div class="card bg-base-100 shadow-lg">
+              <div class="card bg-base-100">
                 <div class="card-body">
                   <BucketSearchResults
                     buckets={searchResults()}

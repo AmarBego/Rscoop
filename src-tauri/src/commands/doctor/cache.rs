@@ -1,7 +1,7 @@
 //! Commands for managing the Scoop cache.
-use crate::utils;
 use crate::commands::installed::get_installed_packages_full;
 use crate::state::AppState;
+use crate::utils;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -25,8 +25,8 @@ pub struct CacheEntry {
 ///
 /// The file name is expected to be in the format `name#version#hash.ext`.
 fn parse_cache_entry_from_path(
-    path: &Path, 
-    versioned_packages: &HashSet<String>
+    path: &Path,
+    versioned_packages: &HashSet<String>,
 ) -> Option<CacheEntry> {
     let file_name = path.file_name()?.to_str()?.to_string();
 
@@ -92,7 +92,7 @@ pub async fn list_cache_contents<R: Runtime>(
     entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
     log::info!(
-        "Found {} cache entries, {} are versioned installs", 
+        "Found {} cache entries, {} are versioned installs",
         entries.len(),
         entries.iter().filter(|e| e.is_versioned_install).count()
     );
@@ -110,7 +110,10 @@ pub async fn clear_cache<R: Runtime>(
     state: State<'_, AppState>,
     files: Option<Vec<String>>,
 ) -> Result<(), String> {
-    log::info!("Clearing cache from filesystem with version-awareness. Files: {:?}", &files);
+    log::info!(
+        "Clearing cache from filesystem with version-awareness. Files: {:?}",
+        &files
+    );
 
     let cache_path = utils::resolve_scoop_root(app.clone())?.join("cache");
 
@@ -136,11 +139,14 @@ pub async fn clear_cache<R: Runtime>(
 
 /// Removes a specific list of files from the cache directory, avoiding versioned installs.
 fn clear_specific_files_safe(
-    cache_path: &Path, 
-    files_to_delete: &[String], 
-    versioned_packages: &HashSet<String>
+    cache_path: &Path,
+    files_to_delete: &[String],
+    versioned_packages: &HashSet<String>,
 ) -> Result<(), String> {
-    log::info!("Clearing {} specified cache files (avoiding versioned installs).", files_to_delete.len());
+    log::info!(
+        "Clearing {} specified cache files (avoiding versioned installs).",
+        files_to_delete.len()
+    );
 
     files_to_delete.par_iter().for_each(|file_name| {
         // Parse the package name from the cache file name (format: name#version#hash.ext)

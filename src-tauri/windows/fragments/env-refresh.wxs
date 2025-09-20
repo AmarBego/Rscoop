@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <!-- Reference the built-in WiX CA to broadcast environment changes -->
+    <CustomActionRef Id="WixBroadcastEnvironmentChange" />
+  </Fragment>
+</Wix>

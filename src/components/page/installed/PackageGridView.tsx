@@ -25,7 +25,7 @@ function PackageGridView(props: PackageGridViewProps) {
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
       <For each={props.packages()}>
         {(pkg) => (
-          <div class="card bg-base-200 shadow-xl transition-transform transform hover:scale-101" data-no-close-search>
+          <div class="card bg-base-300 shadow-xl transition-transform transform hover:scale-101 hover:bg-base-400" data-no-close-search>
             <div class="card-body">
               <div class="flex justify-between items-start mb-2">
                 <h2 class="card-title">
@@ -52,7 +52,7 @@ function PackageGridView(props: PackageGridViewProps) {
                     <label tabindex="0" class="btn btn-ghost btn-xs btn-circle">
                       <MoreHorizontal class="w-4 h-4" />
                     </label>
-                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-52 z-[1]">
+                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[1]">
                       <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
                         <li>
                           <a onClick={() => props.onUpdate(pkg)}>

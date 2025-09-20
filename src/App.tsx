@@ -230,7 +230,7 @@ function App() {
                                 <BucketPage />
                             </Show>
                             <Show when={view() === "installed"}>
-                                <InstalledPage />
+                                <InstalledPage onNavigate={setView} />
                             </Show>
                             <Show when={view() === "settings"}>
                                 <SettingsPage isScoopInstalled={isScoopInstalled()} />

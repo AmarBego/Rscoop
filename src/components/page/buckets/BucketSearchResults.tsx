@@ -95,7 +95,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         </h2>
         
         <Show when={props.isExpandedSearch}>
-          <div class="badge badge-warning badge-lg">
+          <div class="badge badge-info badge-outline badge-lg">
             <Shield class="w-3 h-3 mr-1" />
             Expanded Search
           </div>
@@ -201,6 +201,14 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                     </div>
                   </div>
 
+                  {/* Last Updated */}
+                  <Show when={bucket.last_updated !== "Unknown"}>
+                      <div class="flex items-center gap-1 text-xs text-base-content/60 border-b pb-3 mb-3">
+                        <Clock class="w-3 h-3" />
+                        <span>Updated {formatDate(bucket.last_updated)}</span>
+                    </div>
+                  </Show>
+
                   {/* Action Buttons */}
                   <div class="flex items-center gap-2 mb-3">
                     <Show 
@@ -257,15 +265,6 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                     </button>
                   </div>
 
-                  {/* Last Updated */}
-                  <Show when={bucket.last_updated !== "Unknown"}>
-                    <div class="mt-3 pt-3 border-t border-base-300">
-                      <div class="flex items-center gap-1 text-xs text-base-content/60">
-                        <Clock class="w-3 h-3" />
-                        <span>Updated {formatDate(bucket.last_updated)}</span>
-                      </div>
-                    </div>
-                  </Show>
                 </div>
               </div>
             )}

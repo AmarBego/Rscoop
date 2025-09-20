@@ -6,8 +6,13 @@ import { useInstalledPackages } from "../hooks/useInstalledPackages";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
 import PackageListView from "../components/page/installed/PackageListView";
 import PackageGridView from "../components/page/installed/PackageGridView";
+import { View } from "../types/scoop";
 
-function InstalledPage() {
+interface InstalledPageProps {
+  onNavigate?: (view: View) => void;
+}
+
+function InstalledPage(props: InstalledPageProps) {
   const {
     loading,
     error,
@@ -157,6 +162,7 @@ function InstalledPage() {
         status={scoopStatus()}
         loading={statusLoading()}
         error={statusError()}
+        onNavigate={props.onNavigate}
       />
     </div>
   );

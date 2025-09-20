@@ -1,7 +1,7 @@
+use super::bucket_parser::{self, BucketFilterOptions};
+use crate::state::AppState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use crate::state::AppState;
-use super::bucket_parser::{self, BucketFilterOptions};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchableBucket {
@@ -158,12 +158,14 @@ fn get_verified_buckets() -> Vec<SearchableBucket> {
 }
 
 // Parse the massive bucket list from GitHub using efficient parser
-async fn fetch_expanded_bucket_list(filters: Option<BucketFilterOptions>) -> Result<Vec<SearchableBucket>, String> {
+async fn fetch_expanded_bucket_list(
+    filters: Option<BucketFilterOptions>,
+) -> Result<Vec<SearchableBucket>, String> {
     log::info!("Fetching expanded bucket list using efficient parser...");
-    
+
     let bucket_map = bucket_parser::get_cached_buckets(filters).await?;
     let buckets: Vec<SearchableBucket> = bucket_map.into_values().collect();
-    
+
     log::info!("Retrieved {} buckets from cache/parser", buckets.len());
     Ok(buckets)
 }
@@ -172,13 +174,13 @@ fn filter_buckets(buckets: &[SearchableBucket], query: &str) -> Vec<SearchableBu
     if query.is_empty() {
         return buckets.to_vec();
     }
-    
+
     let query_lower = query.to_lowercase();
     let mut scored_buckets = Vec::new();
-    
+
     for bucket in buckets {
         let mut score = 0.0;
-        
+
         // Primary search: Bucket name (heavily weighted)
         if bucket.name.to_lowercase() == query_lower {
             score += 1000.0; // Exact bucket name match gets highest priority
@@ -187,12 +189,18 @@ fn filter_buckets(buckets: &[SearchableBucket], query: &str) -> Vec<SearchableBu
         } else if bucket.name.to_lowercase().contains(&query_lower) {
             score += 250.0; // Name contains query gets high priority
         }
-        
+
         // Secondary search: Repository name without "scoop-" prefix (medium weight)
-        let repo_name = bucket.full_name.split('/').nth(1).unwrap_or("").to_lowercase();
+        let repo_name = bucket
+            .full_name
+            .split('/')
+            .nth(1)
+            .unwrap_or("")
+            .to_lowercase();
         let clean_repo_name = repo_name.replace("scoop-", "").replace("scoop_", "");
-        
-        if score == 0.0 { // Only check repo name if bucket name didn't match
+
+        if score == 0.0 {
+            // Only check repo name if bucket name didn't match
             if clean_repo_name == query_lower {
                 score += 100.0;
             } else if clean_repo_name.starts_with(&query_lower) {
@@ -201,41 +209,44 @@ fn filter_buckets(buckets: &[SearchableBucket], query: &str) -> Vec<SearchableBu
                 score += 25.0;
             }
         }
-        
+
         // Tertiary search: Full repository name (lower weight, only if no name matches)
         if score == 0.0 {
             if bucket.full_name.to_lowercase().contains(&query_lower) {
                 score += 10.0;
             }
         }
-        
+
         // Last resort: Description search (very low weight)
         if score == 0.0 {
             if bucket.description.to_lowercase().contains(&query_lower) {
                 score += 1.0;
             }
         }
-        
+
         // Apply bonuses only if there's already a match
         if score > 0.0 {
             // Bonus for verified buckets
             if bucket.is_verified {
                 score += 50.0;
             }
-            
+
             // Small bonus based on popularity (much smaller impact)
             score += (bucket.stars as f64 * 0.001) + (bucket.apps as f64 * 0.002);
         }
-        
+
         if score > 0.0 {
             scored_buckets.push((bucket.clone(), score));
         }
     }
-    
+
     // Sort by score (descending)
     scored_buckets.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    
-    scored_buckets.into_iter().map(|(bucket, _)| bucket).collect()
+
+    scored_buckets
+        .into_iter()
+        .map(|(bucket, _)| bucket)
+        .collect()
 }
 
 fn sort_buckets(buckets: &mut [SearchableBucket], sort_by: &str) {
@@ -255,9 +266,11 @@ pub async fn search_buckets(
 ) -> Result<BucketSearchResponse, String> {
     let mut buckets = if request.include_expanded {
         log::info!("Performing expanded search including all community buckets");
-        
+
         // Create filter options from request
-        let filters = if request.disable_chinese_buckets.unwrap_or(false) || request.minimum_stars.unwrap_or(0) > 0 {
+        let filters = if request.disable_chinese_buckets.unwrap_or(false)
+            || request.minimum_stars.unwrap_or(0) > 0
+        {
             Some(BucketFilterOptions {
                 disable_chinese_buckets: request.disable_chinese_buckets.unwrap_or(false),
                 minimum_stars: request.minimum_stars.unwrap_or(2),
@@ -265,29 +278,30 @@ pub async fn search_buckets(
         } else {
             None
         };
-        
+
         if let Some(ref filter_opts) = filters {
-            log::info!("Applying filters - Chinese buckets disabled: {}, Minimum stars: {}", 
-                       filter_opts.disable_chinese_buckets, filter_opts.minimum_stars);
+            log::info!(
+                "Applying filters - Chinese buckets disabled: {}, Minimum stars: {}",
+                filter_opts.disable_chinese_buckets,
+                filter_opts.minimum_stars
+            );
         }
-        
+
         // Get verified buckets
         let verified_buckets = get_verified_buckets();
-        let verified_names: std::collections::HashSet<String> = verified_buckets
-            .iter()
-            .map(|b| b.name.clone())
-            .collect();
-        
+        let verified_names: std::collections::HashSet<String> =
+            verified_buckets.iter().map(|b| b.name.clone()).collect();
+
         // Get expanded buckets from cache/parser with filters
         let mut expanded_buckets = fetch_expanded_bucket_list(filters).await?;
-        
+
         // Mark verified buckets in the expanded list
         for bucket in &mut expanded_buckets {
             if verified_names.contains(&bucket.name) {
                 bucket.is_verified = true;
             }
         }
-        
+
         // Combine: prioritize verified buckets, then add non-verified ones
         let mut all_buckets = verified_buckets;
         for bucket in expanded_buckets {
@@ -295,20 +309,20 @@ pub async fn search_buckets(
                 all_buckets.push(bucket);
             }
         }
-        
+
         all_buckets
     } else {
         log::info!("Performing default search with verified buckets only");
         // Only return verified buckets for default search
         get_verified_buckets()
     };
-    
+
     // Apply search filter if query is provided
     if let Some(ref query) = request.query {
         log::debug!("Filtering buckets with query: '{}'", query);
         buckets = filter_buckets(&buckets, query);
     }
-    
+
     // Apply sorting
     if let Some(ref sort_by) = request.sort_by {
         log::debug!("Sorting buckets by: {}", sort_by);
@@ -317,23 +331,27 @@ pub async fn search_buckets(
         // Default sort by stars when no query
         sort_buckets(&mut buckets, "stars");
     }
-    
+
     // Apply result limit
     let total_count = buckets.len();
     if let Some(max_results) = request.max_results {
         buckets.truncate(max_results);
         log::debug!("Limited results to {} buckets", max_results);
     }
-    
+
     // Calculate expanded list size (rough estimate)
     let expanded_size_mb = if request.include_expanded {
         Some(14.0) // Approximate size as mentioned in the request
     } else {
         None
     };
-    
-    log::info!("Returning {} buckets (total found: {})", buckets.len(), total_count);
-    
+
+    log::info!(
+        "Returning {} buckets (total found: {})",
+        buckets.len(),
+        total_count
+    );
+
     Ok(BucketSearchResponse {
         buckets,
         total_count,

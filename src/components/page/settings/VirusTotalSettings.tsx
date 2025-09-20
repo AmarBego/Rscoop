@@ -104,7 +104,7 @@ export default function VirusTotalSettings() {
                         <input 
                             type="password"
                             placeholder={isLoading() ? "Loading..." : "Enter your API key"}
-                            class="input input-bordered join-item w-full" 
+                            class="input input-bordered join-item w-full bg-base-100" 
                             value={apiKey()}
                             onInput={(e) => setApiKey(e.currentTarget.value)}
                             disabled={isLoading()}

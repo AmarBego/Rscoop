@@ -15,13 +15,13 @@ interface BucketGridProps {
 
 function BucketGrid(props: BucketGridProps) {
   return (
-    <div class="card bg-base-100 shadow-lg">
+    <div class="card bg-base-100">
       <div class="card-body">
         <div class="flex justify-between items-center mb-4">
           <h2 class="card-title">Installed Buckets</h2>
           <Show when={props.onUpdateAll && props.buckets.some(b => b.is_git_repo)}>
             <button 
-              class="btn btn-primary btn-sm gap-2"
+              class="btn btn-secondary btn-sm gap-2"
               onClick={props.onUpdateAll}
               disabled={props.updatingBuckets && props.updatingBuckets.size > 0}
             >

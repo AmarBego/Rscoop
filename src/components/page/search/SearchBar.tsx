@@ -19,7 +19,7 @@ function SearchBar(props: SearchBarProps) {
             <input
                 type="text"
                 placeholder="Search for apps..."
-                class="input input-bordered w-full pl-10 pr-16 relative"
+                class="input bg-base-400 input-bordered w-full pl-10 pr-16 relative"
                 value={props.searchTerm()}
                 onInput={(e) => props.setSearchTerm(e.currentTarget.value)}
                 disabled={props.loading?.()}

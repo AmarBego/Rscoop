@@ -1,11 +1,11 @@
-use std::path::{Path, PathBuf};
-use std::fs;
+use git2::{Cred, CredentialType, FetchOptions, RemoteCallbacks, Repository};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::{Path, PathBuf};
 use tauri::command;
 use url::Url;
-use git2::{Repository, RemoteCallbacks, FetchOptions, Cred, CredentialType};
-use regex::Regex;
-use once_cell::sync::Lazy;
 
 use crate::commands::search::invalidate_manifest_cache;
 
@@ -40,7 +40,7 @@ fn get_buckets_dir() -> Result<PathBuf, String> {
 // Helper function to get scoop directory using fallback method
 fn get_scoop_dir_fallback() -> Result<PathBuf, String> {
     use std::env;
-    
+
     // Try environment variable first
     if let Ok(scoop_path) = env::var("SCOOP") {
         let path = PathBuf::from(scoop_path);
@@ -71,10 +71,16 @@ fn validate_and_normalize_url(url: &str) -> Result<String, String> {
     // Handle common URL formats
     let normalized_url = if url.starts_with("http://") || url.starts_with("https://") {
         url.to_string()
-    } else if url.contains("github.com") || url.contains("gitlab.com") || url.contains("bitbucket.org") {
+    } else if url.contains("github.com")
+        || url.contains("gitlab.com")
+        || url.contains("bitbucket.org")
+    {
         if url.starts_with("git@") {
             // Convert SSH format to HTTPS
-            if let Some(captures) = Regex::new(r"git@([^:]+):([^/]+)/(.+?)(?:\.git)?$").unwrap().captures(url) {
+            if let Some(captures) = Regex::new(r"git@([^:]+):([^/]+)/(.+?)(?:\.git)?$")
+                .unwrap()
+                .captures(url)
+            {
                 let host = &captures[1];
                 let user = &captures[2];
                 let repo = &captures[3];
@@ -91,11 +97,17 @@ fn validate_and_normalize_url(url: &str) -> Result<String, String> {
             }
         }
     } else {
-        return Err("URL must be a valid Git repository (GitHub, GitLab, or Bitbucket)".to_string());
+        return Err(
+            "URL must be a valid Git repository (GitHub, GitLab, or Bitbucket)".to_string(),
+        );
     };
 
     // Ensure .git extension for consistency
-    let final_url = if !normalized_url.ends_with(".git") && (normalized_url.contains("github.com") || normalized_url.contains("gitlab.com") || normalized_url.contains("bitbucket.org")) {
+    let final_url = if !normalized_url.ends_with(".git")
+        && (normalized_url.contains("github.com")
+            || normalized_url.contains("gitlab.com")
+            || normalized_url.contains("bitbucket.org"))
+    {
         format!("{}.git", normalized_url)
     } else {
         normalized_url
@@ -125,11 +137,11 @@ fn extract_bucket_name_from_url(url: &str, provided_name: Option<&str>) -> Resul
             .replace("Scoop-", "")
             .replace("scoop_", "")
             .to_lowercase();
-        
+
         if clean_name.is_empty() {
             return Err("Could not extract valid bucket name from URL".to_string());
         }
-        
+
         Ok(clean_name)
     } else {
         Err("Could not extract bucket name from URL. Please provide a name.".to_string())
@@ -152,7 +164,7 @@ fn get_bucket_path(bucket_name: &str) -> Result<PathBuf, String> {
 // Count manifests in bucket
 fn count_bucket_manifests(bucket_path: &Path) -> Result<u32, String> {
     let mut count = 0;
-    
+
     // Check main directory for .json files
     if let Ok(entries) = fs::read_dir(bucket_path) {
         for entry in entries.flatten() {
@@ -163,7 +175,7 @@ fn count_bucket_manifests(bucket_path: &Path) -> Result<u32, String> {
             }
         }
     }
-    
+
     // Check bucket subdirectory if it exists
     let bucket_subdir = bucket_path.join("bucket");
     if bucket_subdir.exists() {
@@ -177,23 +189,23 @@ fn count_bucket_manifests(bucket_path: &Path) -> Result<u32, String> {
             }
         }
     }
-    
+
     Ok(count)
 }
 
 // Clone repository with progress callback
 fn clone_repository(url: &str, target_path: &Path) -> Result<Repository, String> {
     log::info!("Cloning repository {} to {:?}", url, target_path);
-    
+
     // Create parent directory if it doesn't exist
     if let Some(parent) = target_path.parent() {
         fs::create_dir_all(parent)
             .map_err(|e| format!("Failed to create parent directory: {}", e))?;
     }
-    
+
     // Set up remote callbacks for authentication and progress
     let mut remote_callbacks = RemoteCallbacks::new();
-    
+
     // Handle authentication (for private repos)
     remote_callbacks.credentials(|_url, username_from_url, allowed_types| {
         if allowed_types.contains(CredentialType::USERNAME) {
@@ -208,7 +220,7 @@ fn clone_repository(url: &str, target_path: &Path) -> Result<Repository, String>
             Cred::default()
         }
     });
-    
+
     // Progress callback for logging
     remote_callbacks.pack_progress(|_stage, current, total| {
         if total > 0 {
@@ -216,18 +228,19 @@ fn clone_repository(url: &str, target_path: &Path) -> Result<Repository, String>
             log::debug!("Clone progress: {}% ({}/{})", percentage, current, total);
         }
     });
-    
+
     // Set up fetch options
     let mut fetch_options = FetchOptions::new();
     fetch_options.remote_callbacks(remote_callbacks);
-    
+
     // Clone the repository
     let mut builder = git2::build::RepoBuilder::new();
     builder.fetch_options(fetch_options);
-    
-    let repo = builder.clone(url, target_path)
+
+    let repo = builder
+        .clone(url, target_path)
         .map_err(|e| format!("Failed to clone repository: {}", e))?;
-    
+
     log::info!("Successfully cloned repository to {:?}", target_path);
     Ok(repo)
 }
@@ -242,52 +255,67 @@ fn remove_bucket_directory(bucket_path: &Path) -> Result<(), String> {
 }
 
 // Main function to install a bucket
-async fn install_bucket_internal(options: BucketInstallOptions) -> Result<BucketInstallResult, String> {
+async fn install_bucket_internal(
+    options: BucketInstallOptions,
+) -> Result<BucketInstallResult, String> {
     let BucketInstallOptions { name, url, force } = options;
-    
+
     // Validate and normalize URL
     let normalized_url = validate_and_normalize_url(&url)?;
-    
+
     // Extract or validate bucket name
     let bucket_name = if name.is_empty() {
         extract_bucket_name_from_url(&normalized_url, None)?
     } else {
         extract_bucket_name_from_url(&normalized_url, Some(&name))?
     };
-    
+
     // Check if bucket already exists
     if bucket_exists(&bucket_name)? && !force {
         return Ok(BucketInstallResult {
             success: false,
-            message: format!("Bucket '{}' already exists. Use force=true to reinstall.", bucket_name),
+            message: format!(
+                "Bucket '{}' already exists. Use force=true to reinstall.",
+                bucket_name
+            ),
             bucket_name: bucket_name.clone(),
             bucket_path: Some(get_bucket_path(&bucket_name)?.to_string_lossy().to_string()),
             manifest_count: None,
         });
     }
-    
+
     let bucket_path = get_bucket_path(&bucket_name)?;
-    
+
     // If force is true and bucket exists, remove it first
     if force && bucket_path.exists() {
-        log::info!("Force reinstall: removing existing bucket '{}'", bucket_name);
+        log::info!(
+            "Force reinstall: removing existing bucket '{}'",
+            bucket_name
+        );
         remove_bucket_directory(&bucket_path)?;
     }
-    
+
     // Clone the repository
     match clone_repository(&normalized_url, &bucket_path) {
         Ok(_repo) => {
             // Count manifests
             let manifest_count = count_bucket_manifests(&bucket_path)?;
-            
+
             // Invalidate search cache so new bucket's packages are searchable
             invalidate_manifest_cache().await;
-            
-            log::info!("Successfully installed bucket '{}' with {} manifests", bucket_name, manifest_count);
-            
+
+            log::info!(
+                "Successfully installed bucket '{}' with {} manifests",
+                bucket_name,
+                manifest_count
+            );
+
             Ok(BucketInstallResult {
                 success: true,
-                message: format!("Successfully installed bucket '{}' with {} manifests", bucket_name, manifest_count),
+                message: format!(
+                    "Successfully installed bucket '{}' with {} manifests",
+                    bucket_name, manifest_count
+                ),
                 bucket_name: bucket_name.clone(),
                 bucket_path: Some(bucket_path.to_string_lossy().to_string()),
                 manifest_count: Some(manifest_count),
@@ -296,7 +324,7 @@ async fn install_bucket_internal(options: BucketInstallOptions) -> Result<Bucket
         Err(e) => {
             // Clean up on failure
             let _ = remove_bucket_directory(&bucket_path);
-            
+
             Err(format!("Failed to install bucket '{}': {}", bucket_name, e))
         }
     }
@@ -306,7 +334,7 @@ async fn install_bucket_internal(options: BucketInstallOptions) -> Result<Bucket
 #[command]
 pub async fn install_bucket(options: BucketInstallOptions) -> Result<BucketInstallResult, String> {
     log::info!("Installing bucket: {} from {}", options.name, options.url);
-    
+
     match install_bucket_internal(options).await {
         Ok(result) => {
             log::info!("Bucket installation result: {:?}", result);
@@ -327,48 +355,66 @@ pub async fn install_bucket(options: BucketInstallOptions) -> Result<BucketInsta
 
 // Command to check if a bucket can be installed (validation only)
 #[command]
-pub async fn validate_bucket_install(name: String, url: String) -> Result<BucketInstallResult, String> {
+pub async fn validate_bucket_install(
+    name: String,
+    url: String,
+) -> Result<BucketInstallResult, String> {
     log::info!("Validating bucket installation: {} from {}", name, url);
-    
+
     // Validate URL
     let normalized_url = match validate_and_normalize_url(&url) {
         Ok(url) => url,
-        Err(e) => return Ok(BucketInstallResult {
-            success: false,
-            message: format!("Invalid URL: {}", e),
-            bucket_name: name,
-            bucket_path: None,
-            manifest_count: None,
-        }),
+        Err(e) => {
+            return Ok(BucketInstallResult {
+                success: false,
+                message: format!("Invalid URL: {}", e),
+                bucket_name: name,
+                bucket_path: None,
+                manifest_count: None,
+            })
+        }
     };
-    
+
     // Extract bucket name
-    let bucket_name = match extract_bucket_name_from_url(&normalized_url, if name.is_empty() { None } else { Some(&name) }) {
+    let bucket_name = match extract_bucket_name_from_url(
+        &normalized_url,
+        if name.is_empty() { None } else { Some(&name) },
+    ) {
         Ok(name) => name,
-        Err(e) => return Ok(BucketInstallResult {
-            success: false,
-            message: format!("Invalid bucket name: {}", e),
-            bucket_name: name,
-            bucket_path: None,
-            manifest_count: None,
-        }),
+        Err(e) => {
+            return Ok(BucketInstallResult {
+                success: false,
+                message: format!("Invalid bucket name: {}", e),
+                bucket_name: name,
+                bucket_path: None,
+                manifest_count: None,
+            })
+        }
     };
-    
+
     // Check if bucket already exists
     let already_exists = bucket_exists(&bucket_name).unwrap_or(false);
-    
-    let bucket_path = if already_exists { 
-        Some(get_bucket_path(&bucket_name).unwrap().to_string_lossy().to_string()) 
-    } else { 
-        None 
+
+    let bucket_path = if already_exists {
+        Some(
+            get_bucket_path(&bucket_name)
+                .unwrap()
+                .to_string_lossy()
+                .to_string(),
+        )
+    } else {
+        None
     };
-    
+
     Ok(BucketInstallResult {
         success: !already_exists,
         message: if already_exists {
             format!("Bucket '{}' already exists", bucket_name)
         } else {
-            format!("Bucket '{}' can be installed from {}", bucket_name, normalized_url)
+            format!(
+                "Bucket '{}' can be installed from {}",
+                bucket_name, normalized_url
+            )
         },
         bucket_name,
         bucket_path,
@@ -380,9 +426,9 @@ pub async fn validate_bucket_install(name: String, url: String) -> Result<Bucket
 #[command]
 pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String> {
     log::info!("Updating bucket: {}", bucket_name);
-    
+
     let bucket_path = get_bucket_path(&bucket_name)?;
-    
+
     if !bucket_path.exists() {
         return Ok(BucketInstallResult {
             success: false,
@@ -392,18 +438,21 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
             manifest_count: None,
         });
     }
-    
+
     // Check if it's a git repository
     if !bucket_path.join(".git").exists() {
         return Ok(BucketInstallResult {
             success: false,
-            message: format!("Bucket '{}' is not a git repository and cannot be updated", bucket_name),
+            message: format!(
+                "Bucket '{}' is not a git repository and cannot be updated",
+                bucket_name
+            ),
             bucket_name,
             bucket_path: Some(bucket_path.to_string_lossy().to_string()),
             manifest_count: None,
         });
     }
-    
+
     // Try to update the repository using git2
     match Repository::open(&bucket_path) {
         Ok(repo) => {
@@ -420,7 +469,7 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
                     });
                 }
             };
-            
+
             // Set up callbacks for fetch
             let mut callbacks = RemoteCallbacks::new();
             callbacks.credentials(|_url, username_from_url, allowed_types| {
@@ -435,10 +484,10 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
                     Cred::default()
                 }
             });
-            
+
             let mut fetch_options = FetchOptions::new();
             fetch_options.remote_callbacks(callbacks);
-            
+
             // Fetch latest changes
             match remote.fetch(&[] as &[&str], Some(&mut fetch_options), None) {
                 Ok(_) => {
@@ -448,14 +497,17 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
                         Err(_) => {
                             return Ok(BucketInstallResult {
                                 success: false,
-                                message: format!("Could not get current branch for bucket '{}'", bucket_name),
+                                message: format!(
+                                    "Could not get current branch for bucket '{}'",
+                                    bucket_name
+                                ),
                                 bucket_name,
                                 bucket_path: Some(bucket_path.to_string_lossy().to_string()),
                                 manifest_count: None,
                             });
                         }
                     };
-                    
+
                     if let Some(branch_name) = head.shorthand() {
                         // Try to merge origin/branch into current branch
                         let remote_branch_name = format!("origin/{}", branch_name);
@@ -463,36 +515,54 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
                             Ok(remote_branch) => {
                                 let remote_commit = remote_branch.get().peel_to_commit().unwrap();
                                 let local_commit = head.peel_to_commit().unwrap();
-                                
+
                                 // Check if update is needed
                                 if remote_commit.id() == local_commit.id() {
                                     let manifest_count = count_bucket_manifests(&bucket_path)?;
                                     return Ok(BucketInstallResult {
                                         success: true,
-                                        message: format!("Bucket '{}' is already up to date", bucket_name),
+                                        message: format!(
+                                            "Bucket '{}' is already up to date",
+                                            bucket_name
+                                        ),
                                         bucket_name,
-                                        bucket_path: Some(bucket_path.to_string_lossy().to_string()),
+                                        bucket_path: Some(
+                                            bucket_path.to_string_lossy().to_string(),
+                                        ),
                                         manifest_count: Some(manifest_count),
                                     });
                                 }
-                                
+
                                 // Perform fast-forward merge
                                 let mut checkout_builder = git2::build::CheckoutBuilder::new();
                                 checkout_builder.force();
-                                
-                                repo.reset(remote_commit.as_object(), git2::ResetType::Hard, Some(&mut checkout_builder))
-                                    .map_err(|e| format!("Failed to update bucket '{}': {}", bucket_name, e))?;
-                                
+
+                                repo.reset(
+                                    remote_commit.as_object(),
+                                    git2::ResetType::Hard,
+                                    Some(&mut checkout_builder),
+                                )
+                                .map_err(|e| {
+                                    format!("Failed to update bucket '{}': {}", bucket_name, e)
+                                })?;
+
                                 let manifest_count = count_bucket_manifests(&bucket_path)?;
-                                
+
                                 // TODO: Invalidate search cache so updated packages are reflected
                                 // invalidate_manifest_cache().await;
-                                
-                                log::info!("Successfully updated bucket '{}' with {} manifests", bucket_name, manifest_count);
-                                
+
+                                log::info!(
+                                    "Successfully updated bucket '{}' with {} manifests",
+                                    bucket_name,
+                                    manifest_count
+                                );
+
                                 Ok(BucketInstallResult {
                                     success: true,
-                                    message: format!("Successfully updated bucket '{}' with {} manifests", bucket_name, manifest_count),
+                                    message: format!(
+                                        "Successfully updated bucket '{}' with {} manifests",
+                                        bucket_name, manifest_count
+                                    ),
                                     bucket_name,
                                     bucket_path: Some(bucket_path.to_string_lossy().to_string()),
                                     manifest_count: Some(manifest_count),
@@ -500,16 +570,22 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
                             }
                             Err(_) => Ok(BucketInstallResult {
                                 success: false,
-                                message: format!("Could not find remote branch for bucket '{}'", bucket_name),
+                                message: format!(
+                                    "Could not find remote branch for bucket '{}'",
+                                    bucket_name
+                                ),
                                 bucket_name,
                                 bucket_path: Some(bucket_path.to_string_lossy().to_string()),
                                 manifest_count: None,
-                            })
+                            }),
                         }
                     } else {
                         Ok(BucketInstallResult {
                             success: false,
-                            message: format!("Could not determine current branch for bucket '{}'", bucket_name),
+                            message: format!(
+                                "Could not determine current branch for bucket '{}'",
+                                bucket_name
+                            ),
                             bucket_name,
                             bucket_path: Some(bucket_path.to_string_lossy().to_string()),
                             manifest_count: None,
@@ -518,20 +594,26 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
                 }
                 Err(e) => Ok(BucketInstallResult {
                     success: false,
-                    message: format!("Failed to fetch updates for bucket '{}': {}", bucket_name, e),
+                    message: format!(
+                        "Failed to fetch updates for bucket '{}': {}",
+                        bucket_name, e
+                    ),
                     bucket_name,
                     bucket_path: Some(bucket_path.to_string_lossy().to_string()),
                     manifest_count: None,
-                })
+                }),
             }
         }
         Err(e) => Ok(BucketInstallResult {
             success: false,
-            message: format!("Failed to open bucket '{}' as git repository: {}", bucket_name, e),
+            message: format!(
+                "Failed to open bucket '{}' as git repository: {}",
+                bucket_name, e
+            ),
             bucket_name,
             bucket_path: Some(bucket_path.to_string_lossy().to_string()),
             manifest_count: None,
-        })
+        }),
     }
 }
 
@@ -539,9 +621,9 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
 #[command]
 pub async fn remove_bucket(bucket_name: String) -> Result<BucketInstallResult, String> {
     log::info!("Removing bucket: {}", bucket_name);
-    
+
     let bucket_path = get_bucket_path(&bucket_name)?;
-    
+
     if !bucket_path.exists() {
         return Ok(BucketInstallResult {
             success: false,
@@ -551,12 +633,12 @@ pub async fn remove_bucket(bucket_name: String) -> Result<BucketInstallResult, S
             manifest_count: None,
         });
     }
-    
+
     match remove_bucket_directory(&bucket_path) {
         Ok(_) => {
             // Invalidate search cache so removed bucket's packages are no longer searchable
             invalidate_manifest_cache().await;
-            
+
             log::info!("Successfully removed bucket '{}'", bucket_name);
             Ok(BucketInstallResult {
                 success: true,
@@ -590,13 +672,13 @@ mod tests {
             validate_and_normalize_url("chawyehsu/dorado").unwrap(),
             "https://github.com/chawyehsu/dorado.git"
         );
-        
+
         // Test full GitHub URL
         assert_eq!(
             validate_and_normalize_url("https://github.com/chawyehsu/dorado").unwrap(),
             "https://github.com/chawyehsu/dorado.git"
         );
-        
+
         // Test SSH format
         assert_eq!(
             validate_and_normalize_url("git@github.com:chawyehsu/dorado.git").unwrap(),
@@ -610,15 +692,23 @@ mod tests {
             extract_bucket_name_from_url("https://github.com/chawyehsu/dorado.git", None).unwrap(),
             "dorado"
         );
-        
+
         assert_eq!(
-            extract_bucket_name_from_url("https://github.com/TheRandomLabs/Scoop-Spotify.git", None).unwrap(),
+            extract_bucket_name_from_url(
+                "https://github.com/TheRandomLabs/Scoop-Spotify.git",
+                None
+            )
+            .unwrap(),
             "spotify"
         );
-        
+
         // Test with provided name
         assert_eq!(
-            extract_bucket_name_from_url("https://github.com/chawyehsu/dorado.git", Some("mydorado")).unwrap(),
+            extract_bucket_name_from_url(
+                "https://github.com/chawyehsu/dorado.git",
+                Some("mydorado")
+            )
+            .unwrap(),
             "mydorado"
         );
     }

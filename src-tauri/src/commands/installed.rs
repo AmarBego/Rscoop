@@ -1,11 +1,12 @@
 //! Command for fetching all installed Scoop packages from the filesystem.
 use crate::models::ScoopPackage;
-use crate::state::AppState;
+use crate::state::{AppState, InstalledPackagesCache};
 use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use serde::Deserialize;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 use tauri::{AppHandle, Runtime, State};
 
 /// Represents the structure of a `manifest.json` file for an installed package.
@@ -24,23 +25,48 @@ struct InstallManifest {
 /// Searches for a package manifest in all bucket directories to determine the bucket.
 fn find_package_bucket(scoop_path: &Path, package_name: &str) -> Option<String> {
     let buckets_path = scoop_path.join("buckets");
-    
+
     if let Ok(buckets) = fs::read_dir(&buckets_path) {
         for bucket_entry in buckets.flatten() {
             if bucket_entry.path().is_dir() {
                 let bucket_name = bucket_entry.file_name().to_string_lossy().to_string();
                 // Look in the correct path: buckets/{bucket}/bucket/{package}.json
-                let manifest_path = bucket_entry.path().join("bucket").join(format!("{}.json", package_name));
-                
+                let manifest_path = bucket_entry
+                    .path()
+                    .join("bucket")
+                    .join(format!("{}.json", package_name));
+
                 if manifest_path.exists() {
                     return Some(bucket_name);
                 }
             }
         }
     }
-    
+
     // Fallback: check if it's in the main bucket (which might not be in buckets dir)
     None
+}
+
+fn compute_apps_fingerprint(app_dirs: &[PathBuf]) -> String {
+    let mut entries = Vec::with_capacity(app_dirs.len());
+
+    for path in app_dirs {
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            let install_manifest = path.join("current").join("install.json");
+            let modified_stamp = fs::metadata(&install_manifest)
+                .and_then(|meta| meta.modified())
+                .or_else(|_| fs::metadata(path).and_then(|meta| meta.modified()))
+                .ok()
+                .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
+                .map(|duration| duration.as_millis())
+                .unwrap_or(0);
+
+            entries.push(format!("{}:{}", name.to_ascii_lowercase(), modified_stamp));
+        }
+    }
+
+    entries.sort();
+    format!("{}|{}", app_dirs.len(), entries.join(";"))
 }
 
 /// Loads the details for a single installed package from its directory.
@@ -74,7 +100,9 @@ fn load_package_details(package_path: &Path, scoop_path: &Path) -> Result<ScoopP
         .map_err(|e| format!("Failed to parse install.json for {}: {}", package_name, e))?;
 
     // Determine bucket - either from install.json or by searching buckets
-    let bucket = install_manifest.bucket.clone()
+    let bucket = install_manifest
+        .bucket
+        .clone()
         .or_else(|| find_package_bucket(scoop_path, &package_name))
         .unwrap_or_else(|| "main".to_string());
 
@@ -106,15 +134,6 @@ pub async fn get_installed_packages_full<R: Runtime>(
     _app: AppHandle<R>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ScoopPackage>, String> {
-    let mut cache_guard = state.installed_packages.lock().await;
-
-    // Check if the cache is populated
-    if let Some(packages) = cache_guard.as_ref() {
-        log::info!("Returning cached installed packages list.");
-        return Ok(packages.clone());
-    }
-    log::info!("Fetching installed packages from filesystem");
-
     let apps_path = state.scoop_path.join("apps");
 
     if !apps_path.is_dir() {
@@ -122,33 +141,56 @@ pub async fn get_installed_packages_full<R: Runtime>(
             "Scoop apps directory does not exist at: {}",
             apps_path.display()
         );
+        let mut cache_guard = state.installed_packages.lock().await;
+        *cache_guard = None;
         return Ok(vec![]);
     }
 
-    let app_dirs = fs::read_dir(apps_path)
+    let app_dirs: Vec<PathBuf> = fs::read_dir(&apps_path)
         .map_err(|e| format!("Failed to read apps directory: {}", e))?
         .filter_map(Result::ok)
-        .filter(|entry| entry.path().is_dir())
-        .collect::<Vec<_>>();
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
 
-    // Process packages in parallel for better performance
+    let fingerprint = compute_apps_fingerprint(&app_dirs);
+
+    {
+        let cache_guard = state.installed_packages.lock().await;
+        if let Some(cache) = cache_guard.as_ref() {
+            if cache.fingerprint == fingerprint {
+                log::info!("Returning cached installed packages list.");
+                return Ok(cache.packages.clone());
+            }
+        }
+    }
+
+    log::info!(
+        "Scanning {} installed package directories from filesystem",
+        app_dirs.len()
+    );
+
     let scoop_path = &state.scoop_path;
     let packages: Vec<ScoopPackage> = app_dirs
         .par_iter()
-        .filter_map(|entry| {
-            let path = entry.path();
-            match load_package_details(&path, scoop_path) {
+        .filter_map(
+            |path| match load_package_details(path.as_path(), scoop_path) {
                 Ok(package) => Some(package),
                 Err(e) => {
                     log::warn!("Skipping package at '{}': {}", path.display(), e);
                     None
                 }
-            }
-        })
+            },
+        )
         .collect();
 
-    // Populate the cache
-    *cache_guard = Some(packages.clone());
+    {
+        let mut cache_guard = state.installed_packages.lock().await;
+        *cache_guard = Some(InstalledPackagesCache {
+            packages: packages.clone(),
+            fingerprint,
+        });
+    }
 
     log::info!("Found {} installed packages", packages.len());
     Ok(packages)
@@ -183,10 +225,10 @@ pub async fn get_package_path<R: Runtime>(
     package_name: String,
 ) -> Result<String, String> {
     let package_path = state.scoop_path.join("apps").join(&package_name);
-    
+
     if !package_path.exists() {
         return Err(format!("Package '{}' is not installed", package_name));
     }
-    
+
     Ok(package_path.to_string_lossy().to_string())
 }

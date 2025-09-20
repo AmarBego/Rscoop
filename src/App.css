@@ -4,34 +4,56 @@
 @plugin "daisyui/theme" {
   name: "dark";
   default: false;
-  prefersdark: false;
+  prefersdark: true;
   color-scheme: "dark";
-  --color-base-100: oklch(14% 0.004 49.25);
-  --color-base-200: oklch(21% 0.006 56.043);
-  --color-base-300: oklch(26% 0.007 34.298);
-  --color-base-content: oklch(97% 0.001 106.424);
-  --color-primary: oklch(58% 0.158 241.966);
-  --color-primary-content: oklch(97% 0.013 236.62);
-  --color-secondary: oklch(87% 0.01 258.338);
-  --color-secondary-content: oklch(13% 0.028 261.692);
-  --color-accent: oklch(82% 0.12 346.018);
-  --color-accent-content: oklch(28% 0.109 3.907);
-  --color-neutral: oklch(14% 0.004 49.25);
-  --color-neutral-content: oklch(98% 0.001 106.423);
-  --color-info: oklch(54% 0.245 262.881);
-  --color-info-content: oklch(97% 0.014 254.604);
-  --color-success: oklch(62% 0.194 149.214);
-  --color-success-content: oklch(97% 0.021 166.113);
-  --color-warning: oklch(64% 0.222 41.116);
-  --color-warning-content: oklch(98% 0.016 73.684);
-  --color-error: oklch(57% 0.245 27.325);
-  --color-error-content: oklch(97% 0.013 17.38);
-  --radius-selector: 0.5rem;
-  --radius-field: 2rem;
-  --radius-box: 1rem;
+
+  /* Base surfaces */
+  --color-base-100: #222226; /* main background */
+  --color-base-200: #2e2e32; /* header/toolbar */
+  --color-base-300: #343437; /* elevated surfaces (Dark 3) */
+  --color-base-400: #3a3a3d; /* elevated surfaces (Hover) */
+  --color-base-content: #f6f5f4; /* light text (Light 2) */
+
+  /* Brand & accents */
+  --color-primary: #3584e4; /* Blue 3 */
+  --color-primary-content: #ffffff;
+
+  --color-secondary: #9141ac; /* Purple 3 */
+  --color-secondary-content: #ffffff;
+
+  --color-accent: #62a0ea; /* Blue 2 */
+  --color-accent-content: #ffffff;
+
+  /* Neutral */
+  --color-neutral: #222226;
+  --color-neutral-content: #f6f5f4;
+
+  /* Status colors from HIG */
+  --color-info: #62a0ea; /* Blue 2 */
+  --color-info-content: #ffffff;
+
+  --color-success: #57e389; /* Green 2 */
+  --color-success-content: #0d0d0d;
+
+  --color-warning: #ff7800; /* Yellow 3 */
+  --color-warning-content: #0d0d0d;
+
+  --color-error: #e01b24; /* Red 3 */
+  --color-error-content: #ffffff;
+
+  /* GNOME’s rounded + clean style */
+  --radius-selector: 0.375rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.5rem;
+
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
+
   --border: 1px;
   --depth: 0;
   --noise: 0;
+}
+
+.bg-base-400 {
+  background-color: var(--color-base-400);
 }

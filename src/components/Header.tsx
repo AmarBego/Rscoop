@@ -39,7 +39,7 @@ const Header: Component<HeaderProps> = (props) => {
                 <button
                   class="btn"
                   classList={{
-                    "btn-active bg-base-100": props.currentView === item.view,
+                    "btn-active bg-base-300": props.currentView === item.view,
                   }}
                   onClick={() => props.onNavigate(item.view)}
                   onMouseEnter={() => {

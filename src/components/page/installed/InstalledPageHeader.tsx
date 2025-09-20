@@ -106,13 +106,13 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
                 >
                   <span class="loading loading-spinner loading-sm"></span>
                 </Show>
-                <span class="hidden md:inline">
+                <span class="hidden md:inline ">
                   {props.statusLoading?.() ? "Checking..." : "Check Status"}
                 </span>
               </button>
             }
           >
-            <button class="btn btn-primary gap-2" onClick={props.onUpdateAll}>
+            <button class="btn btn-secondary gap-2" onClick={props.onUpdateAll}>
               <ArrowUpCircle class="w-4 h-4" />
               <span class="hidden md:inline">Update All&nbsp;</span>
               <span>({props.updatableCount()})</span>
@@ -153,13 +153,13 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
             </label>
             <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-40 z-[1]">
               <li>
-                <a classList={{ 'bg-base-200': props.viewMode() === 'list' }} onClick={() => props.setViewMode('list')}>
+                <a classList={{ 'bg-base-400': props.viewMode() === 'list' }} onClick={() => props.setViewMode('list')}>
                   <List class="w-4 h-4 mr-2" />
                   List
                 </a>
               </li>
               <li>
-                <a classList={{ 'bg-base-200': props.viewMode() === 'grid' }} onClick={() => props.setViewMode('grid')}>
+                <a classList={{ 'bg-base-400': props.viewMode() === 'grid' }} onClick={() => props.setViewMode('grid')}>
                   <LayoutGrid class="w-4 h-4 mr-2" />
                   Grid
                 </a>

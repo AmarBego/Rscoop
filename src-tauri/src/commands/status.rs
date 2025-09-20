@@ -2,15 +2,15 @@
 //! This implements the equivalent of `scoop status` command.
 
 use crate::commands::installed::get_installed_packages_full;
-use crate::models::{AppStatusInfo, ScoopStatus, ScoopPackage as InstalledPackage};
+use crate::models::{AppStatusInfo, ScoopPackage as InstalledPackage, ScoopStatus};
 use crate::state::AppState;
 use crate::utils::locate_package_manifest;
-use serde::{Deserialize};
+use git2::Repository;
+use serde::Deserialize;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime, State};
-use git2::Repository;
 
 /// Represents the structure of a `manifest.json` file, used to extract the version.
 #[derive(Deserialize, Debug)]
@@ -54,7 +54,11 @@ fn test_update_status(repo_path: &Path) -> Result<bool, String> {
     // Try to fetch from origin (this might fail due to network issues)
     if let Ok(mut remote) = repo.find_remote("origin") {
         // Attempt to fetch - if this fails, we'll treat it as a network error
-        if let Err(_) = remote.fetch(&[&format!("+refs/heads/*:refs/remotes/origin/*")], None, None) {
+        if let Err(_) = remote.fetch(
+            &[&format!("+refs/heads/*:refs/remotes/origin/*")],
+            None,
+            None,
+        ) {
             return Err("Network failure".to_string());
         }
     } else {
@@ -145,7 +149,7 @@ fn get_app_status(
         .join(&package.name)
         .join("current")
         .join("install.json");
-    
+
     if install_info_path.exists() {
         if let Ok(content) = fs::read_to_string(install_info_path) {
             if let Ok(install_info) = serde_json::from_str::<InstallInfo>(&content) {
@@ -179,7 +183,7 @@ fn get_app_status(
 fn get_local_buckets(scoop_path: &Path) -> Vec<PathBuf> {
     let buckets_dir = scoop_path.join("buckets");
     let mut buckets = Vec::new();
-    
+
     if let Ok(entries) = fs::read_dir(buckets_dir) {
         for entry in entries.flatten() {
             if entry.file_type().map(|ft| ft.is_dir()).unwrap_or(false) {
@@ -187,7 +191,7 @@ fn get_local_buckets(scoop_path: &Path) -> Vec<PathBuf> {
             }
         }
     }
-    
+
     buckets
 }
 
@@ -233,9 +237,9 @@ pub async fn check_scoop_status<R: Runtime>(
 
     // Get installed packages and check their status
     let installed_packages = get_installed_packages_full(app.clone(), state.clone()).await?;
-    
+
     // Get held packages for efficient lookup
-    let held_packages: HashSet<String> = 
+    let held_packages: HashSet<String> =
         crate::commands::hold::list_held_packages(app, state.clone())
             .await?
             .into_iter()
@@ -254,9 +258,9 @@ pub async fn check_scoop_status<R: Runtime>(
         }
     }
 
-    let is_everything_ok = !scoop_needs_update 
-        && !bucket_needs_update 
-        && !network_failure 
+    let is_everything_ok = !scoop_needs_update
+        && !bucket_needs_update
+        && !network_failure
         && apps_with_issues.is_empty();
 
     Ok(ScoopStatus {

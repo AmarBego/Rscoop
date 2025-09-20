@@ -1,6 +1,6 @@
 [package]
 name = "rscoop"
-version = "1.3.0"
+version = "1.3.1"
 description = "A modern, powerful GUI for Scoop"
 authors = ["AmarBego"]
 license = "MIT"
@@ -34,11 +34,11 @@ tokio = { version = "1.39.0", features = ["full"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 dirs = "6.0"
 windows-sys = { version = "0.61.0", features = [
-    "Win32_Foundation", 
+    "Win32_Foundation",
     "Win32_Storage_FileSystem",
     "Win32_UI_Shell",
     "Win32_System_Com",
-    "Win32_UI_WindowsAndMessaging"
+    "Win32_UI_WindowsAndMessaging",
 ] }
 regex = "1.11.1"
 rayon = "1.10"
@@ -54,4 +54,3 @@ url = "2.5"
 [target."cfg(windows)".dependencies]
 tauri-plugin-updater = "2.7.1"
 tauri-plugin-single-instance = "2"
-

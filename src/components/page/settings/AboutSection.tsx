@@ -1,8 +1,9 @@
-import { ShieldCheck, Download, RefreshCw } from "lucide-solid";
+import { ShieldCheck, Download, RefreshCw, Github, Star } from "lucide-solid";
 import { createSignal, Show } from "solid-js";
 import { check } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { ask, message } from '@tauri-apps/plugin-dialog';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import pkgJson from "../../../../package.json";
 
 // Define the types we need
@@ -27,8 +28,8 @@ export default function AboutSection(props: AboutSectionProps) {
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
   const [updateInfo, setUpdateInfo] = createSignal<any>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
-  const [downloadProgress, setDownloadProgress] = createSignal<{downloaded: number; total: number | null}>({ downloaded: 0, total: null });
-  
+  const [downloadProgress, setDownloadProgress] = createSignal<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
+
   const checkForUpdates = async (manual: boolean) => {
     try {
       // Don't check for updates if installed via Scoop
@@ -41,16 +42,16 @@ export default function AboutSection(props: AboutSectionProps) {
         }
         return;
       }
-      
+
       setUpdateStatus('checking');
       setUpdateError(null);
-      
+
       const update = await check();
-      
+
       if (update?.available) {
         setUpdateStatus('available');
         setUpdateInfo(update);
-        
+
         // Only show dialog if user manually clicked "Check for updates"
         if (manual) {
           const shouldInstall = await ask(
@@ -62,7 +63,7 @@ export default function AboutSection(props: AboutSectionProps) {
               cancelLabel: "Later"
             }
           );
-          
+
           if (shouldInstall) {
             await installAvailableUpdate();
           }
@@ -88,23 +89,23 @@ export default function AboutSection(props: AboutSectionProps) {
       if (!updateInfo()) {
         throw new Error("No update information available");
       }
-      
+
       setUpdateStatus('downloading');
       setDownloadProgress({ downloaded: 0, total: null });
-      
+
       // Download and install the update with progress reporting
       await updateInfo().downloadAndInstall((event: UpdateEvent) => {
         switch (event.event) {
           case 'Started':
-            setDownloadProgress({ 
-              downloaded: 0, 
-              total: event.data.contentLength || null 
+            setDownloadProgress({
+              downloaded: 0,
+              total: event.data.contentLength || null
             });
             break;
           case 'Progress':
-            setDownloadProgress(prev => ({ 
-              downloaded: prev.downloaded + (event.data.chunkLength || 0), 
-              total: prev.total 
+            setDownloadProgress(prev => ({
+              downloaded: prev.downloaded + (event.data.chunkLength || 0),
+              total: prev.total
             }));
             break;
           case 'Finished':
@@ -112,7 +113,7 @@ export default function AboutSection(props: AboutSectionProps) {
             break;
         }
       });
-      
+
       // Restart the app after successful installation
       await ask(
         "Update has been installed successfully. The application needs to restart to apply the changes.",
@@ -122,7 +123,7 @@ export default function AboutSection(props: AboutSectionProps) {
           okLabel: "Restart Now"
         }
       );
-      
+
       await relaunch();
     } catch (error) {
       console.error('Failed to install update:', error);
@@ -146,16 +147,54 @@ export default function AboutSection(props: AboutSectionProps) {
         <p class="text-base-content/60 mt-2">
           A modern, powerful GUI for Scoop on Windows.
         </p>
-        
+
+        {/* Developer Credit */}
+        <div class="flex flex-col items-center space-y-2 mt-4 p-3 bg-base-300 rounded-lg border border-base-content/10">
+          <div class="text-sm text-base-content/80 text-center">
+            Rscoop
+          </div>
+          <div class="flex space-x-2">
+            <button
+              class="btn btn-xs btn-outline btn-primary hover:btn-primary transition-colors"
+              onClick={async () => {
+                try {
+                  await openUrl('https://github.com/AmarBego/Rscoop');
+                } catch (error) {
+                  console.error('Failed to open GitHub URL:', error);
+                }
+              }}
+            >
+              <Github class="w-3 h-3 mr-1" />
+              View on GitHub
+            </button>
+            <button
+              class="btn btn-xs btn-outline btn-warning hover:btn-warning transition-colors"
+              onClick={async () => {
+                try {
+                  await openUrl('https://github.com/AmarBego/Rscoop');
+                } catch (error) {
+                  console.error('Failed to open GitHub URL:', error);
+                }
+              }}
+            >
+              <Star class="w-3 h-3 mr-1" />
+              Leave a Star
+            </button>
+          </div>
+          <div class="text-xs text-base-content/60 text-center">
+            If you find this useful, please consider giving it a star! ⭐
+          </div>
+        </div>
+
         <div class="flex flex-col space-y-2 mt-4">
           {props.isScoopInstalled && (
             <div class="alert alert-info text-sm">
               <span>This app was installed via Scoop. Use <code>scoop update rscoop</code> to update.</span>
             </div>
           )}
-          
+
           {!props.isScoopInstalled && updateStatus() === 'idle' && (
-            <button 
+            <button
               class="btn btn-sm btn-outline btn-accent w-full"
               onClick={() => checkForUpdates(true)}
             >
@@ -163,14 +202,14 @@ export default function AboutSection(props: AboutSectionProps) {
               Check for updates
             </button>
           )}
-          
+
           {updateStatus() === 'checking' && (
             <button class="btn btn-sm btn-outline w-full" disabled>
               <span class="loading loading-spinner loading-xs mr-1"></span>
               Checking for updates...
             </button>
           )}
-          
+
           {updateStatus() === 'available' && (
             <div class="space-y-3">
               <div class="text-center text-sm text-success font-medium">
@@ -182,7 +221,7 @@ export default function AboutSection(props: AboutSectionProps) {
                   <div class="whitespace-pre-wrap leading-relaxed">{updateInfo()?.body}</div>
                 </div>
               </Show>
-              <button 
+              <button
                 class="btn btn-sm btn-success w-full"
                 onClick={installAvailableUpdate}
               >
@@ -191,37 +230,37 @@ export default function AboutSection(props: AboutSectionProps) {
               </button>
             </div>
           )}
-          
+
           {updateStatus() === 'downloading' && (
             <div class="space-y-2">
               <button class="btn btn-sm btn-outline btn-info w-full" disabled>
                 <span class="loading loading-spinner loading-xs mr-1"></span>
                 Downloading update...
               </button>
-              <progress 
-                class="progress progress-info w-full" 
-                value={downloadProgress().downloaded} 
+              <progress
+                class="progress progress-info w-full"
+                value={downloadProgress().downloaded}
                 max={downloadProgress().total || 100}
               />
               <div class="text-xs text-center">
-                {downloadProgress().total 
-                  ? `${Math.round(downloadProgress().downloaded / 1024)} KB of ${Math.round((downloadProgress().total || 0) / 1024)} KB` 
+                {downloadProgress().total
+                  ? `${Math.round(downloadProgress().downloaded / 1024)} KB of ${Math.round((downloadProgress().total || 0) / 1024)} KB`
                   : `${Math.round(downloadProgress().downloaded / 1024)} KB downloaded`}
               </div>
             </div>
           )}
-          
+
           {updateStatus() === 'installing' && (
             <button class="btn btn-sm btn-outline btn-success w-full" disabled>
               <span class="loading loading-spinner loading-xs mr-1"></span>
               Installing update...
             </button>
           )}
-          
+
           {updateStatus() === 'error' && (
             <div class="space-y-1">
               <div class="text-error text-center text-xs">{updateError()}</div>
-              <button 
+              <button
                 class="btn btn-sm btn-outline btn-error w-full"
                 onClick={() => checkForUpdates(true)}
               >
@@ -232,6 +271,6 @@ export default function AboutSection(props: AboutSectionProps) {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 } 

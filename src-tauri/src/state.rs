@@ -2,10 +2,16 @@ use crate::models::ScoopPackage;
 use std::path::PathBuf;
 use tokio::sync::Mutex;
 
+#[derive(Clone)]
+pub struct InstalledPackagesCache {
+    pub packages: Vec<ScoopPackage>,
+    pub fingerprint: String,
+}
+
 /// Shared application state managed by Tauri.
 pub struct AppState {
     /// The resolved path to the Scoop installation directory.
     pub scoop_path: PathBuf,
-    /// A cache for the list of installed packages.
-    pub installed_packages: Mutex<Option<Vec<ScoopPackage>>>,
+    /// A cache for the list of installed packages and their fingerprint.
+    pub installed_packages: Mutex<Option<InstalledPackagesCache>>,
 }
