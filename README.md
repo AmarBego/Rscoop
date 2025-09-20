@@ -2,7 +2,7 @@
 
 ## ⚠️ Known Bug: upon updating or fresh install please restart the program for it to work normally ⚠️
 
-[![Watch the video](https://raw.githubusercontent.com/AmarBego/rscoop/main/pics/showcase.png)](https://raw.githubusercontent.com/AmarBego/rscoop/main/pics/showcase.mp4)
+![Installed Packages Grid View](pics/installedpackages.png) 
 
 *Click the image above to watch the showcase video*
 
@@ -50,13 +50,18 @@ For core actions, Rscoop acts as a seamless wrapper around the battle-tested off
 
 ## 🖼️ Screenshots
 
-| Search Page | Installed Packages (Grid) | Bucket Management | System Doctor | Shims |
-| :---: | :---: | :---: | :---: | :---: |
-| ![Search Page](pics/search.png) | ![Installed Packages Grid View](pics/installedGRID.png) | ![Bucket Management](pics/buckets.png) | ![System Doctor Page](pics/doctor.png) | ![Shims Manager View](pics/shims.png) |
-
-| Package Details | Operation in Progress | Settings |
+| Search Page | Installed Packages (Grid) | Package Details |
 | :---: | :---: | :---: |
-| ![Package Details Modal](pics/information.png) | ![Operation Modal](pics/installation.png) | ![Settings Page](pics/settings.png) |
+| ![Search Page](pics/packagesearch.png) | ![Installed Packages Grid View](pics/installedpackages.png) | ![Package Details Modal](pics/packagemodal.png) |
+
+| Bucket Finder | Bucket Management | Operation Modal |
+| :---: | :---: | :---: |
+| ![Bucket Management](pics/bucketsearch.png) | ![Bucket Details Modal](pics/bucket.png) | ![Operation Modal](pics/bucketmodal.png) |
+
+| Settings | Shims | System Doctor |
+| :---: | :---: | :---: |
+| ![Settings Page](pics/settings.png) | ![Shims Manager View](pics/shims.png) | ![System Doctor Page](pics/doctor.png) |
+
 
 
 ## ❤️ Acknowledgements & Tech Stack
