@@ -1,5 +1,7 @@
 # Rscoop - A Modern, Powerful GUI for Scoop
 
+## ⚠️ Known Bug: upon updating or fresh install please restart the program for it to work normally ⚠️
+
 [![Watch the video](https://raw.githubusercontent.com/AmarBego/rscoop/main/pics/showcase.png)](https://raw.githubusercontent.com/AmarBego/rscoop/main/pics/showcase.mp4)
 
 *Click the image above to watch the showcase video*
