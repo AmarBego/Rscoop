@@ -151,6 +151,7 @@ pub fn run() {
             commands::virustotal::scan_package,
             commands::doctor::checkup::run_scoop_checkup,
             commands::doctor::cleanup::cleanup_all_apps,
+            commands::doctor::cleanup::cleanup_all_apps_force,
             commands::doctor::cleanup::cleanup_outdated_cache,
             commands::doctor::cache::list_cache_contents,
             commands::doctor::cache::clear_cache,
@@ -174,6 +175,10 @@ pub fn run() {
             commands::bucket_search::clear_bucket_cache,
             commands::bucket_search::check_bucket_cache_exists,
             commands::app_info::is_scoop_installation,
+            commands::linker::get_package_versions,
+            commands::linker::switch_package_version,
+            commands::linker::get_versioned_packages,
+            commands::linker::debug_package_structure,
             tray::refresh_tray_apps_menu
         ])
         .run(tauri::generate_context!())

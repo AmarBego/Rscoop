@@ -1,6 +1,6 @@
 import { For, Show, Accessor } from "solid-js";
 import { 
-  MoreHorizontal, ArrowUpCircle, Trash2, Lock, Unlock
+  MoreHorizontal, ArrowUpCircle, Trash2, Lock, Unlock, RefreshCw
 } from 'lucide-solid';
 import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
@@ -10,11 +10,14 @@ import { formatIsoDate } from "../../../utils/date";
 interface PackageGridViewProps {
   packages: Accessor<DisplayPackage[]>;
   onViewInfo: (pkg: ScoopPackage) => void;
+  onViewInfoForVersions: (pkg: ScoopPackage) => void;
   onUpdate: (pkg: ScoopPackage) => void;
   onHold: (pkgName: string) => void;
   onUnhold: (pkgName: string) => void;
+  onSwitchVersion: (pkgName: string, version: string) => void;
   onUninstall: (pkg: ScoopPackage) => void;
   operatingOn: Accessor<string | null>;
+  isPackageVersioned: (packageName: string) => boolean;
 }
 
 function PackageGridView(props: PackageGridViewProps) {
@@ -90,6 +93,16 @@ function PackageGridView(props: PackageGridViewProps) {
                             </span>
                         </Show>
                       </li>
+                      <Show when={props.isPackageVersioned(pkg.name)}>
+                        <li>
+                          <a onClick={() => {
+                            props.onViewInfoForVersions(pkg);
+                          }}>
+                            <RefreshCw class="w-4 h-4 mr-2" />
+                            Switch Version
+                          </a>
+                        </li>
+                      </Show>
                       <li>
                         <a class="text-error" onClick={() => props.onUninstall(pkg)}>
                           <Trash2 class="w-4 h-4 mr-2" />

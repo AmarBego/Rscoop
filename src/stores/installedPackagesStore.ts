@@ -13,6 +13,7 @@ const [error, setError] = createSignal<string | null>(null);
 const [uniqueBuckets, setUniqueBuckets] = createSignal<string[]>(['all']);
 const [isLoaded, setIsLoaded] = createSignal(false);
 const [isCheckingForUpdates, setIsCheckingForUpdates] = createSignal(false);
+const [versionedPackages, setVersionedPackages] = createSignal<string[]>([]);
 
 const checkForUpdates = async () => {
   setIsCheckingForUpdates(true);
@@ -28,6 +29,17 @@ const checkForUpdates = async () => {
     console.error("Failed to check for updates:", err);
   } finally {
     setIsCheckingForUpdates(false);
+  }
+};
+
+const fetchVersionedPackages = async () => {
+  try {
+    const versioned = await invoke<string[]>("get_versioned_packages", {
+      global: false, // TODO: Add support for global packages
+    });
+    setVersionedPackages(versioned);
+  } catch (err) {
+    console.error("Failed to fetch versioned packages:", err);
   }
 };
 
@@ -47,7 +59,8 @@ const fetchInstalledPackages = async () => {
 
     await Promise.all([
       heldStore.refetch(),
-      checkForUpdates()
+      checkForUpdates(),
+      fetchVersionedPackages()
     ]);
   } catch (err) {
     console.error("Failed to fetch installed packages:", err);
@@ -71,7 +84,8 @@ const refetch = async () => {
 
     await Promise.all([
       heldStore.refetch(),
-      checkForUpdates()
+      checkForUpdates(),
+      fetchVersionedPackages()
     ]);
   } catch (err) {
     console.error("Failed to refresh installed packages:", err);
@@ -82,6 +96,10 @@ const refetch = async () => {
   }
 }
 
+const isPackageVersioned = (packageName: string) => {
+  return versionedPackages().includes(packageName);
+};
+
 const installedPackagesStore = {
   packages,
   loading,
@@ -89,9 +107,12 @@ const installedPackagesStore = {
   uniqueBuckets,
   isLoaded,
   isCheckingForUpdates,
+  versionedPackages,
+  isPackageVersioned,
   fetch: fetchInstalledPackages,
   refetch,
   checkForUpdates,
+  fetchVersionedPackages,
 };
 
 export default installedPackagesStore; 

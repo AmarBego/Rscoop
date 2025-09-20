@@ -27,4 +27,16 @@ export interface VirustotalResult {
   message: string;
 }
 
+export interface PackageVersion {
+  version: string;
+  is_current: boolean;
+  install_path: string;
+}
+
+export interface VersionedPackageInfo {
+  name: string;
+  current_version: string;
+  available_versions: PackageVersion[];
+}
+
 export type View = "search" | "installed" | "bucket" | "settings" | "doctor"; 

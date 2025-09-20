@@ -25,15 +25,20 @@ function InstalledPage() {
     scoopStatus,
     statusLoading,
     statusError,
+    isPackageVersioned,
     checkScoopStatus,
     handleSort,
     handleUpdate,
     handleUpdateAll,
     handleHold,
     handleUnhold,
+    handleSwitchVersion,
     handleUninstall,
     handleFetchPackageInfo,
+    handleFetchPackageInfoForVersions,
     handleCloseInfoModal,
+    handleCloseInfoModalWithVersions,
+    autoShowVersions,
     handleCloseOperationModal,
     fetchInstalledPackages,
     checkForUpdates,
@@ -98,11 +103,14 @@ function InstalledPage() {
           fallback={<PackageGridView 
             packages={filteredPackages}
             onViewInfo={handleFetchPackageInfo}
+            onViewInfoForVersions={handleFetchPackageInfoForVersions}
             onUpdate={handleUpdate}
             onHold={handleHold}
             onUnhold={handleUnhold}
+            onSwitchVersion={handleSwitchVersion}
             onUninstall={handleUninstall}
             operatingOn={operatingOn}
+            isPackageVersioned={isPackageVersioned}
           />}
         >
           <PackageListView 
@@ -111,11 +119,14 @@ function InstalledPage() {
             sortKey={sortKey}
             sortDirection={sortDirection}
             onViewInfo={handleFetchPackageInfo}
+            onViewInfoForVersions={handleFetchPackageInfoForVersions}
             onUpdate={handleUpdate}
             onHold={handleHold}
             onUnhold={handleUnhold}
+            onSwitchVersion={handleSwitchVersion}
             onUninstall={handleUninstall}
             operatingOn={operatingOn}
+            isPackageVersioned={isPackageVersioned}
           />
         </Show>
       </Show>
@@ -125,8 +136,15 @@ function InstalledPage() {
         info={info()}
         loading={infoLoading()}
         error={infoError()}
-        onClose={handleCloseInfoModal}
+        onClose={handleCloseInfoModalWithVersions}
         onUninstall={handleUninstall}
+        onSwitchVersion={(pkg, version) => {
+          console.log(`Switched ${pkg.name} to version ${version}`);
+          // The PackageInfoModal already calls onPackageStateChanged which triggers a refresh
+        }}
+        autoShowVersions={autoShowVersions()}
+        isPackageVersioned={isPackageVersioned}
+        onPackageStateChanged={fetchInstalledPackages}
       />
       <OperationModal 
         title={operationTitle()}

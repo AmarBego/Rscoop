@@ -9,8 +9,8 @@ use serde::{Deserialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use tauri::{AppHandle, Runtime, State};
+use git2::Repository;
 
 /// Represents the structure of a `manifest.json` file, used to extract the version.
 #[derive(Deserialize, Debug)]
@@ -28,53 +28,57 @@ struct InstallInfo {
 }
 
 /// Check if a git repository needs updating by comparing local and remote branches.
+/// Uses git2 library instead of spawning shell processes for better performance.
 fn test_update_status(repo_path: &Path) -> Result<bool, String> {
     if !repo_path.join(".git").exists() {
         return Ok(false); // If not a git repo, no updates needed (not an error condition)
     }
 
-    // Check if git is available
-    let git_check = Command::new("git")
-        .arg("--version")
-        .output();
-    
-    if git_check.is_err() {
-        return Ok(false); // If git is not available, can't check for updates
+    // Open the repository using git2
+    let repo = match Repository::open(repo_path) {
+        Ok(repo) => repo,
+        Err(_) => return Ok(false), // If we can't open the repo, assume no updates needed
+    };
+
+    // Get the current branch
+    let head = match repo.head() {
+        Ok(head) => head,
+        Err(_) => return Ok(false), // No HEAD, can't check for updates
+    };
+
+    let branch_name = match head.shorthand() {
+        Some(name) => name,
+        None => return Ok(false), // No current branch name
+    };
+
+    // Try to fetch from origin (this might fail due to network issues)
+    if let Ok(mut remote) = repo.find_remote("origin") {
+        // Attempt to fetch - if this fails, we'll treat it as a network error
+        if let Err(_) = remote.fetch(&[&format!("+refs/heads/*:refs/remotes/origin/*")], None, None) {
+            return Err("Network failure".to_string());
+        }
+    } else {
+        // No origin remote, can't check for updates
+        return Ok(false);
     }
 
-    // Fetch latest changes
-    let fetch_result = Command::new("git")
-        .args(&["fetch", "-q", "origin"])
-        .current_dir(repo_path)
-        .output();
+    // Get local and remote commit IDs
+    let local_commit = match head.peel_to_commit() {
+        Ok(commit) => commit,
+        Err(_) => return Ok(false),
+    };
 
-    if fetch_result.is_err() {
-        return Err("Network failure".to_string());
-    }
+    let remote_branch_name = format!("origin/{}", branch_name);
+    let remote_commit = match repo.find_branch(&remote_branch_name, git2::BranchType::Remote) {
+        Ok(branch) => match branch.get().peel_to_commit() {
+            Ok(commit) => commit,
+            Err(_) => return Ok(false),
+        },
+        Err(_) => return Ok(false), // No remote branch found
+    };
 
-    // Get current branch
-    let branch_output = Command::new("git")
-        .args(&["branch", "--show-current"])
-        .current_dir(repo_path)
-        .output()
-        .map_err(|e| format!("Failed to get current branch: {}", e))?;
-    
-    let branch = String::from_utf8_lossy(&branch_output.stdout).trim().to_string();
-    
-    if branch.is_empty() {
-        return Ok(false); // No current branch, can't check for updates
-    }
-    
-    // Check for commits ahead on origin
-    let log_output = Command::new("git")
-        .args(&["log", &format!("HEAD..origin/{}", branch), "--oneline"])
-        .current_dir(repo_path)
-        .output();
-
-    match log_output {
-        Ok(output) => Ok(!output.stdout.is_empty()),
-        Err(_) => Ok(false), // If we can't check, assume no updates needed rather than failing
-    }
+    // Check if remote is ahead of local
+    Ok(local_commit.id() != remote_commit.id())
 }
 
 /// Get the status of a single app

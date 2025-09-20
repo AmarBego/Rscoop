@@ -31,7 +31,7 @@ interface ScoopStatus {
 }
 
 export function useInstalledPackages() {
-  const { packages, loading, error, uniqueBuckets, isCheckingForUpdates, fetch, refetch } = installedPackagesStore;
+  const { packages, loading, error, uniqueBuckets, isCheckingForUpdates, isPackageVersioned, fetch, refetch } = installedPackagesStore;
   const [operatingOn, setOperatingOn] = createSignal<string | null>(null);
   const [scoopStatus, setScoopStatus] = createSignal<ScoopStatus | null>(null);
   const [statusLoading, setStatusLoading] = createSignal(false);
@@ -40,6 +40,9 @@ export function useInstalledPackages() {
   // Use shared hooks
   const packageOperations = usePackageOperations();
   const packageInfo = usePackageInfo();
+  
+  // State for auto-showing versions in modal
+  const [autoShowVersions, setAutoShowVersions] = createSignal(false);
   
   const [viewMode, setViewMode] = createStoredSignal<'grid' | 'list'>('installedViewMode', 'grid');
   const [sortKey, setSortKey] = createStoredSignal<SortKey>('installedSortKey', 'name');
@@ -70,6 +73,21 @@ export function useInstalledPackages() {
 
   const fetchInstalledPackages = () => {
     refetch();
+  }
+
+  const handleFetchPackageInfoForVersions = (pkg: ScoopPackage) => {
+    setAutoShowVersions(true);
+    packageInfo.fetchPackageInfo(pkg);
+  }
+
+  const handleFetchPackageInfo = (pkg: ScoopPackage) => {
+    setAutoShowVersions(false);
+    packageInfo.fetchPackageInfo(pkg);
+  }
+
+  const handleCloseInfoModalWithVersions = () => {
+    setAutoShowVersions(false);
+    packageInfo.closeModal();
   }
 
   const handleSort = (key: SortKey) => {
@@ -103,6 +121,23 @@ export function useInstalledPackages() {
     } finally {
       await heldStore.refetch();
       installedPackagesStore.checkForUpdates();
+      setOperatingOn(null);
+    }
+  };
+
+  const handleSwitchVersion = async (pkgName: string, version: string) => {
+    setOperatingOn(pkgName);
+    try {
+      await invoke("switch_package_version", {
+        packageName: pkgName,
+        targetVersion: version,
+        global: false, // TODO: Add support for global packages
+      });
+    } catch (err) {
+      console.error(`Failed to switch package ${pkgName} to version ${version}:`, err);
+    } finally {
+      // Refresh packages list to reflect any changes
+      await refetch();
       setOperatingOn(null);
     }
   };
@@ -147,6 +182,8 @@ export function useInstalledPackages() {
     selectedBucket, 
     setSelectedBucket,
     operatingOn,
+    isPackageVersioned,
+    autoShowVersions,
     
     // Status functionality
     scoopStatus,
@@ -159,8 +196,10 @@ export function useInstalledPackages() {
     info: packageInfo.info,
     infoLoading: packageInfo.loading,
     infoError: packageInfo.error,
-    handleFetchPackageInfo: packageInfo.fetchPackageInfo,
+    handleFetchPackageInfo,
+    handleFetchPackageInfoForVersions,
     handleCloseInfoModal: packageInfo.closeModal,
+    handleCloseInfoModalWithVersions,
     
     // From usePackageOperations
     operationTitle: packageOperations.operationTitle,
@@ -174,6 +213,7 @@ export function useInstalledPackages() {
     handleSort,
     handleHold,
     handleUnhold,
+    handleSwitchVersion,
     fetchInstalledPackages,
     checkForUpdates,
   };

@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { X, CheckCircle, AlertTriangle, Wifi, WifiOff } from "lucide-solid";
+import { X, CheckCircle, AlertTriangle, WifiOff } from "lucide-solid";
 
 interface ScoopStatusModalProps {
   isOpen: boolean;
@@ -131,7 +131,6 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
               <Show when={props.status.is_everything_ok && !props.status.network_failure}>
                 <div class="alert alert-success">
                   <CheckCircle class="w-4 h-4" />
-                  <Wifi class="w-4 h-4" />
                   <span>Scoop is up to date and all packages are in good condition!</span>
                 </div>
               </Show>

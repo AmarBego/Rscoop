@@ -1,10 +1,10 @@
 import { For, Show, createEffect, createSignal, createMemo, Switch, Match } from "solid-js";
-import { ScoopPackage, ScoopInfo } from "../types/scoop";
+import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
-import { Download, MoreHorizontal, FileText, Trash2, ExternalLink } from "lucide-solid";
+import { Download, MoreHorizontal, FileText, Trash2, ExternalLink, RefreshCw } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import { openPath } from '@tauri-apps/plugin-opener';
@@ -20,7 +20,10 @@ interface PackageInfoModalProps {
   onClose: () => void;
   onInstall?: (pkg: ScoopPackage) => void;
   onUninstall?: (pkg: ScoopPackage) => void;
+  onSwitchVersion?: (pkg: ScoopPackage, version: string) => void;
   showBackButton?: boolean;
+  autoShowVersions?: boolean; // Auto-expand version switcher
+  isPackageVersioned?: (packageName: string) => boolean; // Function to check if package has multiple versions
   onPackageStateChanged?: () => void; // Callback for when package state changes
 }
 
@@ -141,10 +144,45 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   const [manifestLoading, setManifestLoading] = createSignal(false);
   const [manifestError, setManifestError] = createSignal<string | null>(null);
 
+  // State for version switching
+  const [versionInfo, setVersionInfo] = createSignal<VersionedPackageInfo | null>(null);
+  const [versionLoading, setVersionLoading] = createSignal(false);
+  const [versionError, setVersionError] = createSignal<string | null>(null);
+  const [switchingVersion, setSwitchingVersion] = createSignal<string | null>(null);
+
   createEffect(() => {
     if (props.info?.notes && codeRef) {
       hljs.highlightElement(codeRef);
     }
+  });
+
+  // Auto-fetch version info if autoShowVersions is true and package is versioned
+  createEffect(() => {
+    if (props.autoShowVersions && props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)) {
+      fetchVersionInfo(props.pkg);
+    }
+  });
+
+  // Clear version info when package changes or autoShowVersions becomes false
+  createEffect(() => {
+    if (!props.autoShowVersions || !props.pkg) {
+      setVersionInfo(null);
+      setVersionError(null);
+      setVersionLoading(false);
+      setSwitchingVersion(null);
+    }
+  });
+
+  // Clear version info when switching to a different package
+  createEffect((prevPackageName) => {
+    const currentPackageName = props.pkg?.name;
+    if (prevPackageName !== undefined && prevPackageName !== currentPackageName) {
+      setVersionInfo(null);
+      setVersionError(null);
+      setVersionLoading(false);
+      setSwitchingVersion(null);
+    }
+    return currentPackageName;
   });
 
   const fetchManifest = async (pkg: ScoopPackage) => {
@@ -171,6 +209,53 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     setManifestContent(null);
     setManifestLoading(false);
     setManifestError(null);
+  };
+
+  const fetchVersionInfo = async (pkg: ScoopPackage) => {
+    setVersionLoading(true);
+    setVersionError(null);
+    setVersionInfo(null);
+
+    try {
+      const result = await invoke<VersionedPackageInfo>("get_package_versions", {
+        packageName: pkg.name,
+        global: false, // TODO: Add support for global packages
+      });
+      setVersionInfo(result);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to fetch versions for ${pkg.name}:`, errorMsg);
+      setVersionError(`Failed to load versions for ${pkg.name}: ${errorMsg}`);
+    } finally {
+      setVersionLoading(false);
+    }
+  };
+
+  const switchVersion = async (pkg: ScoopPackage, targetVersion: string) => {
+    setSwitchingVersion(targetVersion);
+    try {
+      await invoke<string>("switch_package_version", {
+        packageName: pkg.name,
+        targetVersion,
+        global: false, // TODO: Add support for global packages
+      });
+      
+      // Refresh version info after switching
+      await fetchVersionInfo(pkg);
+      
+      // Notify parent that package state may have changed
+      props.onPackageStateChanged?.();
+      
+      // Call the onSwitchVersion callback if provided
+      props.onSwitchVersion?.(pkg, targetVersion);
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to switch ${pkg.name} to version ${targetVersion}:`, errorMsg);
+      setVersionError(`Failed to switch to version ${targetVersion}: ${errorMsg}`);
+    } finally {
+      setSwitchingVersion(null);
+    }
   };
 
   return (
@@ -209,8 +294,35 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                             </button>
                         </li>
                     </Show>
-                    <li><a><i>Placeholder 1</i></a></li>
-                    <li><a><i>Placeholder 2</i></a></li>
+                    <Show when={props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)}>
+                        <li>
+                            <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
+                                <RefreshCw class="w-4 h-4 mr-2" />
+                                Switch Version
+                            </a>
+                        </li>
+                    </Show>
+                    <Show when={props.pkg?.is_installed}>
+                        <li>
+                            <a onClick={async () => {
+                                if (props.pkg) {
+                                    try {
+                                        const debug = await invoke<string>("debug_package_structure", {
+                                            packageName: props.pkg.name,
+                                            global: false,
+                                        });
+                                        console.log("Package structure debug:", debug);
+                                        alert(debug);
+                                    } catch (error) {
+                                        console.error('Debug failed:', error);
+                                    }
+                                }
+                            }}>
+                                <FileText class="w-4 h-4 mr-2" />
+                                Debug Structure
+                            </a>
+                        </li>
+                    </Show>
                 </ul>
               </div>
           </div>
@@ -262,6 +374,62 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                     </pre>
                   </div>
                 </Show>
+              </div>
+            </Show>
+
+            {/* Version Switcher Section */}
+            <Show when={versionInfo()}>
+              <div class="divider">Version Manager</div>
+              <div class="bg-base-300 rounded-lg p-4">
+                <h4 class="text-lg font-medium mb-3">Available Versions</h4>
+                <Show when={versionError()}>
+                  <div role="alert" class="alert alert-error mb-3">
+                    <span>{versionError()}</span>
+                  </div>
+                </Show>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  <For each={versionInfo()?.available_versions || []}>
+                    {(version) => (
+                      <div 
+                        class="card bg-base-100 shadow-sm p-3 transition-all hover:shadow-md"
+                        classList={{
+                          "ring-2 ring-primary": version.is_current,
+                        }}
+                      >
+                        <div class="flex items-center justify-between">
+                          <div>
+                            <div class="font-semibold text-sm">{version.version}</div>
+                            <Show when={version.is_current}>
+                              <div class="text-xs text-primary font-medium">Current</div>
+                            </Show>
+                          </div>
+                          <Show when={!version.is_current}>
+                            <button
+                              class="btn btn-xs btn-primary"
+                              disabled={switchingVersion() === version.version}
+                              onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
+                            >
+                              <Show when={switchingVersion() === version.version}
+                                fallback="Switch"
+                              >
+                                <span class="loading loading-spinner loading-xs"></span>
+                              </Show>
+                            </button>
+                          </Show>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+            </Show>
+
+            <Show when={versionLoading()}>
+              <div class="divider">Version Manager</div>
+              <div class="bg-base-300 rounded-lg p-4">
+                <div class="flex justify-center items-center h-20">
+                  <span class="loading loading-spinner loading-lg"></span>
+                </div>
               </div>
             </Show>
           </div>

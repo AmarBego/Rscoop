@@ -8,6 +8,7 @@ pub mod hold;
 pub mod info;
 pub mod install;
 pub mod installed;
+pub mod linker;
 pub mod manifest;
 pub mod powershell;
 pub mod scoop;

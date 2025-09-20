@@ -133,9 +133,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <For each={props.buckets}>
             {(bucket) => (
-              <div 
-                class="card bg-base-100 shadow hover:shadow-lg transition-all duration-200 border border-base-300 hover:border-primary"
-              >
+            <div class="card bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300">
                 <div class="card-body p-4">
                   {/* Header */}
                   <div class="flex items-start justify-between mb-3 gap-2">
@@ -209,7 +207,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       when={isBucketInstalled(bucket.name)}
                       fallback={
                         <button
-                          class="btn btn-outline btn-primary btn-sm flex-1"
+                          class="btn btn-primary btn-sm flex-1"
                           onClick={(e) => handleInstallBucket(bucket, e)}
                           disabled={bucketInstall.isBucketBusy(bucket.name)}
                           title="Install this bucket"
@@ -230,7 +228,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       }
                     >
                       <button
-                        class="btn btn-outline btn-error btn-sm flex-1"
+                        class="btn btn-error btn-sm flex-1"
                         onClick={(e) => handleRemoveBucket(bucket.name, e)}
                         disabled={bucketInstall.isBucketBusy(bucket.name)}
                         title="Remove this bucket"

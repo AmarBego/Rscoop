@@ -1,6 +1,6 @@
 import { For, Show, Accessor } from "solid-js";
 import { 
-  MoreHorizontal, ArrowUpCircle, Trash2, ArrowUp, ArrowDown, Lock, Unlock
+  MoreHorizontal, ArrowUpCircle, Trash2, ArrowUp, ArrowDown, Lock, Unlock, RefreshCw
 } from 'lucide-solid';
 import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
@@ -15,11 +15,14 @@ interface PackageListViewProps {
   sortKey: Accessor<SortKey>;
   sortDirection: Accessor<'asc' | 'desc'>;
   onViewInfo: (pkg: ScoopPackage) => void;
+  onViewInfoForVersions: (pkg: ScoopPackage) => void;
   onUpdate: (pkg: ScoopPackage) => void;
   onHold: (pkgName: string) => void;
   onUnhold: (pkgName: string) => void;
+  onSwitchVersion: (pkgName: string, version: string) => void;
   onUninstall: (pkg: ScoopPackage) => void;
   operatingOn: Accessor<string | null>;
+  isPackageVersioned: (packageName: string) => boolean;
 }
 
 const SortableHeader = (props: { 
@@ -134,6 +137,16 @@ function PackageListView(props: PackageListViewProps) {
                             </span>
                         </Show>
                       </li>
+                      <Show when={props.isPackageVersioned(pkg.name)}>
+                        <li>
+                          <a onClick={() => {
+                            props.onViewInfoForVersions(pkg);
+                          }}>
+                            <RefreshCw class="w-4 h-4 mr-2" />
+                            Switch Version
+                          </a>
+                        </li>
+                      </Show>
                       <li>
                         <a class="text-error" onClick={() => props.onUninstall(pkg)}>
                           <Trash2 class="w-4 h-4 mr-2" />
