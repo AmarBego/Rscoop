@@ -1,0 +1,485 @@
+{"0": {
+    "doc": "Architecture",
+    "title": "Architecture",
+    "content": "Rscoop is built as a Tauri desktop application that combines a Rust backend with a SolidJS frontend. The diagram below outlines the major layers. ",
+    "url": "/architecture.html",
+    
+    "relUrl": "/architecture.html"
+  },"1": {
+    "doc": "Architecture",
+    "title": "Rust Backend",
+    "content": ". | Entrypoint (src-tauri/src/lib.rs) wires plugins, resolves the Scoop root path, and creates the shared AppState containing cached installed packages and the resolved Scoop directory. | Commands (src-tauri/src/commands) expose Scoop operations to the UI through tauri::invoke_handler. Functionality is grouped by domain: search, installed packages, bucket management, VirusTotal, system doctor, and more. | Cold start (cold_start.rs) preloads Scoop metadata on launch and emits cold-start-finished / scoop-ready events consumed by the frontend before the main UI renders. | Utils (utils.rs) handles PowerShell execution, manifest parsing, caching bucket metadata, and working with Scoop shims and shortcuts. Many commands reuse these helpers to keep logic centralised. | System tray (tray.rs) builds a dynamic tray menu populated with installed Scoop app shortcuts and listens for menu actions to show/hide the main window or launch apps. | . ",
+    "url": "/architecture.html#rust-backend",
+    
+    "relUrl": "/architecture.html#rust-backend"
+  },"2": {
+    "doc": "Architecture",
+    "title": "SolidJS Frontend",
+    "content": ". | The root component (src/App.tsx) listens for backend lifecycle events, manages update banners, and routes between feature pages. | Dedicated hooks (src/hooks) wrap command invocations. Examples include useInstalledPackages for periodic refreshes, useBucketSearch for paginated discovery, and usePackageOperations for install/update orchestration. | Shared stores (src/stores) keep frequently accessed data reactive across the app, such as the installed packages cache and persisted view preferences. | Component folders under src/components/page mirror the page structure, making it easy to locate UI logic for Search, Installed, Buckets, System Doctor, and Settings. | . ",
+    "url": "/architecture.html#solidjs-frontend",
+    
+    "relUrl": "/architecture.html#solidjs-frontend"
+  },"3": {
+    "doc": "Architecture",
+    "title": "Data Flow",
+    "content": ". | UI triggers an action (for example, Install package) through a hook. | The hook calls the matching Rust command using @tauri-apps/api/core.invoke. | The command wraps the Scoop CLI or native helper, streams logs via tauri-plugin-log, and returns structured results. | Hooks update Solid signals/stores, which causes the UI to re-render. Completion events trigger follow-up refreshes (for example, reloading the installed package list). | . ",
+    "url": "/architecture.html#data-flow",
+    
+    "relUrl": "/architecture.html#data-flow"
+  },"4": {
+    "doc": "Architecture",
+    "title": "Caching Strategy",
+    "content": ". | Installed packages and bucket metadata are stored in memory inside AppState to avoid redundant Scoop calls. | Bucket search can persist an expanded index to disk, allowing offline discovery while giving the user explicit control over when to refresh the cache. | Frontend createStoredSignal persists view preferences (such as the selected tab) to localStorage so the experience survives restarts. | . This layered approach keeps Scoop interactions safe in Rust while giving the UI the responsiveness of a modern web app. ",
+    "url": "/architecture.html#caching-strategy",
+    
+    "relUrl": "/architecture.html#caching-strategy"
+  },"5": {
+    "doc": "Architecture",
+    "title": "Related Documentation",
+    "content": ". | Developer Guide - Learn how to set up the development environment and contribute to Rscoop. | User Guide - Explore the features and workflows of Rscoop. | . ",
+    "url": "/architecture.html#related-documentation",
+    
+    "relUrl": "/architecture.html#related-documentation"
+  },"6": {
+    "doc": "Buckets",
+    "title": "Buckets",
+    "content": "Use the Buckets view to manage the repositories that feed Scoop packages into your environment and to discover new sources. ",
+    "url": "/user-guide/buckets.html",
+    
+    "relUrl": "/user-guide/buckets.html"
+  },"7": {
+    "doc": "Buckets",
+    "title": "Installed Buckets",
+    "content": ". | Every bucket you have added appears in the grid with its manifest count and last updated timestamp. | Select a bucket to browse its manifests. Rscoop loads the manifest list via native commands so even large buckets stay responsive. | Click a manifest name to preview the package in the details modal or install it directly. | Use the Update button on a bucket tile to pull the latest commits without leaving the UI. | . ",
+    "url": "/user-guide/buckets.html#installed-buckets",
+    
+    "relUrl": "/user-guide/buckets.html#installed-buckets"
+  },"8": {
+    "doc": "Buckets",
+    "title": "Discover New Buckets",
+    "content": "Activate the discovery panel to: . | Search GitHub for public Scoop buckets with live filtering based on stars, forks, and language preferences. | Trigger an expanded search that downloads an offline index of thousands of community buckets. You choose the star minimum and whether to include Chinese-hosted repositories before Rscoop fetches the data. | Inspect buckets you have not installed yet with full descriptions, star counts, and manifest totals. | Install, validate, or remove buckets using the install wizard backed by the Rust commands in bucket_install.rs. | . ",
+    "url": "/user-guide/buckets.html#discover-new-buckets",
+    
+    "relUrl": "/user-guide/buckets.html#discover-new-buckets"
+  },"9": {
+    "doc": "Buckets",
+    "title": "Cache Controls",
+    "content": "The search panel lets you clear the cached bucket index when you want to refresh remote data. Offline searches remain fast because Rscoop stores the expanded list locally and keeps it in sync when you install new buckets. ",
+    "url": "/user-guide/buckets.html#cache-controls",
+    
+    "relUrl": "/user-guide/buckets.html#cache-controls"
+  },"10": {
+    "doc": "Buckets",
+    "title": "Related Pages",
+    "content": ". | Search - Search for packages within installed buckets. | Settings - Configure bucket-related preferences. | . ",
+    "url": "/user-guide/buckets.html#related-pages",
+    
+    "relUrl": "/user-guide/buckets.html#related-pages"
+  },"11": {
+    "doc": "Developer Guide",
+    "title": "Developer Guide",
+    "content": " ",
+    "url": "/developer-guide.html",
+    
+    "relUrl": "/developer-guide.html"
+  },"12": {
+    "doc": "Developer Guide",
+    "title": "Prerequisites",
+    "content": ". | Node.js 18 or newer | Rust (stable channel) | Scoop installed locally | Visual Studio Build Tools or the Tauri prerequisites for Windows | . ",
+    "url": "/developer-guide.html#prerequisites",
+    
+    "relUrl": "/developer-guide.html#prerequisites"
+  },"13": {
+    "doc": "Developer Guide",
+    "title": "Project Setup",
+    "content": "git clone https://github.com/AmarBego/rscoop.git cd rscoop npm install . Run the desktop app in development mode with hot reload: . npm run tauri dev . Need just the frontend for quick UI iteration? Launch Vite directly: . npm run dev . Build signed installers and portable binaries: . npm run tauri build . Artifacts land in src-tauri/target/release/bundle. ",
+    "url": "/developer-guide.html#project-setup",
+    
+    "relUrl": "/developer-guide.html#project-setup"
+  },"14": {
+    "doc": "Developer Guide",
+    "title": "Directory Layout",
+    "content": ". | src/ = SolidJS frontend, organised by feature pages and shared components. | src-tauri/ = Rust backend, commands, and Tauri configuration. | pics/ = UI screenshots used in documentation and the landing page. | docs/ = GitHub Pages documentation (this site). | . ",
+    "url": "/developer-guide.html#directory-layout",
+    
+    "relUrl": "/developer-guide.html#directory-layout"
+  },"15": {
+    "doc": "Developer Guide",
+    "title": "Rust Backend Notes",
+    "content": ". | Commands live under src-tauri/src/commands. Group related logic in modules to keep the invoke handler readable. | Use the helpers in utils.rs for running PowerShell, probing Scoop state, and interacting with the filesystem. | Long-running tasks should log progress with log::info! / log::warn! so the frontend operation modal can display updates via tauri-plugin-log. | . ",
+    "url": "/developer-guide.html#rust-backend-notes",
+    
+    "relUrl": "/developer-guide.html#rust-backend-notes"
+  },"16": {
+    "doc": "Developer Guide",
+    "title": "Frontend Notes",
+    "content": ". | Hooks in src/hooks encapsulate backend calls and state. Prefer extending a hook rather than duplicating invoke logic inside components. | The installedPackagesStore keeps the canonical list of installed apps. Use its efetch() helper after operations that modify Scoop. | Tailwind + daisyUI components define the design system. Shared styles live in App.css. | . ",
+    "url": "/developer-guide.html#frontend-notes",
+    
+    "relUrl": "/developer-guide.html#frontend-notes"
+  },"17": {
+    "doc": "Developer Guide",
+    "title": "Diagnostics",
+    "content": ". | Enable verbose logging from Settings ? About &amp; Logs or set the RUST_LOG environment variable when launching in development. | The system tray exposes a Refresh Apps entry that reloads Scoop application shortcuts without restarting the app. | . ",
+    "url": "/developer-guide.html#diagnostics",
+    
+    "relUrl": "/developer-guide.html#diagnostics"
+  },"18": {
+    "doc": "Developer Guide",
+    "title": "Related Documentation",
+    "content": ". | Architecture - Dive deeper into the technical design of Rscoop. | Troubleshooting - Common issues and how to resolve them. | User Guide - Understand the user-facing features. | . ",
+    "url": "/developer-guide.html#related-documentation",
+    
+    "relUrl": "/developer-guide.html#related-documentation"
+  },"19": {
+    "doc": "Getting Started",
+    "title": "Getting Started",
+    "content": "Follow the steps below to install Rscoop and take care of the basic first-run tasks. ",
+    "url": "/getting-started.html",
+    
+    "relUrl": "/getting-started.html"
+  },"20": {
+    "doc": "Getting Started",
+    "title": "1. Install Scoop (if you have not already)",
+    "content": "Rscoop wraps the official Scoop CLI. Make sure Scoop is installed and initialized before launching Rscoop. Visit scoop.sh for the installation command and run it from an elevated PowerShell prompt. ",
+    "url": "/getting-started.html#1-install-scoop-if-you-have-not-already",
+    
+    "relUrl": "/getting-started.html#1-install-scoop-if-you-have-not-already"
+  },"21": {
+    "doc": "Getting Started",
+    "title": "2. Download Rscoop",
+    "content": ". | Go to the GitHub Releases page. | Pick the latest release and download either the signed .msi installer or the portable .exe build. | Run the installer. Windows SmartScreen might warn about the download. select More info &gt; Run anyway to continue. | . Tip: After installing from the .msi, restart Rscoop once to ensure the Scoop backend initializes correctly. ",
+    "url": "/getting-started.html#2-download-rscoop",
+    
+    "relUrl": "/getting-started.html#2-download-rscoop"
+  },"22": {
+    "doc": "Getting Started",
+    "title": "3. First Launch Checklist",
+    "content": ". | Start Rscoop from the Start Menu or the portable executable. | The app detects whether it was installed via Scoop. If not, Rscoop will check for updates using the built-in updater plugin. | On the very first launch a welcome banner appears while Scoop buckets and package metadata are cached locally. Let the cold-start process finish before closing the app. | When the tray icon appears you can safely close the window; Rscoop will minimize to the tray unless you disable that behavior in settings. | . ",
+    "url": "/getting-started.html#3-first-launch-checklist",
+    
+    "relUrl": "/getting-started.html#3-first-launch-checklist"
+  },"23": {
+    "doc": "Getting Started",
+    "title": "4. Optional: Configure VirusTotal",
+    "content": "If you have a VirusTotal API key, open Settings ? Security and paste the key. Rscoop will automatically scan packages before installation and block downloads that score above your configured threat threshold. ",
+    "url": "/getting-started.html#4-optional-configure-virustotal",
+    
+    "relUrl": "/getting-started.html#4-optional-configure-virustotal"
+  },"24": {
+    "doc": "Getting Started",
+    "title": "5. Updating Rscoop",
+    "content": ". | Installed via Scoop: updates are managed through Scoop itself. Use scoop update rscoop from PowerShell. | Standalone installer: when a new version is available Rscoop displays an in-app banner. Click Install Now to apply the update and restart the app. | . Ready to explore the UI? Head over to the User Guide for a tour of the major pages and workflows. ",
+    "url": "/getting-started.html#5-updating-rscoop",
+    
+    "relUrl": "/getting-started.html#5-updating-rscoop"
+  },"25": {
+    "doc": "Getting Started",
+    "title": "Next Steps",
+    "content": ". | User Guide - Learn how to use Rscoop’s features. | Settings - Configure VirusTotal and other options. | . ",
+    "url": "/getting-started.html#next-steps",
+    
+    "relUrl": "/getting-started.html#next-steps"
+  },"26": {
+    "doc": "User Guide",
+    "title": "User Guide",
+    "content": "This guide walks through each of the major areas of Rscoop. Use the navigation on the left to jump into detailed instructions for search, installed packages, bucket management, system doctor, and settings. Every page surfaces real-time status from Scoop and is backed by native Rust commands exposed through Tauri. Operations show progress feedback and inject clear error messaging if something goes wrong. If you are in a hurry, start with the Search page to find packages, then move on to Installed to manage what is on your machine. ",
+    "url": "/user-guide/",
+    
+    "relUrl": "/user-guide/"
+  },"27": {
+    "doc": "User Guide",
+    "title": "Quick Links",
+    "content": ". | Search - Find and install packages | Installed - Manage installed packages | Buckets - Discover and manage Scoop buckets | System Health - Run diagnostics and maintenance | Settings - Configure Rscoop and Scoop | . ",
+    "url": "/user-guide/#quick-links",
+    
+    "relUrl": "/user-guide/#quick-links"
+  },"28": {
+    "doc": "Overview",
+    "title": "Rscoop",
+    "content": "Rscoop is a native desktop interface for the Scoop package manager. It pairs a Rust backend with a SolidJS frontend to make discovering, installing, and maintaining Windows software fast and reliable without touching the command line. ",
+    "url": "/#rscoop",
+    
+    "relUrl": "/#rscoop"
+  },"29": {
+    "doc": "Overview",
+    "title": "Highlights",
+    "content": ". | Native Rust services keep search, bucket syncing, and package operations quick even on large Scoop installations. | Rich package metadata: manifests, release notes, shims, cache size, and version history are available in a click. | Advanced Scoop tooling built in, including System Doctor automation, cache cleanup, shim editing, and bucket health checks. | Security first design with optional VirusTotal scanning, granular permission prompts, and audit-friendly logging. | Tray integration that keeps Rscoop running in the background and exposes shortcuts to installed Scoop apps. | . ",
+    "url": "/#highlights",
+    
+    "relUrl": "/#highlights"
+  },"30": {
+    "doc": "Overview",
+    "title": "What You Can Do",
+    "content": ". | Browse entire Scoop ecosystem buckets with instant filtering and an expanded search that works offline once cached. | Install, update, hold, uninstall, or switch versions of packages with progress tracking and actionable feedback. | Keep Scoop healthy using dependency diagnostics, automated helpers for Git and 7-Zip, and one-click cleanup tasks. | Configure Scoop paths, window behavior, update channels, and VirusTotal API keys from a single settings panel. | . ",
+    "url": "/#what-you-can-do",
+    
+    "relUrl": "/#what-you-can-do"
+  },"31": {
+    "doc": "Overview",
+    "title": "System Requirements",
+    "content": ". | Windows 10 version 2004 or newer. | Scoop installed and initialized on the machine. | For development: Node.js 18+, Rust stable toolchain, and the Tauri prerequisites (Visual Studio Build Tools). | . Use the Getting Started section next for installation instructions, or jump straight to the User Guide to explore features. ",
+    "url": "/#system-requirements",
+    
+    "relUrl": "/#system-requirements"
+  },"32": {
+    "doc": "Overview",
+    "title": "Advanced Topics",
+    "content": ". | Architecture - Technical overview of Rscoop’s design. | Developer Guide - Set up a development environment. | . ",
+    "url": "/#advanced-topics",
+    
+    "relUrl": "/#advanced-topics"
+  },"33": {
+    "doc": "Overview",
+    "title": "Overview",
+    "content": " ",
+    "url": "/",
+    
+    "relUrl": "/"
+  },"34": {
+    "doc": "Installed",
+    "title": "Installed",
+    "content": "The Installed view gives you control over everything Scoop is currently managing on your system. ",
+    "url": "/user-guide/installed.html",
+    
+    "relUrl": "/user-guide/installed.html"
+  },"35": {
+    "doc": "Installed",
+    "title": "Overview",
+    "content": ". | Dynamic filters: narrow the list by bucket, switch between grid and list layouts, and filter by name with the search box. | Update awareness: the header shows how many packages have updates available. Use Update All or update packages individually. | Version control: if a package is versioned, you can switch releases or lock a package by holding it at the current version. | Operation tracking: installing, updating, holding, and uninstalling all surface the operation modal with streaming CLI output. | . ",
+    "url": "/user-guide/installed.html#overview",
+    
+    "relUrl": "/user-guide/installed.html#overview"
+  },"36": {
+    "doc": "Installed",
+    "title": "Scoop Status Modal",
+    "content": "Select Check Scoop Status to run the built-in diagnostics. Results include Git and 7-Zip availability, bucket health, and other common Scoop issues. You can trigger helper installs directly from the modal. ",
+    "url": "/user-guide/installed.html#scoop-status-modal",
+    
+    "relUrl": "/user-guide/installed.html#scoop-status-modal"
+  },"37": {
+    "doc": "Installed",
+    "title": "Package Details",
+    "content": "Open any package to see: . | Metadata from the Scoop manifest, including description, homepage, notes, and architecture support. | Cache usage stats and the option to clear cached installers. | Shim details and file locations exposed through the Rust backend. | . When you close the details modal, Rscoop refreshes the package list so the UI always matches Scoop’s state. ",
+    "url": "/user-guide/installed.html#package-details",
+    
+    "relUrl": "/user-guide/installed.html#package-details"
+  },"38": {
+    "doc": "Installed",
+    "title": "Related Pages",
+    "content": ". | Buckets - Add more packages by installing additional buckets. | System Health - Run diagnostics to ensure Scoop is healthy. | . ",
+    "url": "/user-guide/installed.html#related-pages",
+    
+    "relUrl": "/user-guide/installed.html#related-pages"
+  },"39": {
+    "doc": "Search",
+    "title": "Search",
+    "content": "The Search view is the quickest way to find applications across every bucket you have installed. ",
+    "url": "/user-guide/search.html",
+    
+    "relUrl": "/user-guide/search.html"
+  },"40": {
+    "doc": "Search",
+    "title": "Key Actions",
+    "content": ". | Instant results: typing in the search bar queries the native Rust search engine, returning matches from all buckets via the local cache. | Packages vs includes: use the tabs above the results to switch between primary packages and binaries shipped inside those packages. | Package metadata: select any result to open the package details modal with manifest data, release notes, install size, and Scoop commands ready to copy. | One-click install: press Install on a result to queue the package installer. Progress and output stream into the operation modal so you can follow along. | . ",
+    "url": "/user-guide/search.html#key-actions",
+    
+    "relUrl": "/user-guide/search.html#key-actions"
+  },"41": {
+    "doc": "Search",
+    "title": "Tips",
+    "content": ". | Click the help icon next to the search input to see advanced tips like using quotes for exact matches. | Toggle the manifest view in the modal to read the full Scoop manifest without leaving Rscoop. | When VirusTotal scanning is enabled, packages display the scan result before the install begins. | . ",
+    "url": "/user-guide/search.html#tips",
+    
+    "relUrl": "/user-guide/search.html#tips"
+  },"42": {
+    "doc": "Search",
+    "title": "Next Steps",
+    "content": "After installing packages, head to the Installed page to manage them. ",
+    "url": "/user-guide/search.html#next-steps",
+    
+    "relUrl": "/user-guide/search.html#next-steps"
+  },"43": {
+    "doc": "Security & Privacy",
+    "title": "Security &amp; Privacy",
+    "content": "Rscoop takes security seriously while preserving the transparency of the Scoop ecosystem. ",
+    "url": "/security.html#security--privacy",
+    
+    "relUrl": "/security.html#security--privacy"
+  },"44": {
+    "doc": "Security & Privacy",
+    "title": "VirusTotal Integration",
+    "content": ". | Optional scanning runs before every install when you provide an API key. | The backend requests the hash report and blocks the operation if the detection ratio exceeds your threshold. | Cancelling an install from the scan dialog leaves Scoop untouched and records the decision in the log. | . ",
+    "url": "/security.html#virustotal-integration",
+    
+    "relUrl": "/security.html#virustotal-integration"
+  },"45": {
+    "doc": "Security & Privacy",
+    "title": "Code Signing",
+    "content": ". | Windows builds are signed through SignPath.io using a certificate issued by the SignPath Foundation. | Signed installers reduce SmartScreen warnings and give you a verifiable chain of custody for each release. | . ",
+    "url": "/security.html#code-signing",
+    
+    "relUrl": "/security.html#code-signing"
+  },"46": {
+    "doc": "Security & Privacy",
+    "title": "Trusted Operations",
+    "content": ". | Core package actions delegate to the official Scoop CLI, so Rscoop never reimplements package installation logic. | Rust commands wrap Scoop invocations to provide progress updates, parse errors, and prevent destructive defaults. | Logging is handled by tauri-plugin-log with outputs to both stdout and the per-user log directory for auditing. | . ",
+    "url": "/security.html#trusted-operations",
+    
+    "relUrl": "/security.html#trusted-operations"
+  },"47": {
+    "doc": "Security & Privacy",
+    "title": "Privacy",
+    "content": "Rscoop does not transmit telemetry or personal data. Network requests are limited to the services you explicitly use: Scoop buckets, VirusTotal (if configured), and release checks. ",
+    "url": "/security.html#privacy",
+    
+    "relUrl": "/security.html#privacy"
+  },"48": {
+    "doc": "Security & Privacy",
+    "title": "Security & Privacy",
+    "content": " ",
+    "url": "/security.html",
+    
+    "relUrl": "/security.html"
+  },"49": {
+    "doc": "Settings",
+    "title": "Settings",
+    "content": "Customize how Rscoop behaves and how it integrates with Scoop from the Settings page. ",
+    "url": "/user-guide/settings.html",
+    
+    "relUrl": "/user-guide/settings.html"
+  },"50": {
+    "doc": "Settings",
+    "title": "Scoop Configuration",
+    "content": ". | Review the detected Scoop root path and override it if you keep Scoop somewhere non-standard. | Saving a new path updates the backend store; restart Rscoop so every command picks up the change. | . ",
+    "url": "/user-guide/settings.html#scoop-configuration",
+    
+    "relUrl": "/user-guide/settings.html#scoop-configuration"
+  },"51": {
+    "doc": "Settings",
+    "title": "Window Behavior",
+    "content": ". | Toggle whether closing the window sends Rscoop to the system tray instead of exiting. | Reset the first-time tray notification if you want to show the reminder again on the next close event. | . ",
+    "url": "/user-guide/settings.html#window-behavior",
+    
+    "relUrl": "/user-guide/settings.html#window-behavior"
+  },"52": {
+    "doc": "Settings",
+    "title": "Security",
+    "content": ". | Provide a VirusTotal API key to enable pre-install scanning. | Configure the maximum threat score Rscoop will tolerate before cancelling an install. | Decide whether the app should stop and wait for your confirmation when a scan is still pending. | . ",
+    "url": "/user-guide/settings.html#security",
+    
+    "relUrl": "/user-guide/settings.html#security"
+  },"53": {
+    "doc": "Settings",
+    "title": "Held Packages",
+    "content": ". | Review every package currently marked as held. | Remove holds directly from the list or jump to the Installed view for additional actions. | . ",
+    "url": "/user-guide/settings.html#held-packages",
+    
+    "relUrl": "/user-guide/settings.html#held-packages"
+  },"54": {
+    "doc": "Settings",
+    "title": "About &amp; Logs",
+    "content": ". | See the current Rscoop version, release channel, and log directory. | Enable verbose logging when you are troubleshooting backend issues. | . ",
+    "url": "/user-guide/settings.html#about--logs",
+    
+    "relUrl": "/user-guide/settings.html#about--logs"
+  },"55": {
+    "doc": "Settings",
+    "title": "Related Pages",
+    "content": ". | Getting Started - Initial setup and configuration. | User Guide - Overview of all user guide sections. | . ",
+    "url": "/user-guide/settings.html#related-pages",
+    
+    "relUrl": "/user-guide/settings.html#related-pages"
+  },"56": {
+    "doc": "System Health",
+    "title": "System Health",
+    "content": "The System Doctor consolidates every Scoop maintenance task into a single dashboard. ",
+    "url": "/user-guide/system-health.html",
+    
+    "relUrl": "/user-guide/system-health.html"
+  },"57": {
+    "doc": "System Health",
+    "title": "Checkup",
+    "content": ". | Runs the sfsu diagnostics through the native un_scoop_checkup command. | Highlights missing requirements such as Git, 7-Zip, or broken shims and lets you install helpers with one click. | Updates automatically after each helper install so you can confirm the fix without reopening the modal. | . ",
+    "url": "/user-guide/system-health.html#checkup",
+    
+    "relUrl": "/user-guide/system-health.html#checkup"
+  },"58": {
+    "doc": "System Health",
+    "title": "Cleanup",
+    "content": ". | Clean up old app versions runs scoop cleanup * in a safe wrapper to reclaim disk space. | Clean outdated cache deletes stale installer archives without touching versioned installs. | Long-running operations stream their progress into the shared operation modal. | . ",
+    "url": "/user-guide/system-health.html#cleanup",
+    
+    "relUrl": "/user-guide/system-health.html#cleanup"
+  },"59": {
+    "doc": "System Health",
+    "title": "Cache Manager",
+    "content": ". | Lists every cached installer file with size information so you can target the files that matter. | Remove entries individually or clear the entire cache using clear_cache. | . ",
+    "url": "/user-guide/system-health.html#cache-manager",
+    
+    "relUrl": "/user-guide/system-health.html#cache-manager"
+  },"60": {
+    "doc": "System Health",
+    "title": "Shim Manager",
+    "content": ". | Surfaces every Scoop shim along with the file path it points to. | Alter or remove shims directly, or add new shims that point to arbitrary executables. | Backed by the Rust shim commands to avoid corrupting your Scoop installation. | . ",
+    "url": "/user-guide/system-health.html#shim-manager",
+    
+    "relUrl": "/user-guide/system-health.html#shim-manager"
+  },"61": {
+    "doc": "System Health",
+    "title": "Related Pages",
+    "content": ". | Installed - View packages that may need maintenance. | Settings - Adjust system health preferences. | . ",
+    "url": "/user-guide/system-health.html#related-pages",
+    
+    "relUrl": "/user-guide/system-health.html#related-pages"
+  },"62": {
+    "doc": "Troubleshooting",
+    "title": "Troubleshooting",
+    "content": "Having issues? Start with the checks below. ",
+    "url": "/troubleshooting.html",
+    
+    "relUrl": "/troubleshooting.html"
+  },"63": {
+    "doc": "Troubleshooting",
+    "title": "Known Issues",
+    "content": ". | Fresh installs on .msi builds restart Rscoop once after installation so the backend reconnects to Scoop. | Missing Scoop dependencies run the System Doctor checkup to install Git, 7-Zip, or other helpers automatically. | . ",
+    "url": "/troubleshooting.html#known-issues",
+    
+    "relUrl": "/troubleshooting.html#known-issues"
+  },"64": {
+    "doc": "Troubleshooting",
+    "title": "Scoop Path Problems",
+    "content": ". | Open Settings ? Scoop Configuration and confirm the path matches your environment. | If the path is empty, Rscoop will default to C:\\scoop. Update the value and restart the app if you use a custom location. | . ",
+    "url": "/troubleshooting.html#scoop-path-problems",
+    
+    "relUrl": "/troubleshooting.html#scoop-path-problems"
+  },"65": {
+    "doc": "Troubleshooting",
+    "title": "Bucket Search Fails",
+    "content": ". | Clear the cached bucket index from the discovery panel and try again. | Verify your network access to GitHub if the expanded search download stalls. | . ",
+    "url": "/troubleshooting.html#bucket-search-fails",
+    
+    "relUrl": "/troubleshooting.html#bucket-search-fails"
+  },"66": {
+    "doc": "Troubleshooting",
+    "title": "Operation Failures",
+    "content": ". | Check the operation modal for the last Scoop command issued. | View the log file from Settings ? About &amp; Logs for additional output. Logs live under %APPDATA%\\rscoop\\logs. | . ",
+    "url": "/troubleshooting.html#operation-failures",
+    
+    "relUrl": "/troubleshooting.html#operation-failures"
+  },"67": {
+    "doc": "Troubleshooting",
+    "title": "Still Stuck?",
+    "content": "Open an issue on GitHub with the log excerpts and the Scoop command that fails. Mention whether the app was installed through Scoop or the standalone installer. ",
+    "url": "/troubleshooting.html#still-stuck",
+    
+    "relUrl": "/troubleshooting.html#still-stuck"
+  },"68": {
+    "doc": "Troubleshooting",
+    "title": "Related Documentation",
+    "content": ". | Developer Guide - For developers troubleshooting build or runtime issues. | Getting Started - Revisit installation steps if problems persist. | User Guide - Check specific feature guides for common workflows. | . ",
+    "url": "/troubleshooting.html#related-documentation",
+    
+    "relUrl": "/troubleshooting.html#related-documentation"
+  }
+}

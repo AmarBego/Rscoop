@@ -1,0 +1,16 @@
+title: Rscoop
+description: Modern Windows package manager GUI for Scoop
+remote_theme: just-the-docs/just-the-docs
+plugins:
+  - jekyll-remote-theme
+color_scheme: dark
+search_enabled: true
+logo: assets/images/logo.png
+favicon_ico: assets/images/favicon.ico
+aux_links:
+  "View on GitHub": https://github.com/AmarBego/rscoop
+nav_external_links:
+  - title: Download Rscoop
+    url: https://github.com/AmarBego/Rscoop/releases/latest
+    hide_icon: false
+footer_content: "Copyright (c) 2025 AmarBego"
