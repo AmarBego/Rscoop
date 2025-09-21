@@ -9,7 +9,7 @@ nav_order: 4
 
 The **System Doctor** consolidates every Scoop maintenance task into a single dashboard.
 
-![System Doctor dashboard](/assets/images/doctor.png)
+![Doctor page](/assets/images/doctor.png)
 
 ## Checkup
 
