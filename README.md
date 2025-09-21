@@ -5,6 +5,10 @@
 Rscoop (Rust + Scoop) is a fast, user-friendly graphical interface for [Scoop](https://scoop.sh), the Windows package manager.  
 Manage, search, and install applications with ease through a modern GUI instead of the command line.
 
+## 📚 Documentation
+
+For in-depth guides, usage examples, and detailed explanations, visit the official documentation site:  
+👉 [https://amarbego.github.io/Rscoop/](https://amarbego.github.io/Rscoop/)
 
 ## 🚀 Installation
 
@@ -13,6 +17,7 @@ Manage, search, and install applications with ease through a modern GUI instead 
 3.  Run the installer. That's it!
 
 ### ⚠️ Known Bug: .MSI installer upon updating or fresh install please restart the program for it to work normally ⚠️
+
 
 ## ✨ Features – Scoop GUI for Windows
 
