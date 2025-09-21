@@ -12,7 +12,7 @@ Manage, search, and install applications with ease through a modern GUI instead 
 2.  Download the latest `.msi` installer file or portable `.exe` file.
 3.  Run the installer. That's it!
 
-### ⚠️ Known Bug: upon updating or fresh install please restart the program for it to work normally ⚠️
+### ⚠️ Known Bug: .MSI installer upon updating or fresh install please restart the program for it to work normally ⚠️
 
 ## ✨ Features – Scoop GUI for Windows
 
