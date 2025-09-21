@@ -12,6 +12,8 @@ Manage, search, and install applications with ease through a modern GUI instead 
 2.  Download the latest `.msi` installer file or portable `.exe` file.
 3.  Run the installer. That's it!
 
+### ⚠️ Known Bug: upon updating or fresh install please restart the program for it to work normally ⚠️
+
 ## ✨ Features – Scoop GUI for Windows
 
 Rscoop is more than just a package list. It's a full-fledged, native management toolkit that supercharges your Scoop experience.
@@ -46,8 +48,6 @@ For core actions, Rscoop acts as a seamless wrapper around the battle-tested off
 - **Install, Uninstall, & Update**: Manage packages with the click of a button, backed by Scoop's robust engine.
 - **Security-First Installation**: A standout Rscoop feature. Before installing, the application can automatically scan the package with VirusTotal. This pre-install check protects you from malware by blocking the installation if threats are detected, a safety layer not present in standard Scoop.
 - **System Cleanup**: Easily clean up old package versions to free up disk space.
-
-## ⚠️ Known Bug: upon updating or fresh install please restart the program for it to work normally ⚠️
 
 ## 🖼️ Screenshots
 
