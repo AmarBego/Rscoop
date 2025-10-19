@@ -10,7 +10,6 @@ Having issues? Start with the checks below.
 
 ## Known Issues
 
-- **Fresh installs on .msi builds**  restart Rscoop once after installation so the backend reconnects to Scoop.
 - **Missing Scoop dependencies** run the System Doctor checkup to install Git, 7-Zip, or other helpers automatically.
 
 ## Scoop Path Problems

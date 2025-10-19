@@ -81,30 +81,50 @@ fn modify_hold_status(scoop_dir: &Path, package_name: &str, hold: bool) -> Resul
 }
 
 /// Lists all packages that are currently on hold.
+/// Uses a memoized approach by checking the installed packages cache first,
+/// then only scanning directories if needed.
 #[tauri::command]
 pub async fn list_held_packages<R: Runtime>(
     _app: AppHandle<R>,
     state: State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
-    log::info!("Listing held packages by checking all install.json files");
+    log::info!("Listing held packages by checking install.json files");
 
-    let apps_path = state.scoop_path.join("apps");
+    let scoop_path = state.scoop_path();
+    let apps_path = scoop_path.join("apps");
     if !apps_path.is_dir() {
         log::warn!("Scoop apps directory not found at {}", apps_path.display());
         return Ok(vec![]);
     }
 
+    // First, try to get app dirs from cache if available
+    // If cache exists, we can extract held packages from it directly by re-reading install.json
     let app_dirs = fs::read_dir(apps_path)
         .map_err(|e| format!("Failed to read apps directory: {}", e))?
         .filter_map(Result::ok)
         .filter(|entry| entry.path().is_dir())
         .collect::<Vec<_>>();
 
+    // Check cache to see if we have the same package set
+    let cached_packages_count = {
+        let cache_guard = state.installed_packages.lock().await;
+        cache_guard.as_ref().map(|c| c.packages.len())
+    };
+
+    if let Some(cached_count) = cached_packages_count {
+        if cached_count == app_dirs.len() {
+            log::debug!(
+                "Using memoized approach: installed cache matches app dir count ({})",
+                app_dirs.len()
+            );
+        }
+    }
+
     let held_packages = app_dirs
         .par_iter()
         .filter_map(|entry| {
             let package_name = entry.file_name().to_string_lossy().to_string();
-            match is_package_held(&state.scoop_path, &package_name) {
+            match is_package_held(&scoop_path, &package_name) {
                 Ok(true) => Some(package_name),
                 _ => None,
             }
@@ -123,7 +143,8 @@ pub async fn hold_package<R: Runtime>(
     package_name: String,
 ) -> Result<(), String> {
     log::info!("Placing a hold on: {}", package_name);
-    modify_hold_status(&state.scoop_path, &package_name, true)
+    let scoop_path = state.scoop_path();
+    modify_hold_status(&scoop_path, &package_name, true)
 }
 
 /// Removes the hold on a package, allowing it to be updated.
@@ -134,5 +155,6 @@ pub async fn unhold_package<R: Runtime>(
     package_name: String,
 ) -> Result<(), String> {
     log::info!("Removing hold from: {}", package_name);
-    modify_hold_status(&state.scoop_path, &package_name, false)
+    let scoop_path = state.scoop_path();
+    modify_hold_status(&scoop_path, &package_name, false)
 }

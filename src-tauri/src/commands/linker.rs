@@ -32,59 +32,52 @@ pub async fn get_package_versions(
     package_name: String,
     global: Option<bool>,
 ) -> Result<VersionedPackageInfo, String> {
-    let scoop_path = &state.scoop_path;
-    let is_global = global.unwrap_or(false);
+    let scoop_path = state.scoop_path();
+    let _is_global = global.unwrap_or(false);
 
-    // Determine the apps directory based on global flag
-    let apps_dir = if is_global {
-        scoop_path.join("apps")
-    } else {
-        scoop_path.join("apps")
-    };
+    // Try to use cached versions first
+    {
+        let versions_guard = state.package_versions.lock().await;
+        if let Some(cache) = versions_guard.as_ref() {
+            // Check if the installed packages cache fingerprint matches
+            let installed_guard = state.installed_packages.lock().await;
+            if let Some(installed_cache) = installed_guard.as_ref() {
+                if installed_cache.fingerprint == cache.fingerprint {
+                    // Cache is still valid, use it
+                    if let Some(version_dirs) = cache.versions_map.get(&package_name) {
+                        log::debug!(
+                            "Using cached versions for {}: {} versions",
+                            package_name,
+                            version_dirs.len()
+                        );
+                        // Rebuild package version info from cached data
+                        return build_versioned_package_info(
+                            &scoop_path,
+                            &package_name,
+                            version_dirs.clone(),
+                        )
+                        .await;
+                    }
+                }
+            }
+        }
+    }
 
+    // Cache miss or invalid - perform fresh scan
+    log::debug!(
+        "Cache miss or invalid for package versions, performing fresh scan for {}",
+        package_name
+    );
+
+    let apps_dir = scoop_path.join("apps");
     let package_dir = apps_dir.join(&package_name);
 
     if !package_dir.exists() {
         return Err(format!("Package '{}' is not installed", package_name));
     }
 
-    // Get current version by reading the "current" symlink
-    let current_link = package_dir.join("current");
-    let current_version = if current_link.exists() {
-        match fs::read_link(&current_link) {
-            Ok(target) => {
-                // The target might be absolute or relative path
-                // If it's relative, resolve it relative to package_dir
-                let resolved_target = if target.is_absolute() {
-                    target.clone()
-                } else {
-                    package_dir.join(&target)
-                };
-
-                if let Some(version) = resolved_target.file_name() {
-                    let version_str = version.to_string_lossy().to_string();
-                    log::info!(
-                        "Detected current version for {}: {} (from target: {:?})",
-                        package_name,
-                        version_str,
-                        target
-                    );
-                    version_str
-                } else {
-                    return Err(format!(
-                        "Could not determine current version from target: {:?}",
-                        target
-                    ));
-                }
-            }
-            Err(e) => return Err(format!("Could not read current version link: {}", e)),
-        }
-    } else {
-        return Err("No current version link found".to_string());
-    };
-
     // List all version directories
-    let mut versions = Vec::new();
+    let mut version_dirs = Vec::new();
 
     if let Ok(entries) = fs::read_dir(&package_dir) {
         for entry in entries {
@@ -101,23 +94,79 @@ pub async fn get_package_versions(
 
                         // Check if this looks like a version directory
                         if is_version_directory(&path) {
-                            let is_current = dir_name_str == current_version;
-                            log::info!(
-                                "Found version directory for {}: {} (current: {})",
-                                package_name,
-                                dir_name_str,
-                                is_current
-                            );
-                            versions.push(PackageVersion {
-                                version: dir_name_str.clone(),
-                                is_current,
-                                install_path: path.to_string_lossy().to_string(),
-                            });
+                            version_dirs.push(dir_name_str);
                         }
                     }
                 }
             }
         }
+    }
+
+    // Update the cache
+    {
+        let mut versions_guard = state.package_versions.lock().await;
+        if let Ok(installed_guard) = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current()
+                .block_on(async { Ok::<_, ()>(state.installed_packages.lock().await) })
+        }) {
+            if let Some(installed_cache) = installed_guard.as_ref() {
+                let mut map = std::collections::HashMap::new();
+                map.insert(package_name.clone(), version_dirs.clone());
+                *versions_guard = Some(crate::state::PackageVersionsCache {
+                    fingerprint: installed_cache.fingerprint.clone(),
+                    versions_map: map,
+                });
+            }
+        }
+    }
+
+    log::info!(
+        "Detected {} versions for: {}",
+        version_dirs.len(),
+        package_name
+    );
+    build_versioned_package_info(&scoop_path, &package_name, version_dirs).await
+}
+
+/// Helper function to build versioned package info from version directories
+async fn build_versioned_package_info(
+    scoop_path: &std::path::Path,
+    package_name: &str,
+    version_dirs: Vec<String>,
+) -> Result<VersionedPackageInfo, String> {
+    let package_dir = scoop_path.join("apps").join(package_name);
+
+    // Get current version
+    let current_link = package_dir.join("current");
+    let current_version = if current_link.exists() {
+        match fs::read_link(&current_link) {
+            Ok(target) => {
+                let resolved_target = if target.is_absolute() {
+                    target.clone()
+                } else {
+                    package_dir.join(&target)
+                };
+                resolved_target
+                    .file_name()
+                    .map(|v| v.to_string_lossy().to_string())
+                    .unwrap_or_default()
+            }
+            Err(_) => String::new(),
+        }
+    } else {
+        String::new()
+    };
+
+    // Build version info
+    let mut versions = Vec::new();
+    for dir_name_str in version_dirs {
+        let is_current = dir_name_str == current_version;
+        let path = package_dir.join(&dir_name_str);
+        versions.push(PackageVersion {
+            version: dir_name_str,
+            is_current,
+            install_path: path.to_string_lossy().to_string(),
+        });
     }
 
     // Sort versions (newest first, with current version prioritized)
@@ -127,31 +176,12 @@ pub async fn get_package_versions(
         } else if b.is_current {
             std::cmp::Ordering::Greater
         } else {
-            // Simple string comparison for now - could be improved with proper version parsing
             b.version.cmp(&a.version)
         }
     });
 
-    log::info!(
-        "Final version info for {}: current={}, available_versions={:?}",
-        package_name,
-        current_version,
-        versions
-            .iter()
-            .map(|v| format!(
-                "{}({})",
-                v.version,
-                if v.is_current {
-                    "current"
-                } else {
-                    "not current"
-                }
-            ))
-            .collect::<Vec<_>>()
-    );
-
     Ok(VersionedPackageInfo {
-        name: package_name,
+        name: package_name.to_string(),
         current_version,
         available_versions: versions,
     })
@@ -165,7 +195,7 @@ pub async fn switch_package_version(
     target_version: String,
     global: Option<bool>,
 ) -> Result<String, String> {
-    let scoop_path = &state.scoop_path;
+    let scoop_path = state.scoop_path();
     let is_global = global.unwrap_or(false);
 
     // Determine the apps directory based on global flag
@@ -373,21 +403,7 @@ fn is_version_directory(path: &Path) -> bool {
     let manifest_file = path.join("manifest.json");
     let install_json = path.join("install.json");
 
-    let has_manifest = manifest_file.exists();
-    let has_install = install_json.exists();
-    let is_version_dir = has_manifest || has_install;
-
-    if let Some(dir_name) = path.file_name() {
-        log::debug!(
-            "Checking directory {}: manifest={}, install={}, is_version_dir={}",
-            dir_name.to_string_lossy(),
-            has_manifest,
-            has_install,
-            is_version_dir
-        );
-    }
-
-    is_version_dir
+    manifest_file.exists() || install_json.exists()
 }
 
 /// Get packages that have multiple versions installed
@@ -396,15 +412,39 @@ pub async fn get_versioned_packages(
     state: State<'_, AppState>,
     global: Option<bool>,
 ) -> Result<Vec<String>, String> {
-    let scoop_path = &state.scoop_path;
-    let is_global = global.unwrap_or(false);
+    let scoop_path = state.scoop_path();
+    let _is_global = global.unwrap_or(false);
 
-    let apps_dir = if is_global {
-        scoop_path.join("apps")
-    } else {
-        scoop_path.join("apps")
-    };
+    let apps_dir = scoop_path.join("apps");
 
+    // Try to use cached versions if available
+    {
+        let versions_guard = state.package_versions.lock().await;
+        if let Some(cache) = versions_guard.as_ref() {
+            // Check if the installed packages cache fingerprint matches
+            let installed_guard = state.installed_packages.lock().await;
+            if let Some(installed_cache) = installed_guard.as_ref() {
+                if installed_cache.fingerprint == cache.fingerprint {
+                    // Cache is valid, use it to find versioned packages
+                    let versioned: Vec<String> = cache
+                        .versions_map
+                        .iter()
+                        .filter(|(_, versions)| versions.len() > 1)
+                        .map(|(name, _)| name.clone())
+                        .collect();
+
+                    log::debug!(
+                        "Using cached versions to find versioned packages: {} found",
+                        versioned.len()
+                    );
+                    return Ok(versioned);
+                }
+            }
+        }
+    }
+
+    // Cache miss - scan directories to find versioned packages
+    log::debug!("Cache miss for versioned packages, performing fresh scan");
     let mut versioned_packages = Vec::new();
 
     if let Ok(entries) = fs::read_dir(&apps_dir) {
@@ -416,7 +456,7 @@ pub async fn get_versioned_packages(
                         let package_name_str = package_name.to_string_lossy().to_string();
 
                         // Count version directories (excluding "current")
-                        let mut version_count = 0;
+                        let mut version_dirs = Vec::new();
                         if let Ok(package_entries) = fs::read_dir(&package_path) {
                             for package_entry in package_entries {
                                 if let Ok(package_entry) = package_entry {
@@ -424,7 +464,7 @@ pub async fn get_versioned_packages(
                                     if path.is_dir() {
                                         let dir_name = path.file_name().unwrap().to_string_lossy();
                                         if dir_name != "current" && is_version_directory(&path) {
-                                            version_count += 1;
+                                            version_dirs.push(dir_name.to_string());
                                         }
                                     }
                                 }
@@ -432,8 +472,29 @@ pub async fn get_versioned_packages(
                         }
 
                         // If more than one version is installed, it's a versioned package
-                        if version_count > 1 {
-                            versioned_packages.push(package_name_str);
+                        if version_dirs.len() > 1 {
+                            versioned_packages.push(package_name_str.clone());
+
+                            // Update the cache with this package's versions
+                            let mut versions_guard = state.package_versions.lock().await;
+                            if let Ok(installed_guard) = tokio::task::block_in_place(|| {
+                                tokio::runtime::Handle::current().block_on(async {
+                                    Ok::<_, ()>(state.installed_packages.lock().await)
+                                })
+                            }) {
+                                if let Some(installed_cache) = installed_guard.as_ref() {
+                                    if versions_guard.is_none() {
+                                        *versions_guard =
+                                            Some(crate::state::PackageVersionsCache {
+                                                fingerprint: installed_cache.fingerprint.clone(),
+                                                versions_map: std::collections::HashMap::new(),
+                                            });
+                                    }
+                                    if let Some(cache) = versions_guard.as_mut() {
+                                        cache.versions_map.insert(package_name_str, version_dirs);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -442,6 +503,10 @@ pub async fn get_versioned_packages(
     }
 
     versioned_packages.sort();
+    log::info!(
+        "Programs detected with multiple versions: {}",
+        versioned_packages.len()
+    );
     Ok(versioned_packages)
 }
 
@@ -452,7 +517,7 @@ pub async fn debug_package_structure(
     package_name: String,
     global: Option<bool>,
 ) -> Result<String, String> {
-    let scoop_path = &state.scoop_path;
+    let scoop_path = state.scoop_path();
     let is_global = global.unwrap_or(false);
 
     let apps_dir = if is_global {

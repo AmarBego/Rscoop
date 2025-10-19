@@ -105,7 +105,8 @@ fn build_tray_menu(
 
     // Get Scoop apps shortcuts using the app state
     let shortcuts_result = if let Some(app_state) = app.try_state::<AppState>() {
-        get_scoop_app_shortcuts_with_path(&app_state.scoop_path)
+        let scoop_path = app_state.scoop_path();
+        get_scoop_app_shortcuts_with_path(scoop_path.as_path())
     } else {
         // Fallback to automatic detection if state is not available
         crate::utils::get_scoop_app_shortcuts()

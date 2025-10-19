@@ -5,10 +5,10 @@
 //! Original source: https://github.com/winpax/sfsu/blob/trunk/src/commands/checkup.rs
 
 use crate::commands::powershell::create_powershell_command;
-use crate::utils;
+use crate::state::AppState;
 use serde::Serialize;
 use std::path::Path;
-use tauri::{AppHandle, Runtime};
+use tauri::State;
 
 // Import Windows-specific checks only on Windows.
 #[cfg(windows)]
@@ -99,10 +99,10 @@ fn check_missing_helpers(scoop_path: &Path) -> Vec<CheckupItem> {
 
 /// Runs the Scoop checkup process, performing various system checks.
 #[tauri::command]
-pub async fn run_scoop_checkup<R: Runtime>(app: AppHandle<R>) -> Result<Vec<CheckupItem>, String> {
+pub async fn run_scoop_checkup(state: State<'_, AppState>) -> Result<Vec<CheckupItem>, String> {
     log::info!("Running native system checkup");
 
-    let scoop_path = utils::resolve_scoop_root(app)?;
+    let scoop_path = state.scoop_path();
 
     // Run the async git check concurrently with the sync checks.
     let git_check_future = check_git_installed();

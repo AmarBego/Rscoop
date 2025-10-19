@@ -203,7 +203,7 @@ pub async fn check_scoop_status<R: Runtime>(
 ) -> Result<ScoopStatus, String> {
     log::info!("Checking scoop status");
 
-    let scoop_path = &state.scoop_path;
+    let scoop_path = state.scoop_path();
     let mut scoop_needs_update = false;
     let mut bucket_needs_update = false;
     let mut network_failure = false;
@@ -219,7 +219,7 @@ pub async fn check_scoop_status<R: Runtime>(
 
     // Check if any buckets need updating
     if !network_failure {
-        for bucket_path in get_local_buckets(scoop_path) {
+        for bucket_path in get_local_buckets(&scoop_path) {
             match test_update_status(&bucket_path) {
                 Ok(needs_update) => {
                     if needs_update {
@@ -253,7 +253,7 @@ pub async fn check_scoop_status<R: Runtime>(
             continue;
         }
 
-        if let Ok(Some(app_status)) = get_app_status(scoop_path, package, &held_packages) {
+        if let Ok(Some(app_status)) = get_app_status(&scoop_path, package, &held_packages) {
             apps_with_issues.push(app_status);
         }
     }

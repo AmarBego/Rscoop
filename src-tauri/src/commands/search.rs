@@ -2,7 +2,6 @@
 use crate::commands::installed::get_installed_packages_full;
 use crate::models::{MatchSource, ScoopPackage, SearchResult};
 use crate::state::AppState;
-use crate::utils;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
@@ -63,7 +62,8 @@ async fn get_manifests<R: tauri::Runtime>(
 
     if is_cold {
         log::info!("Cold search: Populating manifest cache.");
-        let scoop_path = utils::resolve_scoop_root(app)?;
+        let state = app.state::<AppState>();
+        let scoop_path = state.scoop_path();
         let paths = populate_manifest_cache(&scoop_path).await?;
         *guard = Some(paths.clone());
         Ok((paths, true))
@@ -118,9 +118,25 @@ pub async fn search_scoop<R: tauri::Runtime>(
         return Ok(SearchResult::default());
     }
 
-    log::info!("Searching for term: '{}'", term);
+    log::info!("search_scoop: Starting search for term: '{}'", term);
+    let search_start = std::time::Instant::now();
 
     let (manifest_paths, is_cold) = get_manifests(app.clone()).await?;
+    let cache_time = search_start.elapsed();
+
+    if is_cold {
+        log::warn!(
+            "search_scoop: ⚠ Cache was cold! Had to populate manifest cache during search (took {:.2}s). This should not happen if cold-start completed.",
+            cache_time.as_secs_f64()
+        );
+    } else {
+        log::info!(
+            "search_scoop: ✓ Using pre-warmed manifest cache ({} manifests, retrieved in {:.2}ms)",
+            manifest_paths.len(),
+            cache_time.as_millis()
+        );
+    }
+
     let pattern = build_search_regex(&term)?;
 
     let mut packages: Vec<ScoopPackage> = manifest_paths
@@ -196,7 +212,13 @@ pub async fn search_scoop<R: tauri::Runtime>(
         }
     }
 
-    log::info!("Found {} packages matching '{}'", packages.len(), term);
+    let total_time = search_start.elapsed();
+    log::info!(
+        "search_scoop: ✓ Found {} packages matching '{}' in {:.2}s",
+        packages.len(),
+        term,
+        total_time.as_secs_f64()
+    );
 
     Ok(SearchResult { packages, is_cold })
 }
@@ -208,8 +230,30 @@ pub async fn search_scoop<R: tauri::Runtime>(
 pub async fn warm_manifest_cache<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
 ) -> Result<(), String> {
-    let _ = get_manifests(app).await?;
-    Ok(())
+    log::info!("warm_manifest_cache: Starting manifest cache warm-up");
+    let start_time = std::time::Instant::now();
+    let result = get_manifests(app).await;
+    let elapsed = start_time.elapsed();
+
+    match result {
+        Ok((paths, was_cold)) => {
+            log::info!(
+                "warm_manifest_cache: ✓ Cache warmed in {:.2}s - {} manifests loaded (was_cold: {})",
+                elapsed.as_secs_f64(),
+                paths.len(),
+                was_cold
+            );
+            Ok(())
+        }
+        Err(e) => {
+            log::error!(
+                "warm_manifest_cache: ✗ Failed after {:.2}s - {}",
+                elapsed.as_secs_f64(),
+                e
+            );
+            Err(e)
+        }
+    }
 }
 
 /// Invalidates the global manifest cache.

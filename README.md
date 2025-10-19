@@ -16,9 +16,6 @@ For in-depth guides, usage examples, and detailed explanations, visit the offici
 2.  Download the latest `.msi` installer file or portable `.exe` file.
 3.  Run the installer. That's it!
 
-### ⚠️ Known Bug: .MSI installer upon updating or fresh install please restart the program for it to work normally ⚠️
-
-
 ## ✨ Features – Scoop GUI for Windows
 
 Rscoop is more than just a package list. It's a full-fledged, native management toolkit that supercharges your Scoop experience.

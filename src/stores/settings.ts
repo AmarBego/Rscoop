@@ -12,6 +12,9 @@ interface Settings {
     closeToTray: boolean;
     firstTrayNotificationShown: boolean;
   };
+  debug: {
+    enabled: boolean;
+  };
 }
 
 const defaultSettings: Settings = {
@@ -22,6 +25,9 @@ const defaultSettings: Settings = {
   window: {
     closeToTray: true,
     firstTrayNotificationShown: false,
+  },
+  debug: {
+    enabled: false,
   },
 };
 
@@ -40,6 +46,10 @@ function createSettingsStore() {
         window: {
           ...defaultSettings.window,
           ...storedSettings.window,
+        },
+        debug: {
+          ...defaultSettings.debug,
+          ...storedSettings.debug,
         },
       };
     }
@@ -74,7 +84,16 @@ function createSettingsStore() {
     });
   };
 
-  return { settings, setVirusTotalSettings, setWindowSettings };
+  const setDebugSettings = (newDebugSettings: Partial<Settings['debug']>) => {
+    saveSettings({
+      debug: {
+        ...settings.debug,
+        ...newDebugSettings,
+      },
+    });
+  };
+
+  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings };
 }
 
 export default createRoot(createSettingsStore); 

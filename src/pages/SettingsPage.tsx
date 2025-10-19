@@ -6,6 +6,7 @@ import VirusTotalSettings from "../components/page/settings/VirusTotalSettings";
 import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSettings";
 import HeldPackagesManagement from "../components/page/settings/HeldPackagesManagement";
 import AboutSection, { AboutSectionRef } from "../components/page/settings/AboutSection";
+import DebugSettings from "../components/page/settings/DebugSettings";
 import heldStore from "../stores/held";
 
 interface SettingsPageProps {
@@ -36,18 +37,19 @@ function SettingsPage(props: SettingsPageProps) {
         <>
             <div class="p-4 sm:p-6 md:p-8">
                 <h1 class="text-3xl font-bold mb-6">Settings</h1>
-                
+
                 <div class="space-y-8">
                     <ScoopConfiguration />
                     <VirusTotalSettings />
-                    <HeldPackagesManagement 
+                    <HeldPackagesManagement
                         onUnhold={handleUnhold}
                         operationInProgress={!!operationTitle()}
                     />
                     <WindowBehaviorSettings />
-                    <AboutSection 
-                        ref={(r) => (aboutSectionRef = r)} 
-                        isScoopInstalled={props.isScoopInstalled} 
+                    <DebugSettings />
+                    <AboutSection
+                        ref={(r) => (aboutSectionRef = r)}
+                        isScoopInstalled={props.isScoopInstalled}
                     />
                 </div>
             </div>

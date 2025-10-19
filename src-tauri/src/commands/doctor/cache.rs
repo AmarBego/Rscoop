@@ -1,7 +1,6 @@
 //! Commands for managing the Scoop cache.
 use crate::commands::installed::get_installed_packages_full;
 use crate::state::AppState;
-use crate::utils;
 use rayon::prelude::*;
 use serde::Serialize;
 use std::collections::HashSet;
@@ -65,7 +64,8 @@ pub async fn list_cache_contents<R: Runtime>(
 ) -> Result<Vec<CacheEntry>, String> {
     log::info!("Listing cache contents from filesystem with version-awareness");
 
-    let cache_path = utils::resolve_scoop_root(app.clone())?.join("cache");
+    let scoop_path = state.scoop_path();
+    let cache_path = scoop_path.join("cache");
 
     if !cache_path.is_dir() {
         log::warn!("Scoop cache directory not found at: {:?}", cache_path);
@@ -115,7 +115,8 @@ pub async fn clear_cache<R: Runtime>(
         &files
     );
 
-    let cache_path = utils::resolve_scoop_root(app.clone())?.join("cache");
+    let scoop_path = state.scoop_path();
+    let cache_path = scoop_path.join("cache");
 
     if !cache_path.is_dir() {
         return Ok(());

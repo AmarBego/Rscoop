@@ -1,5 +1,5 @@
 //! Commands for managing Scoop shims.
-use crate::utils;
+use crate::state::AppState;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Runtime};
+use tauri::State;
 
 /// Represents a Scoop shim, providing details about its configuration and source.
 #[derive(Serialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -118,9 +118,9 @@ fn process_shim_dir(dir: &Path, is_global: bool) -> Result<Vec<Shim>, String> {
 
 /// Lists all Scoop shims from both local and global shim paths.
 #[tauri::command]
-pub async fn list_shims<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Shim>, String> {
+pub fn list_shims(state: State<'_, AppState>) -> Result<Vec<Shim>, String> {
     log::info!("Listing shims from filesystem");
-    let scoop_path = utils::resolve_scoop_root(app)?;
+    let scoop_path = state.scoop_path();
 
     let local_shims = process_shim_dir(&scoop_path.join("shims"), false)?;
     let global_shims = process_shim_dir(&scoop_path.join("global").join("shims"), true)?;
@@ -136,9 +136,9 @@ pub async fn list_shims<R: Runtime>(app: AppHandle<R>) -> Result<Vec<Shim>, Stri
 
 /// Hides or unhides a shim by renaming its executable.
 #[tauri::command]
-pub async fn alter_shim<R: Runtime>(app: AppHandle<R>, shim_name: String) -> Result<(), String> {
+pub fn alter_shim(state: State<'_, AppState>, shim_name: String) -> Result<(), String> {
     log::info!("Altering shim '{}' on filesystem", shim_name);
-    let scoop_path = utils::resolve_scoop_root(app)?;
+    let scoop_path = state.scoop_path();
 
     let attempt_rename = |dir: &Path| -> Result<bool, String> {
         if !dir.is_dir() {
@@ -192,9 +192,9 @@ fn find_shim_files(scoop_path: &Path, shim_name: &str) -> Result<Vec<PathBuf>, S
 
 /// Removes a shim and all its associated files.
 #[tauri::command]
-pub async fn remove_shim<R: Runtime>(app: AppHandle<R>, shim_name: String) -> Result<(), String> {
+pub fn remove_shim(state: State<'_, AppState>, shim_name: String) -> Result<(), String> {
     log::info!("Removing shim '{}' from filesystem", shim_name);
-    let scoop_path = utils::resolve_scoop_root(app)?;
+    let scoop_path = state.scoop_path();
 
     let files_to_remove = find_shim_files(&scoop_path, &shim_name)?;
 
@@ -213,9 +213,9 @@ pub async fn remove_shim<R: Runtime>(app: AppHandle<R>, shim_name: String) -> Re
 
 /// Adds a new shim for a given executable path.
 #[tauri::command]
-pub async fn add_shim<R: Runtime>(app: AppHandle<R>, args: AddShimArgs) -> Result<(), String> {
+pub fn add_shim(state: State<'_, AppState>, args: AddShimArgs) -> Result<(), String> {
     log::info!("Adding shim '{}' for path '{}'", args.name, args.path);
-    let scoop_path = utils::resolve_scoop_root(app)?;
+    let scoop_path = state.scoop_path();
 
     let shims_dir = if args.global {
         scoop_path.join("global").join("shims")

@@ -1,9 +1,10 @@
 //! Command for fetching detailed information about a Scoop package.
+use crate::state::AppState;
 use crate::utils;
 use serde::Serialize;
 use serde_json::Value;
 use std::fs;
-use tauri::{AppHandle, Runtime};
+use tauri::State;
 
 /// Represents the structured information for a Scoop package, suitable for frontend display.
 #[derive(Serialize, Debug, Clone, Default)]
@@ -94,13 +95,13 @@ fn parse_manifest_details(json_value: &Value) -> (Vec<(String, String)>, Option<
 
 /// Fetches and formats information about a specific Scoop package.
 #[tauri::command]
-pub fn get_package_info<R: Runtime>(
-    app: AppHandle<R>,
+pub fn get_package_info(
+    state: State<'_, AppState>,
     package_name: String,
 ) -> Result<ScoopInfo, String> {
     log::info!("Fetching info for package: {}", package_name);
 
-    let scoop_dir = utils::resolve_scoop_root(app)?;
+    let scoop_dir = state.scoop_path();
     let (manifest_path, bucket_name) =
         utils::locate_package_manifest(&scoop_dir, &package_name, None)?;
 

@@ -7,6 +7,7 @@ import BucketPage from "./pages/BucketPage.tsx";
 import { View } from "./types/scoop.ts";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
+import DebugModal from "./components/DebugModal.tsx";
 import { listen } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
 import { createStoredSignal } from "./hooks/createStoredSignal";
@@ -25,7 +26,7 @@ function App() {
 
     // Always start with false on app launch to ensure loading screen shows
     const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
-    
+
     // Track if the app is installed via Scoop
     const [isScoopInstalled, setIsScoopInstalled] = createSignal<boolean>(false);
 
@@ -34,7 +35,7 @@ function App() {
     const [error, setError] = createSignal<string | null>(null);
     const [update, setUpdate] = createSignal<Update | null>(null);
     const [isInstalling, setIsInstalling] = createSignal(false);
-    
+
     // Track if this is the first ever launch
     const [isFirstLaunch, setIsFirstLaunch] = createSignal(false);
 
@@ -58,12 +59,12 @@ function App() {
             setIsFirstLaunch(true);
             localStorage.setItem("rscoop-has-launched", "true");
         }
-        
+
         try {
             // Check if app is installed via Scoop
             const scoopInstalled = await invoke<boolean>("is_scoop_installation");
             setIsScoopInstalled(scoopInstalled);
-            
+
             // Only check for updates if not installed via Scoop
             if (!scoopInstalled) {
                 info("Checking for application updates...");
@@ -85,7 +86,7 @@ function App() {
         const setupColdStartListeners = async () => {
             const webview = getCurrentWebviewWindow();
             const unlistenFunctions: (() => void)[] = [];
-            
+
             // Listen for window-specific cold-start-finished event
             try {
                 const unlisten1 = await webview.listen<boolean>("cold-start-finished", (event) => {
@@ -96,7 +97,7 @@ function App() {
             } catch (e) {
                 logError(`Failed to register window-specific cold-start-finished listener: ${e}`);
             }
-            
+
             // Listen for global cold-start-finished event as fallback
             try {
                 const unlisten2 = await listen<boolean>("cold-start-finished", (event) => {
@@ -107,7 +108,7 @@ function App() {
             } catch (e) {
                 logError(`Failed to register global cold-start-finished listener: ${e}`);
             }
-            
+
             // Listen for window-specific scoop-ready event
             try {
                 const unlisten3 = await webview.listen<boolean>("scoop-ready", (event) => {
@@ -118,7 +119,7 @@ function App() {
             } catch (e) {
                 logError(`Failed to register window-specific scoop-ready listener: ${e}`);
             }
-            
+
             // Listen for global scoop-ready event as fallback
             try {
                 const unlisten4 = await listen<boolean>("scoop-ready", (event) => {
@@ -129,7 +130,7 @@ function App() {
             } catch (e) {
                 logError(`Failed to register global scoop-ready listener: ${e}`);
             }
-            
+
             return () => {
                 // Clean up all listeners when component unmounts
                 unlistenFunctions.forEach(unlisten => {
@@ -141,7 +142,7 @@ function App() {
                 });
             };
         };
-        
+
         const cleanup = await setupColdStartListeners();
 
         // Handle cold start event payload
@@ -149,7 +150,19 @@ function App() {
             // Only update if not already ready
             if (!isReady() && !error()) {
                 if (payload) {
+                    info("Cold start ready event - triggering installed packages refetch");
                     setReadyFlag("true");
+
+                    // Trigger refetch of installed packages to ensure we get the freshly prefetched data
+                    // Use a small delay to ensure backend event is fully processed
+                    setTimeout(() => {
+                        info("Executing deferred refetch of installed packages");
+                        installedPackagesStore.refetch()
+                            .then(() => info("Refetch completed successfully"))
+                            .catch(err => {
+                                logError(`Failed to refetch installed packages on cold start: ${err}`);
+                            });
+                    }, 100);
                 } else {
                     setError(
                         "Scoop initialization failed. Please make sure Scoop is installed correctly and restart."
@@ -166,7 +179,7 @@ function App() {
                 setReadyFlag("true");
             }
         }, 10000); // 10 second timeout
-        
+
         // Clean up on unmount
         return () => {
             clearTimeout(timeoutId);
@@ -205,7 +218,7 @@ function App() {
             <Show when={!isReady() && !error()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold mb-4">Rscoop</h1>
-                    <p>Getting things ready...</p>
+                    <p>Getting things ready... (upon install/update please be patient)</p>
                     <span class="loading loading-spinner loading-lg mt-4"></span>
                 </div>
             </Show>
@@ -256,6 +269,7 @@ function App() {
                         </ul>
                     </div>
                 </div>
+                <DebugModal />
             </Show>
         </>
     );

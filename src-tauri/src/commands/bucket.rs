@@ -135,7 +135,7 @@ pub async fn get_buckets<R: Runtime>(
 ) -> Result<Vec<BucketInfo>, String> {
     log::info!("Fetching Scoop buckets from filesystem");
 
-    let buckets_path = state.scoop_path.join("buckets");
+    let buckets_path = state.scoop_path().join("buckets");
 
     if !buckets_path.is_dir() {
         log::warn!(
@@ -176,7 +176,7 @@ pub async fn get_bucket_info<R: Runtime>(
 ) -> Result<BucketInfo, String> {
     log::info!("Getting info for bucket: {}", bucket_name);
 
-    let bucket_path = state.scoop_path.join("buckets").join(&bucket_name);
+    let bucket_path = state.scoop_path().join("buckets").join(&bucket_name);
 
     if !bucket_path.exists() {
         return Err(format!("Bucket '{}' does not exist", bucket_name));
@@ -194,7 +194,7 @@ pub async fn get_bucket_manifests<R: Runtime>(
 ) -> Result<Vec<String>, String> {
     log::info!("Getting manifests for bucket: {}", bucket_name);
 
-    let bucket_path = state.scoop_path.join("buckets").join(&bucket_name);
+    let bucket_path = state.scoop_path().join("buckets").join(&bucket_name);
 
     if !bucket_path.exists() {
         return Err(format!("Bucket '{}' does not exist", bucket_name));

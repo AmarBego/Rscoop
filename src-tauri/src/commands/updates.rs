@@ -68,6 +68,7 @@ pub async fn check_for_updates<R: Runtime>(
     log::info!("Checking for updates using filesystem");
 
     let installed_packages = get_installed_packages_full(app.clone(), state.clone()).await?;
+    let scoop_path = state.scoop_path();
 
     // Get a set of held packages for efficient lookup.
     let held_packages: HashSet<String> =
@@ -81,7 +82,7 @@ pub async fn check_for_updates<R: Runtime>(
         .par_iter()
         .filter(|p| !held_packages.contains(&p.name)) // Exclude held packages
         .filter_map(|package| {
-            match check_package_for_update(&state.scoop_path, package) {
+            match check_package_for_update(&scoop_path, package) {
                 Ok(Some(updatable)) => Some(updatable),
                 Ok(None) => None, // Package is up-to-date
                 Err(e) => {

@@ -1,6 +1,6 @@
 [package]
 name = "rscoop"
-version = "1.3.1"
+version = "1.4.0"
 description = "A modern, powerful GUI for Scoop"
 authors = ["AmarBego"]
 license = "MIT"
@@ -27,20 +27,20 @@ serde_json = "1.0"
 log = "0.4.21"
 tauri-plugin-log = { version = "2.7" }
 winreg = "0.55.0"
-reqwest = { version = "0.12.2", features = ["json", "blocking"] }
-csv = "1.3"
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+csv = "1.4"
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
-tokio = { version = "1.39.0", features = ["full"] }
+tokio = { version = "1.48.0", features = ["full"] }
 chrono = { version = "0.4.41", features = ["serde"] }
 dirs = "6.0"
-windows-sys = { version = "0.61.0", features = [
+windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
     "Win32_UI_Shell",
     "Win32_System_Com",
     "Win32_UI_WindowsAndMessaging",
 ] }
-regex = "1.11.1"
+regex = "1.12"
 rayon = "1.10"
 itertools = "0.14"
 once_cell = "1.21.3"

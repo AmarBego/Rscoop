@@ -26,8 +26,34 @@ pub fn run() {
         }));
     }
 
+    // Set up logging with both stdout and file targets
+    // Determine log directory - use LOCALAPPDATA\rscoop\logs on Windows
+    let log_dir = if let Some(local_data) = dirs::data_local_dir() {
+        local_data.join("rscoop").join("logs")
+    } else {
+        std::path::PathBuf::from("./logs")
+    };
+
+    // Create log directory if it doesn't exist
+    let _ = std::fs::create_dir_all(&log_dir);
+
+    let log_plugin = tauri_plugin_log::Builder::new()
+        .targets([
+            Target::new(TargetKind::Stdout),
+            Target::new(TargetKind::Folder {
+                path: log_dir.clone(),
+                file_name: None,
+            }),
+        ])
+        .level(log::LevelFilter::Trace)
+        // Suppress verbose output from external crates
+        .level_for("lnk", log::LevelFilter::Warn)
+        .level_for("reqwest", log::LevelFilter::Warn)
+        .level_for("tauri_plugin_updater", log::LevelFilter::Debug)
+        .build();
+
     builder
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(log_plugin)
         .setup(|app| {
             #[cfg(windows)]
             {
@@ -53,12 +79,7 @@ pub fn run() {
                 }
             };
 
-            let rscoop_state = state::AppState {
-                scoop_path,
-                installed_packages: tokio::sync::Mutex::new(None),
-            };
-
-            app.manage(rscoop_state);
+            app.manage(state::AppState::new(scoop_path));
 
             // Set up system tray
             let _ = tray::setup_system_tray(&app.handle());
@@ -119,15 +140,6 @@ pub fn run() {
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .targets([
-                    Target::new(TargetKind::Stdout),
-                    Target::new(TargetKind::LogDir { file_name: None }),
-                ])
-                .level(log::LevelFilter::Trace)
-                .build(),
-        )
         .invoke_handler(tauri::generate_handler![
             commands::search::search_scoop,
             commands::installed::get_installed_packages_full,
@@ -179,6 +191,9 @@ pub fn run() {
             commands::linker::switch_package_version,
             commands::linker::get_versioned_packages,
             commands::linker::debug_package_structure,
+            commands::debug::get_debug_info,
+            commands::debug::get_app_logs,
+            commands::debug::read_app_log_file,
             tray::refresh_tray_apps_menu
         ])
         .run(tauri::generate_context!())

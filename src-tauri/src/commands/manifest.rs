@@ -1,7 +1,8 @@
 //! Command for fetching the raw JSON manifest of a Scoop package.
+use crate::state::AppState;
 use crate::utils;
 use std::fs;
-use tauri::{AppHandle, Runtime};
+use tauri::State;
 
 /// Fetches the manifest content for a given package from a specific bucket.
 ///
@@ -11,8 +12,8 @@ use tauri::{AppHandle, Runtime};
 /// * `bucket` - The name of the bucket where the package is located. If empty or "None",
 ///              it will search in all available buckets.
 #[tauri::command]
-pub fn get_package_manifest<R: Runtime>(
-    app: AppHandle<R>,
+pub fn get_package_manifest(
+    state: State<'_, AppState>,
     package_name: String,
     bucket: String,
 ) -> Result<String, String> {
@@ -22,7 +23,7 @@ pub fn get_package_manifest<R: Runtime>(
         bucket
     );
 
-    let scoop_dir = utils::resolve_scoop_root(app)?;
+    let scoop_dir = state.scoop_path();
 
     // Handle optional bucket parameter.
     let bucket_option = if bucket.is_empty() || bucket == "None" {

@@ -393,13 +393,8 @@ pub fn get_scoop_app_shortcuts_with_path(
         .join("Programs")
         .join("Scoop Apps");
 
-    log::info!(
-        "Scanning for Scoop Apps shortcuts in: {}",
-        scoop_apps_path.display()
-    );
-
     if !scoop_apps_path.exists() {
-        log::warn!(
+        log::debug!(
             "Scoop Apps directory not found: {}",
             scoop_apps_path.display()
         );
@@ -425,13 +420,15 @@ pub fn get_scoop_app_shortcuts_with_path(
                         icon_path: shortcut_info.icon_path,
                     });
                 } else {
-                    log::warn!("Failed to parse shortcut: {}", path.display());
+                    log::trace!("Failed to parse shortcut: {}", path.display());
                 }
             }
         }
     }
 
-    log::info!("Found {} Scoop Apps shortcuts", shortcuts.len());
+    if !shortcuts.is_empty() {
+        log::info!("Scoop Apps shortcuts detected: {}", shortcuts.len());
+    }
     Ok(shortcuts)
 }
 
@@ -470,10 +467,9 @@ struct ShortcutInfo {
 
 /// Parse a Windows .lnk shortcut file to extract target and working directory
 /// Uses the lnk crate to parse LNK files directly
+/// Verbose byte-level output from the lnk crate is gated behind TRACE level
 #[cfg(windows)]
 fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<ShortcutInfo, String> {
-    log::debug!("Parsing LNK shortcut: {}", path.display());
-
     // Use the lnk crate to parse the shortcut file
     match lnk::ShellLink::open(path, lnk::encoding::WINDOWS_1252) {
         Ok(shortcut) => {
@@ -504,7 +500,7 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
                     let absolute_path = shortcut_dir.join(&target_path);
                     if let Ok(canonical_path) = absolute_path.canonicalize() {
                         target_path = canonical_path.to_string_lossy().to_string();
-                        log::debug!("Resolved relative path to: {}", target_path);
+                        log::trace!("Resolved relative path to: {}", target_path);
                     } else {
                         log::warn!("Failed to canonicalize path: {}", absolute_path.display());
                     }
@@ -540,12 +536,6 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
                 string_data.icon_location().as_ref().map(|s| s.to_string())
             };
 
-            log::info!(
-                "Successfully parsed LNK file - Target: '{}', Working Dir: '{}'",
-                target_path,
-                working_directory
-            );
-
             Ok(ShortcutInfo {
                 target_path,
                 working_directory,
@@ -553,11 +543,10 @@ fn parse_shortcut(path: &PathBuf, _scoop_root: &std::path::Path) -> Result<Short
             })
         }
         Err(e) => {
-            let error_msg = format!("Failed to parse LNK file: {}", e);
-            log::warn!("{}", error_msg);
+            log::trace!("Failed to parse LNK file: {}", e);
 
             // Return error instead of fallback for cleaner error handling
-            Err(error_msg)
+            Err(format!("Failed to parse LNK file: {}", e))
         }
     }
 }
