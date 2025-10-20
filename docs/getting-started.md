@@ -18,8 +18,6 @@ Rscoop wraps the official Scoop CLI. Make sure Scoop is installed and initialize
 2. Pick the latest release and download either the signed .msi installer or the portable .exe build.
 3. Run the installer. Windows SmartScreen might warn about the download. select **More info > Run anyway** to continue.
 
-> **Tip:** After installing from the .msi, restart Rscoop once to ensure the Scoop backend initializes correctly.
-
 ## 3. First Launch Checklist
 
 1. Start Rscoop from the Start Menu or the portable executable.
@@ -34,7 +32,7 @@ If you have a VirusTotal API key, open **Settings ? Security** and paste the key
 ## 5. Updating Rscoop
 
 - **Installed via Scoop:** updates are managed through Scoop itself. Use scoop update rscoop from PowerShell.
-- **Standalone installer:** when a new version is available Rscoop displays an in-app banner. Click **Install Now** to apply the update and restart the app.
+- **Standalone installer:** when a new version is available Rscoop displays an in-app banner. Click **Install Now** to apply the update.
 
 Ready to explore the UI? Head over to the **User Guide** for a tour of the major pages and workflows.
 

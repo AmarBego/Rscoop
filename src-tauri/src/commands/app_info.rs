@@ -11,3 +11,28 @@ pub fn is_scoop_installation() -> bool {
         false
     }
 }
+
+/// Checks if the current working directory matches the application's install directory.
+/// Returns true if they don't match (indicating MSI installation issue).
+#[tauri::command]
+pub fn is_cwd_mismatch() -> bool {
+    if let (Ok(exe_path), Ok(cwd)) = (env::current_exe(), env::current_dir()) {
+        // Get the directory containing the executable
+        let exe_dir = if let Some(parent) = exe_path.parent() {
+            parent.to_path_buf()
+        } else {
+            return false;
+        };
+
+        // Compare the directories
+        exe_dir != cwd
+    } else {
+        false
+    }
+}
+
+/// Closes the application
+#[tauri::command]
+pub fn close_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
+    app.exit(0);
+}

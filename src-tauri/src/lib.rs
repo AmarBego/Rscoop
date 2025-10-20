@@ -187,6 +187,8 @@ pub fn run() {
             commands::bucket_search::clear_bucket_cache,
             commands::bucket_search::check_bucket_cache_exists,
             commands::app_info::is_scoop_installation,
+            commands::app_info::is_cwd_mismatch,
+            commands::app_info::close_app,
             commands::linker::get_package_versions,
             commands::linker::switch_package_version,
             commands::linker::get_versioned_packages,

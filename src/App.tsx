@@ -16,6 +16,8 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 import installedPackagesStore from "./stores/installedPackagesStore";
+import { checkCwdMismatch } from "./utils/installCheck";
+
 
 function App() {
     // Persist selected view across sessions.
@@ -36,8 +38,8 @@ function App() {
     const [update, setUpdate] = createSignal<Update | null>(null);
     const [isInstalling, setIsInstalling] = createSignal(false);
 
-    // Track if this is the first ever launch
-    const [isFirstLaunch, setIsFirstLaunch] = createSignal(false);
+    // Track if there's a CWD mismatch (MSI installation issue)
+    const [hasCwdMismatch, setHasCwdMismatch] = createSignal(false);
 
     const handleInstallUpdate = async () => {
         if (!update()) return;
@@ -52,15 +54,20 @@ function App() {
         }
     };
 
-    onMount(async () => {
-        // Check if this is the first launch
-        const hasLaunchedBefore = localStorage.getItem("rscoop-has-launched");
-        if (!hasLaunchedBefore) {
-            setIsFirstLaunch(true);
-            localStorage.setItem("rscoop-has-launched", "true");
-        }
-
+    const handleCloseApp = async () => {
         try {
+            await invoke("close_app");
+        } catch (e) {
+            console.error("Failed to close app:", e);
+        }
+    };
+
+    onMount(async () => {
+        try {
+            // Check for CWD mismatch (MSI installation issue)
+            const cwdMismatch = await checkCwdMismatch();
+            setHasCwdMismatch(cwdMismatch);
+
             // Check if app is installed via Scoop
             const scoopInstalled = await invoke<boolean>("is_scoop_installation");
             setIsScoopInstalled(scoopInstalled);
@@ -189,7 +196,55 @@ function App() {
 
     return (
         <>
-            <Show when={update() && !error() && !isScoopInstalled()}>
+            <Show when={hasCwdMismatch()}>
+                <div class="flex flex-col items-center justify-center h-screen bg-base-100 p-8 text-white">
+                    <div class="alert outline-warning text-white shadow-lg max-w-lg">
+                        <div class="flex flex-col gap-4 w-full">
+                            <div class="flex items-start gap-3">
+                                <svg class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 9v2m0 4v2m0 4v2M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2h-4m-6 0V3m0 0a2 2 0 012-2h0a2 2 0 012 2v0m0 0h4v4m0-4h0a2 2 0 00-2-2h0a2 2 0 00-2 2v4" />
+                                </svg>
+                                <div>
+                                    <h3 class="font-bold text-lg">MSI Launch Notice</h3>
+                                    <p class="text-sm opacity-90">
+                                        Everything is okay — this isn’t an error. Windows launched the app in a limited mode right after installation.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div class="text-sm opacity-90">
+                                <p><strong>To enable all features, please close and reopen the app</strong> from the Start Menu or Desktop shortcut.</p>
+                            </div>
+
+                            <div class="flex justify-end">
+                                <button class="btn btn-sm btn-outline btn-warning" onClick={handleCloseApp}>
+                                    Close App Now
+                                </button>
+                            </div>
+
+                            <details class="mt-2 text-sm opacity-80">
+                                <summary class="cursor-pointer hover:underline">
+                                    More details (for advanced users)
+                                </summary>
+                                <p class="mt-2">When launched directly from an MSI installer, Windows runs the process in a restricted execution context. This causes:</p>
+                                <ul class="list-disc list-inside mt-1">
+                                    <li>Current working directory (CWD) mismatch</li>
+                                    <li>Limited folder and ACL permissions</li>
+                                    <li>Symlinks may resolve incorrectly</li>
+                                    <li>Process inherits MSI security token limitations</li>
+                                </ul>
+                                <p class="mt-2">This prevents normal initialization. Relaunching outside MSI context fixes this.</p>
+                                <p class="mt-3 opacity-70">
+                                    Have a workaround? <a href="https://github.com/amarbego/rscoop" target="_blank" class="link underline">Open a PR</a>.
+                                </p>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+            </Show>
+
+            <Show when={update() && !error() && !isScoopInstalled() && !hasCwdMismatch()}>
                 <div class="bg-sky-600 text-white p-2 text-center text-sm flex justify-center items-center gap-4">
                     <span>An update to version {update()!.version} is available.</span>
                     <button
@@ -209,13 +264,7 @@ function App() {
                 </div>
             </Show>
 
-            <Show when={isReady() && !error() && isFirstLaunch() && installedPackagesStore.packages().length === 0 && !installedPackagesStore.loading()}>
-                <div class="bg-yellow-500 text-black p-2 text-center text-sm">
-                    <strong>Known Bug:</strong> Upon fresh install restart the app to get it to work normally.
-                </div>
-            </Show>
-
-            <Show when={!isReady() && !error()}>
+            <Show when={!isReady() && !error() && !hasCwdMismatch()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold mb-4">Rscoop</h1>
                     <p>Getting things ready... (upon install/update please be patient)</p>
@@ -223,14 +272,14 @@ function App() {
                 </div>
             </Show>
 
-            <Show when={error()}>
+            <Show when={error() && !hasCwdMismatch()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold text-error mb-4">Error</h1>
                     <p>{error()}</p>
                 </div>
             </Show>
 
-            <Show when={isReady() && !error()}>
+            <Show when={isReady() && !error() && !hasCwdMismatch()}>
                 <div class="drawer">
                     <input id="my-drawer" type="checkbox" class="drawer-toggle" />
                     <div class="drawer-content flex flex-col h-screen">

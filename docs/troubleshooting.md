@@ -25,7 +25,7 @@ Having issues? Start with the checks below.
 ## Operation Failures
 
 - Check the operation modal for the last Scoop command issued.
-- View the log file from **Settings ? About & Logs** for additional output. Logs live under %APPDATA%\rscoop\logs.
+- View the log file from **Settings ? Enable Logs** for additional output. Logs live under %APPDATA%\rscoop\logs.
 
 ## Still Stuck?
 

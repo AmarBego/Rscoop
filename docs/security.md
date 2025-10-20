@@ -14,11 +14,6 @@ Rscoop takes security seriously while preserving the transparency of the Scoop e
 - The backend requests the hash report and blocks the operation if the detection ratio exceeds your threshold.
 - Cancelling an install from the scan dialog leaves Scoop untouched and records the decision in the log.
 
-## Code Signing
-
-- Windows builds are signed through [SignPath.io](https://signpath.io) using a certificate issued by the SignPath Foundation.
-- Signed installers reduce SmartScreen warnings and give you a verifiable chain of custody for each release.
-
 ## Trusted Operations
 
 - Core package actions delegate to the official Scoop CLI, so Rscoop never reimplements package installation logic.

@@ -399,18 +399,6 @@ pub async fn get_installed_packages_full<R: Runtime>(
     scan_installed_packages_internal(app, &state, false).await
 }
 
-/// Warms up the installed packages cache during cold start.
-/// Performs an initial scan without debouncing and logs at warmup level.
-/// This is separate from user-initiated refresh to reduce log noise.
-pub async fn warmup_installed_packages<R: Runtime>(
-    app: AppHandle<R>,
-    state: State<'_, AppState>,
-) -> Result<Vec<ScoopPackage>, String> {
-    log::info!("=== INSTALLED WARMUP === Starting warmup scan");
-    state.update_refresh_time();
-    scan_installed_packages_internal(app, &state, true).await
-}
-
 /// Invalidates the cached list of installed packages in AppState.
 /// This should be called after operations that change the installed packages,
 /// such as installing or uninstalling a package.

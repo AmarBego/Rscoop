@@ -81,12 +81,6 @@ Rscoop wouldn't be possible without the incredible work of the open-source commu
 
 This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 
-## Code Signing Policy
-
-For Windows binaries, this program uses free code signing provided by [SignPath.io](https://signpath.io), and a certificate by the [SignPath Foundation](https://signpath.org/).
-
-(Since this is currently a solo-maintained project, all roles are handled by the maintainer.)
-
 ## For Developers
 
 ### Prerequisites
