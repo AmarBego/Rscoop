@@ -148,7 +148,7 @@
   },"21": {
     "doc": "Getting Started",
     "title": "2. Download Rscoop",
-    "content": ". | Go to the GitHub Releases page. | Pick the latest release and download either the signed .msi installer or the portable .exe build. | Run the installer. Windows SmartScreen might warn about the download. select More info &gt; Run anyway to continue. | . Tip: After installing from the .msi, restart Rscoop once to ensure the Scoop backend initializes correctly. ",
+    "content": ". | Go to the GitHub Releases page. | Pick the latest release and download either the signed .msi installer or the portable .exe build. | Run the installer. Windows SmartScreen might warn about the download. select More info &gt; Run anyway to continue. | . ",
     "url": "/getting-started.html#2-download-rscoop",
     
     "relUrl": "/getting-started.html#2-download-rscoop"
@@ -169,7 +169,7 @@
   },"24": {
     "doc": "Getting Started",
     "title": "5. Updating Rscoop",
-    "content": ". | Installed via Scoop: updates are managed through Scoop itself. Use scoop update rscoop from PowerShell. | Standalone installer: when a new version is available Rscoop displays an in-app banner. Click Install Now to apply the update and restart the app. | . Ready to explore the UI? Head over to the User Guide for a tour of the major pages and workflows. ",
+    "content": ". | Installed via Scoop: updates are managed through Scoop itself. Use scoop update rscoop from PowerShell. | Standalone installer: when a new version is available Rscoop displays an in-app banner. Click Install Now to apply the update. | . Ready to explore the UI? Head over to the User Guide for a tour of the major pages and workflows. ",
     "url": "/getting-started.html#5-updating-rscoop",
     
     "relUrl": "/getting-started.html#5-updating-rscoop"
@@ -315,166 +315,159 @@
     "relUrl": "/security.html#virustotal-integration"
   },"45": {
     "doc": "Security & Privacy",
-    "title": "Code Signing",
-    "content": ". | Windows builds are signed through SignPath.io using a certificate issued by the SignPath Foundation. | Signed installers reduce SmartScreen warnings and give you a verifiable chain of custody for each release. | . ",
-    "url": "/security.html#code-signing",
-    
-    "relUrl": "/security.html#code-signing"
-  },"46": {
-    "doc": "Security & Privacy",
     "title": "Trusted Operations",
     "content": ". | Core package actions delegate to the official Scoop CLI, so Rscoop never reimplements package installation logic. | Rust commands wrap Scoop invocations to provide progress updates, parse errors, and prevent destructive defaults. | Logging is handled by tauri-plugin-log with outputs to both stdout and the per-user log directory for auditing. | . ",
     "url": "/security.html#trusted-operations",
     
     "relUrl": "/security.html#trusted-operations"
-  },"47": {
+  },"46": {
     "doc": "Security & Privacy",
     "title": "Privacy",
     "content": "Rscoop does not transmit telemetry or personal data. Network requests are limited to the services you explicitly use: Scoop buckets, VirusTotal (if configured), and release checks. ",
     "url": "/security.html#privacy",
     
     "relUrl": "/security.html#privacy"
-  },"48": {
+  },"47": {
     "doc": "Security & Privacy",
     "title": "Security & Privacy",
     "content": " ",
     "url": "/security.html",
     
     "relUrl": "/security.html"
-  },"49": {
+  },"48": {
     "doc": "Settings",
     "title": "Settings",
     "content": "Customize how Rscoop behaves and how it integrates with Scoop from the Settings page. ",
     "url": "/user-guide/settings.html",
     
     "relUrl": "/user-guide/settings.html"
-  },"50": {
+  },"49": {
     "doc": "Settings",
     "title": "Scoop Configuration",
     "content": ". | Review the detected Scoop root path and override it if you keep Scoop somewhere non-standard. | Saving a new path updates the backend store; restart Rscoop so every command picks up the change. | . ",
     "url": "/user-guide/settings.html#scoop-configuration",
     
     "relUrl": "/user-guide/settings.html#scoop-configuration"
-  },"51": {
+  },"50": {
     "doc": "Settings",
     "title": "Window Behavior",
     "content": ". | Toggle whether closing the window sends Rscoop to the system tray instead of exiting. | Reset the first-time tray notification if you want to show the reminder again on the next close event. | . ",
     "url": "/user-guide/settings.html#window-behavior",
     
     "relUrl": "/user-guide/settings.html#window-behavior"
-  },"52": {
+  },"51": {
     "doc": "Settings",
     "title": "Security",
     "content": ". | Provide a VirusTotal API key to enable pre-install scanning. | Configure the maximum threat score Rscoop will tolerate before cancelling an install. | Decide whether the app should stop and wait for your confirmation when a scan is still pending. | . ",
     "url": "/user-guide/settings.html#security",
     
     "relUrl": "/user-guide/settings.html#security"
-  },"53": {
+  },"52": {
     "doc": "Settings",
     "title": "Held Packages",
     "content": ". | Review every package currently marked as held. | Remove holds directly from the list or jump to the Installed view for additional actions. | . ",
     "url": "/user-guide/settings.html#held-packages",
     
     "relUrl": "/user-guide/settings.html#held-packages"
-  },"54": {
+  },"53": {
     "doc": "Settings",
     "title": "About &amp; Logs",
     "content": ". | See the current Rscoop version, release channel, and log directory. | Enable verbose logging when you are troubleshooting backend issues. | . ",
     "url": "/user-guide/settings.html#about--logs",
     
     "relUrl": "/user-guide/settings.html#about--logs"
-  },"55": {
+  },"54": {
     "doc": "Settings",
     "title": "Related Pages",
     "content": ". | Getting Started - Initial setup and configuration. | User Guide - Overview of all user guide sections. | . ",
     "url": "/user-guide/settings.html#related-pages",
     
     "relUrl": "/user-guide/settings.html#related-pages"
-  },"56": {
+  },"55": {
     "doc": "System Health",
     "title": "System Health",
     "content": "The System Doctor consolidates every Scoop maintenance task into a single dashboard. ",
     "url": "/user-guide/system-health.html",
     
     "relUrl": "/user-guide/system-health.html"
-  },"57": {
+  },"56": {
     "doc": "System Health",
     "title": "Checkup",
     "content": ". | Runs the sfsu diagnostics through the native un_scoop_checkup command. | Highlights missing requirements such as Git, 7-Zip, or broken shims and lets you install helpers with one click. | Updates automatically after each helper install so you can confirm the fix without reopening the modal. | . ",
     "url": "/user-guide/system-health.html#checkup",
     
     "relUrl": "/user-guide/system-health.html#checkup"
-  },"58": {
+  },"57": {
     "doc": "System Health",
     "title": "Cleanup",
     "content": ". | Clean up old app versions runs scoop cleanup * in a safe wrapper to reclaim disk space. | Clean outdated cache deletes stale installer archives without touching versioned installs. | Long-running operations stream their progress into the shared operation modal. | . ",
     "url": "/user-guide/system-health.html#cleanup",
     
     "relUrl": "/user-guide/system-health.html#cleanup"
-  },"59": {
+  },"58": {
     "doc": "System Health",
     "title": "Cache Manager",
     "content": ". | Lists every cached installer file with size information so you can target the files that matter. | Remove entries individually or clear the entire cache using clear_cache. | . ",
     "url": "/user-guide/system-health.html#cache-manager",
     
     "relUrl": "/user-guide/system-health.html#cache-manager"
-  },"60": {
+  },"59": {
     "doc": "System Health",
     "title": "Shim Manager",
     "content": ". | Surfaces every Scoop shim along with the file path it points to. | Alter or remove shims directly, or add new shims that point to arbitrary executables. | Backed by the Rust shim commands to avoid corrupting your Scoop installation. | . ",
     "url": "/user-guide/system-health.html#shim-manager",
     
     "relUrl": "/user-guide/system-health.html#shim-manager"
-  },"61": {
+  },"60": {
     "doc": "System Health",
     "title": "Related Pages",
     "content": ". | Installed - View packages that may need maintenance. | Settings - Adjust system health preferences. | . ",
     "url": "/user-guide/system-health.html#related-pages",
     
     "relUrl": "/user-guide/system-health.html#related-pages"
-  },"62": {
+  },"61": {
     "doc": "Troubleshooting",
     "title": "Troubleshooting",
     "content": "Having issues? Start with the checks below. ",
     "url": "/troubleshooting.html",
     
     "relUrl": "/troubleshooting.html"
-  },"63": {
+  },"62": {
     "doc": "Troubleshooting",
     "title": "Known Issues",
-    "content": ". | Fresh installs on .msi builds restart Rscoop once after installation so the backend reconnects to Scoop. | Missing Scoop dependencies run the System Doctor checkup to install Git, 7-Zip, or other helpers automatically. | . ",
+    "content": ". | Missing Scoop dependencies run the System Doctor checkup to install Git, 7-Zip, or other helpers automatically. | . ",
     "url": "/troubleshooting.html#known-issues",
     
     "relUrl": "/troubleshooting.html#known-issues"
-  },"64": {
+  },"63": {
     "doc": "Troubleshooting",
     "title": "Scoop Path Problems",
     "content": ". | Open Settings ? Scoop Configuration and confirm the path matches your environment. | If the path is empty, Rscoop will default to C:\\scoop. Update the value and restart the app if you use a custom location. | . ",
     "url": "/troubleshooting.html#scoop-path-problems",
     
     "relUrl": "/troubleshooting.html#scoop-path-problems"
-  },"65": {
+  },"64": {
     "doc": "Troubleshooting",
     "title": "Bucket Search Fails",
     "content": ". | Clear the cached bucket index from the discovery panel and try again. | Verify your network access to GitHub if the expanded search download stalls. | . ",
     "url": "/troubleshooting.html#bucket-search-fails",
     
     "relUrl": "/troubleshooting.html#bucket-search-fails"
-  },"66": {
+  },"65": {
     "doc": "Troubleshooting",
     "title": "Operation Failures",
-    "content": ". | Check the operation modal for the last Scoop command issued. | View the log file from Settings ? About &amp; Logs for additional output. Logs live under %APPDATA%\\rscoop\\logs. | . ",
+    "content": ". | Check the operation modal for the last Scoop command issued. | View the log file from Settings ? Enable Logs for additional output. Logs live under %APPDATA%\\rscoop\\logs. | . ",
     "url": "/troubleshooting.html#operation-failures",
     
     "relUrl": "/troubleshooting.html#operation-failures"
-  },"67": {
+  },"66": {
     "doc": "Troubleshooting",
     "title": "Still Stuck?",
     "content": "Open an issue on GitHub with the log excerpts and the Scoop command that fails. Mention whether the app was installed through Scoop or the standalone installer. ",
     "url": "/troubleshooting.html#still-stuck",
     
     "relUrl": "/troubleshooting.html#still-stuck"
-  },"68": {
+  },"67": {
     "doc": "Troubleshooting",
     "title": "Related Documentation",
     "content": ". | Developer Guide - For developers troubleshooting build or runtime issues. | Getting Started - Revisit installation steps if problems persist. | User Guide - Check specific feature guides for common workflows. | . ",
