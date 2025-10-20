@@ -1,4 +1,4 @@
-import { createSignal, Show, onMount, createMemo } from "solid-js";
+import { createSignal, Show, onMount, createMemo, createEffect } from "solid-js";
 import "./App.css";
 import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
@@ -40,6 +40,14 @@ function App() {
 
     // Track if there's a CWD mismatch (MSI installation issue)
     const [hasCwdMismatch, setHasCwdMismatch] = createSignal(false);
+
+    // Dev mode: allow bypassing the MSI modal for this session
+    const [bypassCwdMismatch, setBypassCwdMismatch] = createSignal(false);
+
+    // Debug: track state changes
+    createEffect(() => {
+        console.log("MSI State - hasCwdMismatch:", hasCwdMismatch(), "bypassCwdMismatch:", bypassCwdMismatch());
+    });
 
     const handleInstallUpdate = async () => {
         if (!update()) return;
@@ -196,7 +204,7 @@ function App() {
 
     return (
         <>
-            <Show when={hasCwdMismatch()}>
+            <Show when={hasCwdMismatch() && !bypassCwdMismatch()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100 p-8 text-white">
                     <div class="alert outline-warning text-white shadow-lg max-w-lg">
                         <div class="flex flex-col gap-4 w-full">
@@ -217,8 +225,14 @@ function App() {
                                 <p><strong>To enable all features, please close and reopen the app</strong> from the Start Menu or Desktop shortcut.</p>
                             </div>
 
-                            <div class="flex justify-end">
-                                <button class="btn btn-sm btn-outline btn-warning" onClick={handleCloseApp}>
+                            <div class="flex justify-end gap-2">
+                                <button class="btn btn-sm btn-outline btn-neutral" onClick={() => {
+                                    console.log("Proceed Anyway clicked");
+                                    setBypassCwdMismatch(true);
+                                }}>
+                                    Proceed Anyway
+                                </button>
+                                <button class="btn btn-sm btn-outline btn-info" onClick={handleCloseApp}>
                                     Close App Now
                                 </button>
                             </div>
@@ -244,7 +258,7 @@ function App() {
                 </div>
             </Show>
 
-            <Show when={update() && !error() && !isScoopInstalled() && !hasCwdMismatch()}>
+            <Show when={update() && !error() && !isScoopInstalled() && (!hasCwdMismatch() || bypassCwdMismatch())}>
                 <div class="bg-sky-600 text-white p-2 text-center text-sm flex justify-center items-center gap-4">
                     <span>An update to version {update()!.version} is available.</span>
                     <button
@@ -264,7 +278,7 @@ function App() {
                 </div>
             </Show>
 
-            <Show when={!isReady() && !error() && !hasCwdMismatch()}>
+            <Show when={!isReady() && !error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold mb-4">Rscoop</h1>
                     <p>Getting things ready... (upon install/update please be patient)</p>
@@ -272,14 +286,14 @@ function App() {
                 </div>
             </Show>
 
-            <Show when={error() && !hasCwdMismatch()}>
+            <Show when={error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold text-error mb-4">Error</h1>
                     <p>{error()}</p>
                 </div>
             </Show>
 
-            <Show when={isReady() && !error() && !hasCwdMismatch()}>
+            <Show when={isReady() && !error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
                 <div class="drawer">
                     <input id="my-drawer" type="checkbox" class="drawer-toggle" />
                     <div class="drawer-content flex flex-col h-screen">
