@@ -1,6 +1,6 @@
 import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
 import { 
-  Filter, Eye, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle
+  Filter, Eye, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle, RefreshCw
 } from 'lucide-solid';
 
 interface InstalledPageHeaderProps {
@@ -22,6 +22,8 @@ interface InstalledPageHeaderProps {
 
   searchQuery: Accessor<string>;
   setSearchQuery: Setter<string>;
+  
+  onRefresh: () => void;
 }
 
 function InstalledPageHeader(props: InstalledPageHeaderProps) {
@@ -54,6 +56,11 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
     }
   });
 
+  // 切换视图模式的函数
+  const toggleViewMode = () => {
+    props.setViewMode(props.viewMode() === 'grid' ? 'list' : 'grid');
+  };
+
   return (
     <div class="flex justify-between items-center mb-6 h-10">
       <Show
@@ -82,8 +89,17 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
       >
         <h2 class="text-3xl font-bold tracking-tight">Installed Packages</h2>
         <div class="flex items-center gap-2">
+          {/* Refresh Button */}
+          <button 
+            class="btn btn-ghost btn-circle tooltip tooltip-bottom" 
+            data-tip="Refresh"
+            onClick={props.onRefresh}
+          >
+            <RefreshCw class="w-5 h-5" />
+          </button>
+          
           {/* Search Button */}
-          <button class="btn btn-ghost btn-circle" onClick={() => setIsSearchOpen(true)}>
+          <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip="Search" onClick={() => setIsSearchOpen(true)}>
             <Search class="w-5 h-5" />
           </button>
 
@@ -91,7 +107,8 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           <Show when={props.updatableCount() > 0}
             fallback={
               <button 
-                class="btn btn-ghost gap-2" 
+                class="btn btn-ghost btn-circle tooltip tooltip-bottom" 
+                data-tip="Check Status"
                 onClick={props.onCheckStatus}
                 disabled={props.statusLoading?.()}
               >
@@ -106,9 +123,6 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
                 >
                   <span class="loading loading-spinner loading-sm"></span>
                 </Show>
-                <span class="hidden md:inline ">
-                  {props.statusLoading?.() ? "Checking..." : "Check Status"}
-                </span>
               </button>
             }
           >
@@ -121,9 +135,8 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
 
           {/* Filters Dropdown */}
           <div class="dropdown dropdown-end">
-            <label tabindex="0" class="btn btn-ghost gap-2">
+            <label tabindex="0" class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" data-tip="Filter">
               <Filter class="w-4 h-4" />
-              <span class="hidden md:inline">Filter</span>
             </label>
             <div tabindex="0" class="dropdown-content menu p-4 shadow bg-base-300 rounded-box w-64 z-[1]">
               <div class="form-control">
@@ -145,31 +158,23 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
             </div>
           </div>
 
-          {/* View Options Dropdown */}
-          <div class="dropdown dropdown-end">
-            <label tabindex="0" class="btn btn-ghost gap-2">
-              <Eye class="w-4 h-4" />
-              <span class="hidden md:inline">View</span>
-            </label>
-            <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-40 z-[1]">
-              <li>
-                <a classList={{ 'bg-base-400': props.viewMode() === 'list' }} onClick={() => props.setViewMode('list')}>
-                  <List class="w-4 h-4 mr-2" />
-                  List
-                </a>
-              </li>
-              <li>
-                <a classList={{ 'bg-base-400': props.viewMode() === 'grid' }} onClick={() => props.setViewMode('grid')}>
-                  <LayoutGrid class="w-4 h-4 mr-2" />
-                  Grid
-                </a>
-              </li>
-            </ul>
-          </div>
+          {/* View Toggle Button */}
+          <button 
+            class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" 
+            data-tip={props.viewMode() === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
+            onClick={toggleViewMode}
+          >
+            <Show when={props.viewMode() === 'grid'}>
+              <List class="w-4 h-4" />
+            </Show>
+            <Show when={props.viewMode() === 'list'}>
+              <LayoutGrid class="w-4 h-4" />
+            </Show>
+          </button>
         </div>
       </Show>
     </div>
   );
 }
 
-export default InstalledPageHeader; 
+export default InstalledPageHeader;
