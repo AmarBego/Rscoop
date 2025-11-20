@@ -1,6 +1,6 @@
 import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
-import { 
-  Filter, Eye, LayoutGrid, List, ArrowUpCircle, Search, X, CheckCircle, AlertCircle, RefreshCw
+import {
+  Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, RefreshCw
 } from 'lucide-solid';
 
 interface InstalledPageHeaderProps {
@@ -22,7 +22,7 @@ interface InstalledPageHeaderProps {
 
   searchQuery: Accessor<string>;
   setSearchQuery: Setter<string>;
-  
+
   onRefresh: () => void;
 }
 
@@ -56,7 +56,6 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
     }
   });
 
-  // 切换视图模式的函数
   const toggleViewMode = () => {
     props.setViewMode(props.viewMode() === 'grid' ? 'list' : 'grid');
   };
@@ -90,14 +89,14 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
         <h2 class="text-3xl font-bold tracking-tight">Installed Packages</h2>
         <div class="flex items-center gap-2">
           {/* Refresh Button */}
-          <button 
-            class="btn btn-ghost btn-circle tooltip tooltip-bottom" 
+          <button
+            class="btn btn-ghost btn-circle tooltip tooltip-bottom"
             data-tip="Refresh"
             onClick={props.onRefresh}
           >
             <RefreshCw class="w-5 h-5" />
           </button>
-          
+
           {/* Search Button */}
           <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip="Search" onClick={() => setIsSearchOpen(true)}>
             <Search class="w-5 h-5" />
@@ -106,8 +105,8 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           {/* Update All Button or Status Button */}
           <Show when={props.updatableCount() > 0}
             fallback={
-              <button 
-                class="btn btn-ghost btn-circle tooltip tooltip-bottom" 
+              <button
+                class="btn btn-ghost btn-circle tooltip tooltip-bottom"
                 data-tip="Check Status"
                 onClick={props.onCheckStatus}
                 disabled={props.statusLoading?.()}
@@ -115,9 +114,9 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
                 <Show when={props.statusLoading?.()}
                   fallback={
                     <Show when={props.scoopStatus?.()?.is_everything_ok}
-                      fallback={<AlertCircle class="w-4 h-4" />}
+                      fallback={<CircleAlert class="w-4 h-4" />}
                     >
-                      <CheckCircle class="w-4 h-4" />
+                      <CircleCheckBig class="w-4 h-4" />
                     </Show>
                   }
                 >
@@ -127,7 +126,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
             }
           >
             <button class="btn btn-secondary gap-2" onClick={props.onUpdateAll}>
-              <ArrowUpCircle class="w-4 h-4" />
+              <CircleArrowUp class="w-4 h-4" />
               <span class="hidden md:inline">Update All&nbsp;</span>
               <span>({props.updatableCount()})</span>
             </button>
@@ -136,7 +135,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           {/* Filters Dropdown */}
           <div class="dropdown dropdown-end">
             <label tabindex="0" class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" data-tip="Filter">
-              <Filter class="w-4 h-4" />
+              <Funnel class="w-4 h-4" />
             </label>
             <div tabindex="0" class="dropdown-content menu p-4 shadow bg-base-300 rounded-box w-64 z-[1]">
               <div class="form-control">
@@ -159,8 +158,8 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           </div>
 
           {/* View Toggle Button */}
-          <button 
-            class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" 
+          <button
+            class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50"
             data-tip={props.viewMode() === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
             onClick={toggleViewMode}
           >
