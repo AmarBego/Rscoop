@@ -1,4 +1,5 @@
 pub mod app_info;
+pub mod auto_cleanup;
 pub mod bucket;
 pub mod bucket_install;
 pub mod bucket_parser;
@@ -15,8 +16,10 @@ pub mod powershell;
 pub mod scoop;
 pub mod search;
 pub mod settings;
+pub mod startup;
 pub mod status;
 pub mod uninstall;
 pub mod update;
 pub mod updates;
+pub mod version;
 pub mod virustotal;

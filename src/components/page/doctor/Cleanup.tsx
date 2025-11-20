@@ -13,7 +13,7 @@ function Cleanup(props: CleanupProps) {
                     System Cleanup
                 </h2>
                 <p class="text-base-content/80 mb-4">
-                    Free up disk space by removing old package versions and outdated download caches.
+                    Free up disk space by removing old package versions and outdated download caches (this will ignore auto-cleanup constraints).
                 </p>
                 <div class="card-actions justify-start mt-2">
                     <button class="btn btn-primary" onClick={props.onCleanupApps}>

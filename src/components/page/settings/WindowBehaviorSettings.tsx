@@ -10,11 +10,11 @@ function WindowBehaviorSettings() {
     // Load settings from the persistent store on mount
     onMount(async () => {
         try {
-            const closeToTray = await invoke<boolean>("get_config_value", { 
-                key: "window.closeToTray" 
+            const closeToTray = await invoke<boolean>("get_config_value", {
+                key: "window.closeToTray"
             });
-            const firstTrayNotificationShown = await invoke<boolean>("get_config_value", { 
-                key: "window.firstTrayNotificationShown" 
+            const firstTrayNotificationShown = await invoke<boolean>("get_config_value", {
+                key: "window.firstTrayNotificationShown"
             });
 
             if (closeToTray !== null || firstTrayNotificationShown !== null) {
@@ -31,28 +31,13 @@ function WindowBehaviorSettings() {
     const handleCloseToTrayChange = async (enabled: boolean) => {
         setIsSaving(true);
         try {
-            await invoke("set_config_value", { 
-                key: "window.closeToTray", 
-                value: enabled 
+            await invoke("set_config_value", {
+                key: "window.closeToTray",
+                value: enabled
             });
             setWindowSettings({ closeToTray: enabled });
         } catch (error) {
             console.error("Failed to save close to tray setting:", error);
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    const resetFirstTimeNotification = async () => {
-        setIsSaving(true);
-        try {
-            await invoke("set_config_value", { 
-                key: "window.firstTrayNotificationShown", 
-                value: false 
-            });
-            setWindowSettings({ firstTrayNotificationShown: false });
-        } catch (error) {
-            console.error("Failed to reset first time notification:", error);
         } finally {
             setIsSaving(false);
         }
@@ -69,9 +54,9 @@ function WindowBehaviorSettings() {
                     <div class="form-control">
                         <label class="label cursor-pointer">
                             <span class="label-text mr-4">Enable</span>
-                            <input 
-                                type="checkbox" 
-                                class="toggle toggle-primary" 
+                            <input
+                                type="checkbox"
+                                class="toggle toggle-primary"
                                 checked={settings.window.closeToTray}
                                 disabled={isSaving()}
                                 onChange={(e) => handleCloseToTrayChange(e.currentTarget.checked)}
@@ -82,31 +67,13 @@ function WindowBehaviorSettings() {
                 <p class="text-base-content/80 mb-4">
                     Configure how the application window behaves when closing and minimize to system tray options.
                 </p>
-                
+
                 <div class="space-y-4">
                     {settings.window.closeToTray && (
                         <div class="form-control">
                             <p class="text-sm text-base-content/70 mb-2">
                                 When enabled, closing the window will minimize rScoop to the system tray instead of exiting the application
                             </p>
-                        </div>
-                    )}
-
-                    {settings.window.closeToTray && settings.window.firstTrayNotificationShown && (
-                        <div class="form-control">
-                            <label class="label">
-                                <span class="label-text font-medium">First-time notification</span>
-                            </label>
-                            <p class="text-sm text-base-content/70 mb-2">
-                                Reset the first-time tray notification to show again when minimizing to tray
-                            </p>
-                            <button 
-                                class="btn btn-outline btn-sm"
-                                disabled={isSaving()}
-                                onClick={resetFirstTimeNotification}
-                            >
-                                {isSaving() ? "Resetting..." : "Reset Notification"}
-                            </button>
                         </div>
                     )}
                 </div>

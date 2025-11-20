@@ -617,6 +617,54 @@ pub fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String>
     }
 }
 
+/// Command to update all buckets sequentially.
+/// Returns a list of per-bucket results. Non-fatal errors are captured in each result.
+#[command]
+pub async fn update_all_buckets() -> Result<Vec<BucketInstallResult>, String> {
+    log::info!("Updating all buckets (auto-update task)");
+    let buckets_dir = match get_buckets_dir() {
+        Ok(p) => p,
+        Err(e) => return Err(format!("Failed to resolve buckets directory: {}", e)),
+    };
+
+    if !buckets_dir.is_dir() {
+        log::warn!(
+            "Buckets directory does not exist: {}",
+            buckets_dir.display()
+        );
+        return Ok(vec![]);
+    }
+
+    let mut results = Vec::new();
+
+    let entries = match fs::read_dir(&buckets_dir) {
+        Ok(e) => e,
+        Err(e) => return Err(format!("Failed to read buckets directory: {}", e)),
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            match update_bucket(name.to_string()) {
+                Ok(res) => results.push(res),
+                Err(e) => results.push(BucketInstallResult {
+                    success: false,
+                    message: e,
+                    bucket_name: name.to_string(),
+                    bucket_path: Some(path.to_string_lossy().to_string()),
+                    manifest_count: None,
+                }),
+            }
+        }
+    }
+
+    log::info!("Completed updating {} buckets", results.len());
+    Ok(results)
+}
+
 // Command to remove a bucket
 #[command]
 pub async fn remove_bucket(bucket_name: String) -> Result<BucketInstallResult, String> {

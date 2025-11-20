@@ -1,9 +1,10 @@
 //! Commands for uninstalling packages and clearing the cache.
+use crate::commands::auto_cleanup::trigger_auto_cleanup;
 use crate::commands::installed::invalidate_installed_cache;
 use crate::commands::scoop::{self, ScoopOp};
 use crate::commands::search::invalidate_manifest_cache;
 use crate::state::AppState;
-use tauri::{State, Window};
+use tauri::{AppHandle, State, Window};
 
 /// Uninstalls a Scoop package.
 ///
@@ -17,12 +18,13 @@ use tauri::{State, Window};
 #[tauri::command]
 pub async fn uninstall_package(
     window: Window,
+    app: AppHandle,
     state: State<'_, AppState>,
     package_name: String,
     bucket: String,
 ) -> Result<(), String> {
     execute_package_operation(
-        window,
+        window.clone(),
         ScoopOp::Uninstall,
         "Uninstalling",
         &package_name,
@@ -30,7 +32,11 @@ pub async fn uninstall_package(
     )
     .await?;
     invalidate_manifest_cache().await;
-    invalidate_installed_cache(state).await;
+    invalidate_installed_cache(state.clone()).await;
+    
+    // Trigger auto cleanup after uninstall
+    trigger_auto_cleanup(app, state).await;
+    
     Ok(())
 }
 
@@ -46,6 +52,8 @@ pub async fn uninstall_package(
 #[tauri::command]
 pub async fn clear_package_cache(
     window: Window,
+    app: AppHandle,
+    state: State<'_, AppState>,
     package_name: String,
     bucket: String,
 ) -> Result<(), String> {
@@ -56,7 +64,12 @@ pub async fn clear_package_cache(
         &package_name,
         &bucket,
     )
-    .await
+    .await?;
+    
+    // Trigger auto cleanup after clearing cache
+    trigger_auto_cleanup(app, state).await;
+    
+    Ok(())
 }
 
 /// A helper function to execute a Scoop operation on a package.

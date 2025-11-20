@@ -15,6 +15,16 @@ interface Settings {
   debug: {
     enabled: boolean;
   };
+  cleanup: {
+    autoCleanupEnabled: boolean;
+    cleanupOldVersions: boolean;
+    cleanupCache: boolean;
+    preserveVersionCount: number;
+  };
+  buckets: {
+    autoUpdateInterval: string; // "off" | "1h" | "6h" | "24h"
+    autoUpdatePackagesEnabled: boolean;
+  };
 }
 
 const defaultSettings: Settings = {
@@ -28,6 +38,16 @@ const defaultSettings: Settings = {
   },
   debug: {
     enabled: false,
+  },
+  cleanup: {
+    autoCleanupEnabled: false,
+    cleanupOldVersions: true,
+    cleanupCache: true,
+    preserveVersionCount: 3,
+  },
+  buckets: {
+    autoUpdateInterval: "off",
+    autoUpdatePackagesEnabled: false,
   },
 };
 
@@ -50,6 +70,14 @@ function createSettingsStore() {
         debug: {
           ...defaultSettings.debug,
           ...storedSettings.debug,
+        },
+        cleanup: {
+          ...defaultSettings.cleanup,
+          ...storedSettings.cleanup,
+        },
+        buckets: {
+          ...defaultSettings.buckets,
+          ...storedSettings.buckets,
         },
       };
     }
@@ -93,7 +121,25 @@ function createSettingsStore() {
     });
   };
 
-  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings };
+  const setCleanupSettings = (newCleanupSettings: Partial<Settings['cleanup']>) => {
+    saveSettings({
+      cleanup: {
+        ...settings.cleanup,
+        ...newCleanupSettings,
+      },
+    });
+  };
+
+  const setBucketSettings = (newBucketSettings: Partial<Settings['buckets']>) => {
+    saveSettings({
+      buckets: {
+        ...settings.buckets,
+        ...newBucketSettings,
+      },
+    });
+  };
+
+  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings };
 }
 
 export default createRoot(createSettingsStore); 

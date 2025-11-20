@@ -337,49 +337,49 @@
   },"48": {
     "doc": "Settings",
     "title": "Settings",
-    "content": "Customize how Rscoop behaves and how it integrates with Scoop from the Settings page. ",
+    "content": "The Settings page is organized into tabbed categories for clarity. Each tab groups related controls you can tune to customize Rscoop’s behavior. ",
     "url": "/user-guide/settings.html",
     
     "relUrl": "/user-guide/settings.html"
   },"49": {
     "doc": "Settings",
-    "title": "Scoop Configuration",
-    "content": ". | Review the detected Scoop root path and override it if you keep Scoop somewhere non-standard. | Saving a new path updates the backend store; restart Rscoop so every command picks up the change. | . ",
-    "url": "/user-guide/settings.html#scoop-configuration",
+    "title": "1. Automation",
+    "content": "Tools that keep Scoop and packages clean &amp; current without manual intervention. Auto Cleanup . Manages disk usage and stale artifacts: . | Set how many previous versions of each package to retain. | Toggle removal of outdated caches and stale downloads. | Runs automatically after bulk updates or can be triggered manually. | . Bucket Auto Updater . Ensures bucket manifests stay current: . | Choose an interval (e.g. 24h, 7d, or custom). Debug mode allows very short test intervals. | Scheduler persists across restarts: if Rscoop was closed and enough wall‑clock time passed, it will run immediately on launch. | When enabled packages can auto-update right after buckets finish (toggle: “Auto update packages after bucket refresh”). | Background runs stream status to a modal so you can see progress if Rscoop is open; otherwise they log quietly. | . ",
+    "url": "/user-guide/settings.html#1-automation",
     
-    "relUrl": "/user-guide/settings.html#scoop-configuration"
+    "relUrl": "/user-guide/settings.html#1-automation"
   },"50": {
     "doc": "Settings",
-    "title": "Window Behavior",
-    "content": ". | Toggle whether closing the window sends Rscoop to the system tray instead of exiting. | Reset the first-time tray notification if you want to show the reminder again on the next close event. | . ",
-    "url": "/user-guide/settings.html#window-behavior",
+    "title": "2. Management",
+    "content": "Configuration of Scoop’s location and version locks. Scoop Configuration . | Shows detected Scoop root; override if you use a non‑standard path. | Save the new path and restart Rscoop so all commands use it. | . Held Packages . | Displays packages locked (“held”) to specific versions. | Remove a hold directly, or navigate to Installed view for deeper actions. | . ",
+    "url": "/user-guide/settings.html#2-management",
     
-    "relUrl": "/user-guide/settings.html#window-behavior"
+    "relUrl": "/user-guide/settings.html#2-management"
   },"51": {
     "doc": "Settings",
-    "title": "Security",
-    "content": ". | Provide a VirusTotal API key to enable pre-install scanning. | Configure the maximum threat score Rscoop will tolerate before cancelling an install. | Decide whether the app should stop and wait for your confirmation when a scan is still pending. | . ",
-    "url": "/user-guide/settings.html#security",
+    "title": "3. Security",
+    "content": "Integrity and threat scanning integrations. VirusTotal Integration . | Enter your VirusTotal API key to enable pre‑install scanning. | Optional auto‑scan on install: if enabled, Rscoop scans first and only proceeds automatically if clean; otherwise prompts you when detections or missing key states occur. | Configure threat tolerance (maximum detection count or score) and behavior on pending scans. | . ",
+    "url": "/user-guide/settings.html#3-security",
     
-    "relUrl": "/user-guide/settings.html#security"
+    "relUrl": "/user-guide/settings.html#3-security"
   },"52": {
     "doc": "Settings",
-    "title": "Held Packages",
-    "content": ". | Review every package currently marked as held. | Remove holds directly from the list or jump to the Installed view for additional actions. | . ",
-    "url": "/user-guide/settings.html#held-packages",
+    "title": "4. Window &amp; UI",
+    "content": "Application behavior and developer tools. Window Behavior . | Close to tray vs. exit (toggle). | . Startup Settings . | Enable or disable starting Rscoop automatically on Windows boot. | . Debug Mode . | When enabled, shows a Debug button with system info &amp; logs. | Unlocks rapid test intervals (e.g. 10s) for the bucket/package auto‑update scheduler. | . ",
+    "url": "/user-guide/settings.html#4-window--ui",
     
-    "relUrl": "/user-guide/settings.html#held-packages"
+    "relUrl": "/user-guide/settings.html#4-window--ui"
   },"53": {
     "doc": "Settings",
-    "title": "About &amp; Logs",
-    "content": ". | See the current Rscoop version, release channel, and log directory. | Enable verbose logging when you are troubleshooting backend issues. | . ",
-    "url": "/user-guide/settings.html#about--logs",
+    "title": "5. About",
+    "content": "Informational metadata and update controls. Application Info . | Current Rscoop version and links (GitHub repository, issues, etc.). | Manual update check button (skipped if installed via Scoop and external updates are disabled). | . ",
+    "url": "/user-guide/settings.html#5-about",
     
-    "relUrl": "/user-guide/settings.html#about--logs"
+    "relUrl": "/user-guide/settings.html#5-about"
   },"54": {
     "doc": "Settings",
     "title": "Related Pages",
-    "content": ". | Getting Started - Initial setup and configuration. | User Guide - Overview of all user guide sections. | . ",
+    "content": ". | Getting Started – Initial setup and configuration. | User Guide – Overview of all user guide sections. | . ",
     "url": "/user-guide/settings.html#related-pages",
     
     "relUrl": "/user-guide/settings.html#related-pages"

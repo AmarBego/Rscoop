@@ -1,9 +1,10 @@
 //! Command for installing Scoop packages.
+use crate::commands::auto_cleanup::trigger_auto_cleanup;
 use crate::commands::installed::invalidate_installed_cache;
 use crate::commands::scoop::{self, ScoopOp};
 use crate::commands::search::invalidate_manifest_cache;
 use crate::state::AppState;
-use tauri::{State, Window};
+use tauri::{AppHandle, State, Window};
 
 /// Installs a Scoop package, optionally from a specific bucket.
 ///
@@ -14,6 +15,7 @@ use tauri::{State, Window};
 #[tauri::command]
 pub async fn install_package(
     window: Window,
+    app: AppHandle,
     state: State<'_, AppState>,
     package_name: String,
     bucket: String,
@@ -32,6 +34,10 @@ pub async fn install_package(
 
     scoop::execute_scoop(window, ScoopOp::Install, Some(&package_name), bucket_opt).await?;
     invalidate_manifest_cache().await;
-    invalidate_installed_cache(state).await;
+    invalidate_installed_cache(state.clone()).await;
+    
+    // Trigger auto cleanup after install
+    trigger_auto_cleanup(app, state).await;
+    
     Ok(())
 }

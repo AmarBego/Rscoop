@@ -8,6 +8,7 @@ import { View } from "./types/scoop.ts";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
+import OperationModal from "./components/OperationModal.tsx";
 import { listen } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
 import { createStoredSignal } from "./hooks/createStoredSignal";
@@ -44,6 +45,9 @@ function App() {
     // Dev mode: allow bypassing the MSI modal for this session
     const [bypassCwdMismatch, setBypassCwdMismatch] = createSignal(false);
 
+    // Auto-update modal state
+    const [autoUpdateTitle, setAutoUpdateTitle] = createSignal<string | null>(null);
+
     // Debug: track state changes
     createEffect(() => {
         console.log("MSI State - hasCwdMismatch:", hasCwdMismatch(), "bypassCwdMismatch:", bypassCwdMismatch());
@@ -70,11 +74,37 @@ function App() {
         }
     };
 
+    const handleCloseAutoUpdateModal = (wasSuccess: boolean) => {
+        setAutoUpdateTitle(null);
+        if (wasSuccess) {
+            // Refresh installed packages after auto-update
+            installedPackagesStore.refetch();
+        }
+    };
+
     onMount(async () => {
+        // Check if auto-start registry entry is enabled to decide mismatch suppression
+        let autoStartEnabled = false;
+        try { autoStartEnabled = await invoke<boolean>("is_auto_start_enabled"); } catch (e) { console.warn("Failed to query auto-start status", e); }
+        // Detect if this is a new version launch (writes version file if changed)
+        let isNewVersion = false;
+        try { isNewVersion = await invoke<boolean>("check_and_update_version"); } catch (e) { console.warn("Failed to check/update version file", e); }
+
         try {
             // Check for CWD mismatch (MSI installation issue)
             const cwdMismatch = await checkCwdMismatch();
-            setHasCwdMismatch(cwdMismatch);
+            // Show mismatch if it's a new version (force user relaunch) even on auto-start.
+            // Otherwise suppress only when auto-start.
+            if (cwdMismatch) {
+                if (autoStartEnabled && !isNewVersion) {
+                    info("CWD mismatch suppressed (auto-start, not new version)");
+                    setHasCwdMismatch(false);
+                } else {
+                    setHasCwdMismatch(true);
+                }
+            } else {
+                setHasCwdMismatch(false);
+            }
 
             // Check if app is installed via Scoop
             const scoopInstalled = await invoke<boolean>("is_scoop_installation");
@@ -101,6 +131,17 @@ function App() {
         const setupColdStartListeners = async () => {
             const webview = getCurrentWebviewWindow();
             const unlistenFunctions: (() => void)[] = [];
+
+            // Listen for auto-update start events
+            try {
+                const unlisten = await listen<string>("auto-operation-start", (event) => {
+                    info(`Auto-operation started: ${event.payload}`);
+                    setAutoUpdateTitle(event.payload);
+                });
+                unlistenFunctions.push(unlisten);
+            } catch (e) {
+                logError(`Failed to register auto-operation-start listener: ${e}`);
+            }
 
             // Listen for window-specific cold-start-finished event
             try {
@@ -334,6 +375,10 @@ function App() {
                 </div>
                 <DebugModal />
             </Show>
+            <OperationModal
+                title={autoUpdateTitle()}
+                onClose={handleCloseAutoUpdateModal}
+            />
         </>
     );
 }
