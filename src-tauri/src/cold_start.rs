@@ -108,3 +108,9 @@ async fn emit_ready_events_with_retry<R: Runtime>(app: &AppHandle<R>, success: b
         retry_count += 1;
     }
 }
+
+/// Returns whether the cold start sequence has completed successfully.
+#[tauri::command]
+pub fn is_cold_start_ready() -> bool {
+    COLD_START_DONE.load(Ordering::SeqCst)
+}

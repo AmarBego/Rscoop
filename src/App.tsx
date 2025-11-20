@@ -83,51 +83,7 @@ function App() {
     };
 
     onMount(async () => {
-        // Check if auto-start registry entry is enabled to decide mismatch suppression
-        let autoStartEnabled = false;
-        try { autoStartEnabled = await invoke<boolean>("is_auto_start_enabled"); } catch (e) { console.warn("Failed to query auto-start status", e); }
-        // Detect if this is a new version launch (writes version file if changed)
-        let isNewVersion = false;
-        try { isNewVersion = await invoke<boolean>("check_and_update_version"); } catch (e) { console.warn("Failed to check/update version file", e); }
-
-        try {
-            // Check for CWD mismatch (MSI installation issue)
-            const cwdMismatch = await checkCwdMismatch();
-            // Show mismatch if it's a new version (force user relaunch) even on auto-start.
-            // Otherwise suppress only when auto-start.
-            if (cwdMismatch) {
-                if (autoStartEnabled && !isNewVersion) {
-                    info("CWD mismatch suppressed (auto-start, not new version)");
-                    setHasCwdMismatch(false);
-                } else {
-                    setHasCwdMismatch(true);
-                }
-            } else {
-                setHasCwdMismatch(false);
-            }
-
-            // Check if app is installed via Scoop
-            const scoopInstalled = await invoke<boolean>("is_scoop_installation");
-            setIsScoopInstalled(scoopInstalled);
-
-            // Only check for updates if not installed via Scoop
-            if (!scoopInstalled) {
-                info("Checking for application updates...");
-                const updateResult = await check();
-                if (updateResult) {
-                    info(`Update ${updateResult.version} is available.`);
-                    setUpdate(updateResult);
-                } else {
-                    info("Application is up to date.");
-                }
-            } else {
-                info("App is installed via Scoop. Auto-update disabled.");
-            }
-        } catch (e) {
-            console.error("Failed to check for updates", e);
-        }
-
-        // Setup event listeners for both global and window-specific events
+        // Setup event listeners FIRST so early backend emits are captured
         const setupColdStartListeners = async () => {
             const webview = getCurrentWebviewWindow();
             const unlistenFunctions: (() => void)[] = [];
@@ -201,6 +157,56 @@ function App() {
 
         const cleanup = await setupColdStartListeners();
 
+        // After listeners are in place, perform fast local checks (no network) sequentially
+        let autoStartEnabled = false;
+        try { autoStartEnabled = await invoke<boolean>("is_auto_start_enabled"); } catch (e) { console.warn("Failed to query auto-start status", e); }
+        let isNewVersion = false;
+        try { isNewVersion = await invoke<boolean>("check_and_update_version"); } catch (e) { console.warn("Failed to check/update version file", e); }
+        try {
+            const cwdMismatch = await checkCwdMismatch();
+            if (cwdMismatch) {
+                if (autoStartEnabled && !isNewVersion) {
+                    info("CWD mismatch suppressed (auto-start, not new version)");
+                    setHasCwdMismatch(false);
+                } else {
+                    setHasCwdMismatch(true);
+                }
+            } else {
+                setHasCwdMismatch(false);
+            }
+            const scoopInstalled = await invoke<boolean>("is_scoop_installation");
+            setIsScoopInstalled(scoopInstalled);
+            if (scoopInstalled) {
+                info("App is installed via Scoop. Auto-update disabled.");
+            }
+        } catch (e) {
+            console.error("Failed during initial local startup checks", e);
+        }
+
+        // Deferred / concurrent update check logic (network) with timeout; triggered after ready event
+        const triggerUpdateCheck = async () => {
+            if (isScoopInstalled() || update()) return;
+            const TIMEOUT_MS = 4000;
+            let timedOut = false;
+            const timeoutPromise = new Promise<null>(resolve => setTimeout(() => { timedOut = true; resolve(null); }, TIMEOUT_MS));
+            try {
+                info("Checking for application updates...");
+                const result = await Promise.race([check(), timeoutPromise]);
+                if (timedOut) {
+                    info("Update check timed out; continuing without update info.");
+                    return;
+                }
+                if (result) {
+                    info(`Update ${result.version} is available.`);
+                    setUpdate(result);
+                } else {
+                    info("Application is up to date.");
+                }
+            } catch (e) {
+                console.error("Failed to check for updates", e);
+            }
+        };
+
         // Handle cold start event payload
         const handleColdStartEvent = (payload: boolean) => {
             // Only update if not already ready
@@ -219,6 +225,8 @@ function App() {
                                 logError(`Failed to refetch installed packages on cold start: ${err}`);
                             });
                     }, 100);
+                    // Kick off update check shortly after readiness if applicable
+                    setTimeout(() => { triggerUpdateCheck(); }, 150);
                 } else {
                     setError(
                         "Scoop initialization failed. Please make sure Scoop is installed correctly and restart."
@@ -233,8 +241,10 @@ function App() {
             if (!isReady() && !error()) {
                 info("Forcing ready state after timeout");
                 setReadyFlag("true");
+                // Ensure update check still runs even if events were missed
+                triggerUpdateCheck();
             }
-        }, 10000); // 10 second timeout
+        }, 10000);
 
         // Clean up on unmount
         return () => {
@@ -322,7 +332,7 @@ function App() {
             <Show when={!isReady() && !error() && (!hasCwdMismatch() || bypassCwdMismatch())}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
                     <h1 class="text-2xl font-bold mb-4">Rscoop</h1>
-                    <p>Getting things ready... (upon install/update please be patient)</p>
+                    <p>Getting things ready...</p>
                     <span class="loading loading-spinner loading-lg mt-4"></span>
                 </div>
             </Show>

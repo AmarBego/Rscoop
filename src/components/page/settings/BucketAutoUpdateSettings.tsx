@@ -71,7 +71,7 @@ export default function BucketAutoUpdateSettings() {
                     </div>
                 </div>
                 <p class="text-sm text-base-content/70 mb-4">
-                    Automatically run <code>git pull</code> on all installed buckets to keep manifests fresh.
+                    Rscoop will automatically run updates on all installed buckets to keep manifests fresh.
                 </p>
                 <div class="flex flex-col gap-2">
                     {INTERVAL_OPTIONS.map(opt => (
@@ -138,7 +138,7 @@ export default function BucketAutoUpdateSettings() {
                         </label>
                     </div>
                     <div class="mt-2 text-[11px] text-base-content/50">
-                        When enabled, after each scheduled bucket update rScoop will also run <code>scoop update *</code>.
+                        When enabled, after each scheduled bucket update rScoop will update all installed packages.
                     </div>
                 </Show>
 

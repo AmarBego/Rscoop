@@ -34,7 +34,14 @@ pub fn run() {
         std::path::PathBuf::from("./logs")
     };
 
-    // Create log directory if it doesn't exist
+    // Clear existing log files on launch
+    if log_dir.exists() {
+        if let Err(e) = std::fs::remove_dir_all(&log_dir) {
+            eprintln!("Failed to clear old logs: {}", e);
+        }
+    }
+
+    // Create log directory
     let _ = std::fs::create_dir_all(&log_dir);
 
     let log_plugin = tauri_plugin_log::Builder::new()
@@ -54,6 +61,7 @@ pub fn run() {
 
     builder
         .plugin(log_plugin)
+        .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
             #[cfg(windows)]
             {
@@ -329,7 +337,6 @@ pub fn run() {
         .on_page_load(|window, _payload| {
             cold_start::run_cold_start(window.app_handle().clone());
         })
-        .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
@@ -392,6 +399,7 @@ pub fn run() {
             commands::version::check_and_update_version,
             commands::startup::is_auto_start_enabled,
             commands::startup::set_auto_start_enabled,
+            cold_start::is_cold_start_ready,
             tray::refresh_tray_apps_menu
         ])
         .run(tauri::generate_context!())
