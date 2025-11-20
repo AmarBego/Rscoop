@@ -4,7 +4,7 @@ import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
-import { Download, MoreHorizontal, FileText, Trash2, ExternalLink, RefreshCw } from "lucide-solid";
+import { Download, Ellipsis, FileText, Trash2, ExternalLink, RefreshCw } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import { openPath } from '@tauri-apps/plugin-opener';
@@ -239,16 +239,16 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         targetVersion,
         global: false, // TODO: Add support for global packages
       });
-      
+
       // Refresh version info after switching
       await fetchVersionInfo(pkg);
-      
+
       // Notify parent that package state may have changed
       props.onPackageStateChanged?.();
-      
+
       // Call the onSwitchVersion callback if provided
       props.onSwitchVersion?.(pkg, targetVersion);
-      
+
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       console.error(`Failed to switch ${pkg.name} to version ${targetVersion}:`, errorMsg);
@@ -265,68 +265,68 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           <div class="flex justify-between items-start">
             <h3 class="font-bold text-lg">Information for {props.pkg?.name}</h3>
             <div class="dropdown dropdown-end">
-                <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
-                    <MoreHorizontal class="w-5 h-5" />
-                </label>
-                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
-                    <li>
-                        <a onClick={() => props.pkg && fetchManifest(props.pkg)}>
-                            <FileText class="w-4 h-4 mr-2" />
-                            View Manifest
-                        </a>
-                    </li>
-                    <Show when={props.pkg?.is_installed}>
-                        <li>
-                            <button type="button" onClick={async () => {
-                                if (props.pkg) {
-                                    try {
-                                        const packagePath = await invoke<string>("get_package_path", {
-                                            packageName: props.pkg.name
-                                        });
-                                        await openPath(packagePath);
-                                    } catch (error) {
-                                        console.error('Failed to open package path:', error);
-                                    }
-                                }
-                            }}>
-                                <ExternalLink class="w-4 h-4 mr-2" />
-                                Open in Explorer
-                            </button>
-                        </li>
-                    </Show>
-                    <Show when={props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)}>
-                        <li>
-                            <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
-                                <RefreshCw class="w-4 h-4 mr-2" />
-                                Switch Version
-                            </a>
-                        </li>
-                    </Show>
-                    <Show when={props.pkg?.is_installed}>
-                        <li>
-                            <a onClick={async () => {
-                                if (props.pkg) {
-                                    try {
-                                        const debug = await invoke<string>("debug_package_structure", {
-                                            packageName: props.pkg.name,
-                                            global: false,
-                                        });
-                                        console.log("Package structure debug:", debug);
-                                        alert(debug);
-                                    } catch (error) {
-                                        console.error('Debug failed:', error);
-                                    }
-                                }
-                            }}>
-                                <FileText class="w-4 h-4 mr-2" />
-                                Debug Structure
-                            </a>
-                        </li>
-                    </Show>
-                </ul>
-              </div>
+              <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
+                <Ellipsis class="w-5 h-5" />
+              </label>
+              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
+                <li>
+                  <a onClick={() => props.pkg && fetchManifest(props.pkg)}>
+                    <FileText class="w-4 h-4 mr-2" />
+                    View Manifest
+                  </a>
+                </li>
+                <Show when={props.pkg?.is_installed}>
+                  <li>
+                    <button type="button" onClick={async () => {
+                      if (props.pkg) {
+                        try {
+                          const packagePath = await invoke<string>("get_package_path", {
+                            packageName: props.pkg.name
+                          });
+                          await openPath(packagePath);
+                        } catch (error) {
+                          console.error('Failed to open package path:', error);
+                        }
+                      }
+                    }}>
+                      <ExternalLink class="w-4 h-4 mr-2" />
+                      Open in Explorer
+                    </button>
+                  </li>
+                </Show>
+                <Show when={props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)}>
+                  <li>
+                    <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
+                      <RefreshCw class="w-4 h-4 mr-2" />
+                      Switch Version
+                    </a>
+                  </li>
+                </Show>
+                <Show when={props.pkg?.is_installed}>
+                  <li>
+                    <a onClick={async () => {
+                      if (props.pkg) {
+                        try {
+                          const debug = await invoke<string>("debug_package_structure", {
+                            packageName: props.pkg.name,
+                            global: false,
+                          });
+                          console.log("Package structure debug:", debug);
+                          alert(debug);
+                        } catch (error) {
+                          console.error('Debug failed:', error);
+                        }
+                      }
+                    }}>
+                      <FileText class="w-4 h-4 mr-2" />
+                      Debug Structure
+                    </a>
+                  </li>
+                </Show>
+              </ul>
+            </div>
           </div>
-          
+
           <div class="py-4">
             <Show when={props.loading}>
               <div class="flex justify-center items-center h-40">
@@ -390,7 +390,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                 <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   <For each={versionInfo()?.available_versions || []}>
                     {(version) => (
-                      <div 
+                      <div
                         class="card bg-base-100 shadow-sm p-3 transition-all hover:shadow-md"
                         classList={{
                           "ring-2 ring-primary": version.is_current,
@@ -436,7 +436,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           <div class="modal-action">
             <form method="dialog">
               <Show when={!props.pkg?.is_installed && props.onInstall}>
-                <button 
+                <button
                   type="button"
                   class="btn btn-primary mr-2"
                   onClick={() => {

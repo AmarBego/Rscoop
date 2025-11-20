@@ -1,6 +1,6 @@
 import { createSignal, onMount, For, Show, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, AlertTriangle, Inbox, Link, EyeOff, Plus, BookText } from "lucide-solid";
+import { RefreshCw, TriangleAlert, Inbox, Link, EyeOff, Plus, BookText } from "lucide-solid";
 import ShimDetailsModal from "./ShimDetailsModal";
 import AddShimModal from "./AddShimModal";
 
@@ -25,8 +25,8 @@ function ShimManager() {
     const filteredShims = createMemo(() => {
         const f = filter().toLowerCase();
         if (!f) return allShims();
-        return allShims().filter(s => 
-            s.name.toLowerCase().includes(f) || 
+        return allShims().filter(s =>
+            s.name.toLowerCase().includes(f) ||
             s.source.toLowerCase().includes(f)
         );
     });
@@ -79,7 +79,7 @@ function ShimManager() {
         try {
             await invoke("alter_shim", { shimName });
             await fetchShims();
-            
+
             const currentlySelected = selectedShim();
             if (currentlySelected && currentlySelected.name === shimName) {
                 const newShims = allShims();
@@ -99,12 +99,12 @@ function ShimManager() {
     return (
         <div class="card bg-base-200 shadow-xl">
             <div class="card-body">
-                 <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between mb-4">
                     <h2 class="card-title text-xl">
                         Shim Manager
                     </h2>
                     <div class="flex items-center gap-2">
-                        <button 
+                        <button
                             class="btn btn-primary btn-sm"
                             onClick={() => setIsAddModalOpen(true)}
                             disabled={isLoading() || isProcessing()}
@@ -112,12 +112,12 @@ function ShimManager() {
                             <Plus class="w-4 h-4" /> Add Shim
                         </button>
                         <div class="divider divider-horizontal m-1" />
-                        <button 
+                        <button
                             class="btn btn-ghost btn-sm"
-                            onClick={fetchShims} 
+                            onClick={fetchShims}
                             disabled={isLoading() || isProcessing()}
                         >
-                            <RefreshCw classList={{"animate-spin": isLoading()}} />
+                            <RefreshCw classList={{ "animate-spin": isLoading() }} />
                         </button>
                     </div>
                 </div>
@@ -135,7 +135,7 @@ function ShimManager() {
 
 
                     <Show when={error()}>
-                        <div role="alert" class="alert alert-error"><AlertTriangle /><span>{error()}</span></div>
+                        <div role="alert" class="alert alert-error"><TriangleAlert /><span>{error()}</span></div>
                     </Show>
 
                     <Show when={!isLoading() && allShims().length === 0 && !error()}>
@@ -170,10 +170,10 @@ function ShimManager() {
                                                 <td>
                                                     <div class="flex gap-2">
                                                         <Show when={item.isHidden}>
-                                                             <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3"/>Hidden</div>
+                                                            <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3" />Hidden</div>
                                                         </Show>
                                                         <Show when={item.args}>
-                                                             <div class="badge badge-accent gap-1"><BookText class="w-3 h-3"/>Args</div>
+                                                            <div class="badge badge-accent gap-1"><BookText class="w-3 h-3" />Args</div>
                                                         </Show>
                                                     </div>
                                                 </td>
@@ -194,9 +194,9 @@ function ShimManager() {
                             isOperationRunning={isProcessing()}
                         />
                     </Show>
-                    
+
                     <Show when={isAddModalOpen()}>
-                        <AddShimModal 
+                        <AddShimModal
                             onClose={() => setIsAddModalOpen(false)}
                             onAdd={handleAddShim}
                             isOperationRunning={isProcessing()}

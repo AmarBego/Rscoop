@@ -1,18 +1,18 @@
 import { createSignal, onMount, For, Show, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { Trash2, Archive, RefreshCw, AlertTriangle, Inbox } from "lucide-solid";
+import { Trash2, Archive, RefreshCw, TriangleAlert, Inbox } from "lucide-solid";
 import { formatBytes } from "../../../utils/format";
 import ConfirmationModal from "../../ConfirmationModal";
 
 interface CacheEntry {
     name: string;
     version: string;
-    length: number; 
+    length: number;
     fileName: string;
 }
 
 // A unique identifier for a cache entry
-type CacheIdentifier = string; 
+type CacheIdentifier = string;
 
 function getCacheIdentifier(entry: CacheEntry): CacheIdentifier {
     // Using the full filename for uniqueness
@@ -29,7 +29,7 @@ function CacheManager() {
     // State for the confirmation modal
     const [isConfirmModalOpen, setIsConfirmModalOpen] = createSignal(false);
     const [confirmationDetails, setConfirmationDetails] = createSignal({
-        onConfirm: () => {},
+        onConfirm: () => { },
         title: "",
         content: null as any,
     });
@@ -37,8 +37,8 @@ function CacheManager() {
     const filteredCacheContents = createMemo(() => {
         const f = filter().toLowerCase();
         if (!f) return cacheContents();
-        return cacheContents().filter(s => 
-            s.name.toLowerCase().includes(f) || 
+        return cacheContents().filter(s =>
+            s.name.toLowerCase().includes(f) ||
             s.version.toLowerCase().includes(f)
         );
     });
@@ -113,7 +113,7 @@ function CacheManager() {
                 <>
                     <p>You are about to delete {selectedFiles.length} cached file(s) for the following {packageNames.length} package(s):</p>
                     <ul class="list-disc list-inside bg-base-100 p-2 rounded-md max-h-40 overflow-y-auto">
-                       <For each={packageNames}>{(name) => <li>{name}</li>}</For>
+                        <For each={packageNames}>{(name) => <li>{name}</li>}</For>
                     </ul>
                     <p>This action cannot be undone.</p>
                 </>
@@ -133,7 +133,7 @@ function CacheManager() {
 
         setIsConfirmModalOpen(true);
     };
-    
+
     const handleClearAll = () => {
         setConfirmationDetails({
             title: "Confirm Deletion",
@@ -150,7 +150,7 @@ function CacheManager() {
                 }
             }
         });
-        
+
         setIsConfirmModalOpen(true);
     };
 
@@ -164,7 +164,7 @@ function CacheManager() {
                         </h2>
                         <div class="flex items-center gap-2">
                             <Show when={cacheContents().length > 0}>
-                                <button 
+                                <button
                                     class="btn btn-warning btn-sm"
                                     onClick={handleClearSelected}
                                     disabled={selectedItems().size === 0 || isLoading()}
@@ -172,7 +172,7 @@ function CacheManager() {
                                     <Trash2 class="w-4 h-4 mr-2" />
                                     Remove Selected ({selectedItems().size})
                                 </button>
-                                <button 
+                                <button
                                     class="btn btn-error btn-sm"
                                     onClick={handleClearAll}
                                     disabled={isLoading()}
@@ -182,12 +182,12 @@ function CacheManager() {
                                 </button>
                                 <div class="divider divider-horizontal m-1" />
                             </Show>
-                            <button 
+                            <button
                                 class="btn btn-ghost btn-sm"
-                                onClick={fetchCacheContents} 
+                                onClick={fetchCacheContents}
                                 disabled={isLoading()}
                             >
-                                <RefreshCw classList={{"animate-spin": isLoading()}} />
+                                <RefreshCw classList={{ "animate-spin": isLoading() }} />
                             </button>
                         </div>
                     </div>
@@ -203,70 +203,70 @@ function CacheManager() {
 
                     <div class="max-h-[60vh] overflow-y-auto">
                         <Show when={error()}>
-                        <div role="alert" class="alert alert-error">
-                            <AlertTriangle />
-                            <span>{error()}</span>
-                        </div>
-                    </Show>
+                            <div role="alert" class="alert alert-error">
+                                <TriangleAlert />
+                                <span>{error()}</span>
+                            </div>
+                        </Show>
 
-                    <Show when={!isLoading() && cacheContents().length === 0 && !error()}>
-                        <div class="text-center p-8">
-                            <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
-                            <p class="mt-4 text-lg font-semibold">Cache is Empty</p>
-                            <p class="text-base-content/60">There are no cached package files to manage.</p>
-                        </div>
-                    </Show>
+                        <Show when={!isLoading() && cacheContents().length === 0 && !error()}>
+                            <div class="text-center p-8">
+                                <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
+                                <p class="mt-4 text-lg font-semibold">Cache is Empty</p>
+                                <p class="text-base-content/60">There are no cached package files to manage.</p>
+                            </div>
+                        </Show>
 
-                    <Show when={cacheContents().length > 0}>
+                        <Show when={cacheContents().length > 0}>
 
 
-                        <div class="overflow-x-auto">
-                            {/* TODO: sticky header, cant figure it out for the life of me */}
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>
-                                            <label>
-                                                <input 
-                                                    type="checkbox" 
-                                                    class="checkbox checkbox-primary"
-                                                    checked={isAllSelected()}
-                                                    onChange={toggleSelectAll}
-                                                />
-                                            </label>
-                                        </th>
-                                        <th>Name</th>
-                                        <th>Version</th>
-                                        <th>Size</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <For each={filteredCacheContents()}>
-                                        {(item) => {
-                                            const id = getCacheIdentifier(item);
-                                            return (
-                                                <tr class="hover">
-                                                    <td>
-                                                        <label>
-                                                            <input 
-                                                                type="checkbox" 
-                                                                class="checkbox checkbox-primary"
-                                                                checked={selectedItems().has(id)}
-                                                                onChange={() => toggleSelection(id)}
-                                                            />
-                                                        </label>
-                                                    </td>
-                                                    <td>{item.name}</td>
-                                                    <td>{item.version}</td>
-                                                    <td>{formatBytes(item.length)}</td>
-                                                </tr>
-                                            );
-                                        }}
-                                    </For>
-                                </tbody>
-                            </table>
-                        </div>
-                    </Show>
+                            <div class="overflow-x-auto">
+                                {/* TODO: sticky header, cant figure it out for the life of me */}
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <label>
+                                                    <input
+                                                        type="checkbox"
+                                                        class="checkbox checkbox-primary"
+                                                        checked={isAllSelected()}
+                                                        onChange={toggleSelectAll}
+                                                    />
+                                                </label>
+                                            </th>
+                                            <th>Name</th>
+                                            <th>Version</th>
+                                            <th>Size</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <For each={filteredCacheContents()}>
+                                            {(item) => {
+                                                const id = getCacheIdentifier(item);
+                                                return (
+                                                    <tr class="hover">
+                                                        <td>
+                                                            <label>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    class="checkbox checkbox-primary"
+                                                                    checked={selectedItems().has(id)}
+                                                                    onChange={() => toggleSelection(id)}
+                                                                />
+                                                            </label>
+                                                        </td>
+                                                        <td>{item.name}</td>
+                                                        <td>{item.version}</td>
+                                                        <td>{formatBytes(item.length)}</td>
+                                                    </tr>
+                                                );
+                                            }}
+                                        </For>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </Show>
                     </div>
                 </div>
             </div>

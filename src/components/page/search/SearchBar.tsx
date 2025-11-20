@@ -1,5 +1,5 @@
 import { Accessor, Setter, Show } from "solid-js";
-import { HelpCircle, Search, X, Loader2 } from "lucide-solid";
+import { CircleQuestionMark, Search, X, LoaderCircle } from "lucide-solid";
 
 interface SearchBarProps {
     searchTerm: Accessor<string>;
@@ -12,7 +12,7 @@ function SearchBar(props: SearchBarProps) {
         <div class="relative w-full">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 z-10">
                 <Show when={props.loading?.()} fallback={<Search class="h-5 w-5 text-gray-400" />}>
-                    <Loader2 class="h-5 w-5 text-gray-400 animate-spin" />
+                    <LoaderCircle class="h-5 w-5 text-gray-400 animate-spin" />
                 </Show>
             </span>
 
@@ -40,7 +40,7 @@ function SearchBar(props: SearchBarProps) {
                     class="tooltip tooltip-left"
                     data-tip={'Wrap with "quotes" for exact match'}
                 >
-                    <HelpCircle size={16} class="text-gray-400" />
+                    <CircleQuestionMark size={16} class="text-gray-400" />
                 </span>
             </div>
         </div>

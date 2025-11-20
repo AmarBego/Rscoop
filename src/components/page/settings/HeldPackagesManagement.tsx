@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { BellOff, Unlock } from "lucide-solid";
+import { BellOff, LockOpen } from "lucide-solid";
 import heldStore from "../../../stores/held";
 
 interface HeldPackagesManagementProps {
@@ -9,7 +9,7 @@ interface HeldPackagesManagementProps {
 
 export default function HeldPackagesManagement(props: HeldPackagesManagementProps) {
   const { store: heldPackagesStore } = heldStore;
-  
+
   return (
     <div class="card bg-base-200 shadow-xl">
       <div class="card-body">
@@ -21,11 +21,11 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
           Packages on hold are prevented from being updated via <code>scoop update *</code>.
         </p>
 
-        <Show 
+        <Show
           when={!heldPackagesStore.isLoading}
           fallback={<div class="flex justify-center p-4"><span class="loading loading-dots loading-md"></span></div>}
         >
-          <Show 
+          <Show
             when={heldPackagesStore.packages.length > 0}
             fallback={<p class="text-base-content/60 p-4 text-center">No packages are currently on hold.</p>}
           >
@@ -41,7 +41,7 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
                         aria-label={`Remove hold from ${pkgName}`}
                         disabled={props.operationInProgress}
                       >
-                        <Unlock class="w-4 h-4 mr-1" />
+                        <LockOpen class="w-4 h-4 mr-1" />
                         Unhold
                       </button>
                     </li>

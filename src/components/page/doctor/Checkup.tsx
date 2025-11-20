@@ -1,5 +1,5 @@
 import { For, Show } from "solid-js";
-import { CheckCircle, XCircle, AlertTriangle, RefreshCw, Download } from "lucide-solid";
+import { CircleCheckBig, CircleX, TriangleAlert, RefreshCw, Download } from "lucide-solid";
 
 export interface CheckupItem {
     id: string | null;
@@ -30,7 +30,7 @@ function Checkup(props: CheckupProps) {
                         <RefreshCw classList={{ "animate-spin": props.isLoading }} />
                     </button>
                 </div>
-                 <p class="text-base-content/80 mb-4">
+                <p class="text-base-content/80 mb-4">
                     This tool checks for common problems with your Scoop setup.
                 </p>
 
@@ -42,7 +42,7 @@ function Checkup(props: CheckupProps) {
 
                 <Show when={props.error}>
                     <div class="alert alert-error text-sm">
-                        <AlertTriangle class="w-5 h-5" />
+                        <TriangleAlert class="w-5 h-5" />
                         <span>{props.error}</span>
                     </div>
                 </Show>
@@ -53,12 +53,12 @@ function Checkup(props: CheckupProps) {
                             {(item) => (
                                 <li class="p-3 bg-base-100 rounded-lg">
                                     <div class="flex items-center">
-                                        <Show when={item.status} fallback={<XCircle class="w-5 h-5 mr-3 text-error" />}>
-                                            <CheckCircle class="w-5 h-5 mr-3 text-success" />
+                                        <Show when={item.status} fallback={<CircleX class="w-5 h-5 mr-3 text-error" />}>
+                                            <CircleCheckBig class="w-5 h-5 mr-3 text-success" />
                                         </Show>
                                         <span class="flex-grow">{item.text}</span>
                                         <Show when={item.id && !item.status}>
-                                            <button 
+                                            <button
                                                 class="btn btn-xs btn-outline btn-primary"
                                                 onClick={() => props.onInstallHelper(item.id!)}
                                                 disabled={!!props.installingHelper}

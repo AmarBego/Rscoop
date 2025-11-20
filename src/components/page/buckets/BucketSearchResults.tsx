@@ -2,7 +2,7 @@ import { For, Show } from "solid-js";
 import { SearchableBucket } from "../../../hooks/useBucketSearch";
 import { BucketInfo } from "../../../hooks/useBuckets";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
-import { ExternalLink, Star, Package, GitFork, Shield, Clock, CheckCircle, Download, Trash2, Loader2 } from "lucide-solid";
+import { ExternalLink, Star, Package, GitFork, Shield, Clock, CircleCheckBig, Download, Trash2, LoaderCircle } from "lucide-solid";
 import { openUrl } from '@tauri-apps/plugin-opener';
 
 interface BucketSearchResultsProps {
@@ -42,14 +42,14 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
   // Handle bucket installation
   const handleInstallBucket = async (bucket: SearchableBucket, event: Event) => {
     event.stopPropagation();
-    
+
     try {
       const result = await bucketInstall.installBucket({
         name: bucket.name,
         url: bucket.url,
         force: false,
       });
-      
+
       if (result.success) {
         // Call parent callback to refresh bucket list immediately
         console.log('Bucket installed successfully, refreshing bucket list');
@@ -65,10 +65,10 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
   // Handle bucket removal
   const handleRemoveBucket = async (bucketName: string, event: Event) => {
     event.stopPropagation();
-    
+
     try {
       const result = await bucketInstall.removeBucket(bucketName);
-      
+
       if (result.success) {
         // Call parent callback to refresh bucket list immediately
         console.log('Bucket removed successfully, refreshing bucket list');
@@ -93,7 +93,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
             </span>
           </Show>
         </h2>
-        
+
         <Show when={props.isExpandedSearch}>
           <div class="badge badge-info badge-outline badge-lg">
             <Shield class="w-3 h-3 mr-1" />
@@ -133,7 +133,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <For each={props.buckets}>
             {(bucket) => (
-            <div class="card bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300">
+              <div class="card bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300">
                 <div class="card-body p-4">
                   {/* Header */}
                   <div class="flex items-start justify-between mb-3 gap-2">
@@ -149,7 +149,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                           </Show>
                           <Show when={isBucketInstalled(bucket.name)}>
                             <div class="badge badge-success badge-sm">
-                              <CheckCircle class="w-3 h-3 mr-1" />
+                              <CircleCheckBig class="w-3 h-3 mr-1" />
                             </div>
                           </Show>
                         </div>
@@ -158,7 +158,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                         {bucket.full_name}
                       </p>
                     </div>
-                    
+
                     <div class="flex items-center gap-1 flex-shrink-0">
                       <button
                         type="button"
@@ -189,12 +189,12 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       <Star class="w-3 h-3 text-yellow-500" />
                       <span class="font-medium">{formatNumber(bucket.stars)}</span>
                     </div>
-                    
+
                     <div class="stat-item flex items-center gap-1">
                       <Package class="w-3 h-3 text-blue-500" />
                       <span class="font-medium">{formatNumber(bucket.apps)}</span>
                     </div>
-                    
+
                     <div class="stat-item flex items-center gap-1">
                       <GitFork class="w-3 h-3 text-green-500" />
                       <span class="font-medium">{formatNumber(bucket.forks)}</span>
@@ -203,15 +203,15 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
 
                   {/* Last Updated */}
                   <Show when={bucket.last_updated !== "Unknown"}>
-                      <div class="flex items-center gap-1 text-xs text-base-content/60 border-b pb-3 mb-3">
-                        <Clock class="w-3 h-3" />
-                        <span>Updated {formatDate(bucket.last_updated)}</span>
+                    <div class="flex items-center gap-1 text-xs text-base-content/60 border-b pb-3 mb-3">
+                      <Clock class="w-3 h-3" />
+                      <span>Updated {formatDate(bucket.last_updated)}</span>
                     </div>
                   </Show>
 
                   {/* Action Buttons */}
                   <div class="flex items-center gap-2 mb-3">
-                    <Show 
+                    <Show
                       when={isBucketInstalled(bucket.name)}
                       fallback={
                         <button
@@ -220,7 +220,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                           disabled={bucketInstall.isBucketBusy(bucket.name)}
                           title="Install this bucket"
                         >
-                          <Show 
+                          <Show
                             when={bucketInstall.isBucketInstalling(bucket.name)}
                             fallback={
                               <>
@@ -229,7 +229,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                               </>
                             }
                           >
-                            <Loader2 class="w-4 h-4 mr-1 animate-spin" />
+                            <LoaderCircle class="w-4 h-4 mr-1 animate-spin" />
                             Installing...
                           </Show>
                         </button>
@@ -241,7 +241,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                         disabled={bucketInstall.isBucketBusy(bucket.name)}
                         title="Remove this bucket"
                       >
-                        <Show 
+                        <Show
                           when={bucketInstall.isBucketRemoving(bucket.name)}
                           fallback={
                             <>
@@ -250,12 +250,12 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                             </>
                           }
                         >
-                          <Loader2 class="w-4 h-4 mr-1 animate-spin" />
+                          <LoaderCircle class="w-4 h-4 mr-1 animate-spin" />
                           Removing...
                         </Show>
                       </button>
                     </Show>
-                    
+
                     <button
                       class="btn btn-ghost btn-sm"
                       onClick={() => props.onBucketSelect?.(bucket)}

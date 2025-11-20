@@ -1,5 +1,5 @@
 import { Accessor, Show, createSignal, createEffect } from "solid-js";
-import { Search, X, AlertTriangle, Loader2 } from "lucide-solid";
+import { Search, X, TriangleAlert, LoaderCircle } from "lucide-solid";
 import { useBucketSearch } from "../../../hooks/useBucketSearch";
 
 interface BucketSearchProps {
@@ -15,7 +15,7 @@ function BucketSearch(props: BucketSearchProps) {
   const [expandedInfo, setExpandedInfo] = createSignal<any>(null);
   const [tempDisableChineseBuckets, setTempDisableChineseBuckets] = createSignal(false);
   const [tempMinimumStars, setTempMinimumStars] = createSignal(2);
-  
+
   // Input ref to maintain focus
   let inputRef: HTMLInputElement | undefined;
 
@@ -67,11 +67,11 @@ function BucketSearch(props: BucketSearchProps) {
     bucketSearch.setDisableChineseBuckets(tempDisableChineseBuckets());
     bucketSearch.setMinimumStars(tempMinimumStars());
     await bucketSearch.searchBuckets(
-      searchInput(), 
-      true, 
-      undefined, 
-      undefined, 
-      tempDisableChineseBuckets(), 
+      searchInput(),
+      true,
+      undefined,
+      undefined,
+      tempDisableChineseBuckets(),
       tempMinimumStars()
     );
   };
@@ -105,21 +105,20 @@ function BucketSearch(props: BucketSearchProps) {
       </div>
 
       {/* Search Bar - Slides in from top */}
-      <div class={`absolute top-0 left-0 right-0 transition-all duration-300 ease-in-out z-50 ${
-        props.isActive() 
-          ? 'opacity-100 translate-y-0 pointer-events-auto' 
-          : 'opacity-0 -translate-y-4 pointer-events-none'
-      }`}>
+      <div class={`absolute top-0 left-0 right-0 transition-all duration-300 ease-in-out z-50 ${props.isActive()
+        ? 'opacity-100 translate-y-0 pointer-events-auto'
+        : 'opacity-0 -translate-y-4 pointer-events-none'
+        }`}>
         {/* Backdrop to ensure search bar stands out */}
         <div class="absolute inset-0 bg-base-100/80 backdrop-blur-sm -z-10 rounded-lg"></div>
-        
+
         <div class="flex flex-col gap-4 mb-4 bg-base-100 p-4 rounded-lg shadow-xl border border-base-300 relative">
           {/* Search Input Row */}
           <div class="flex items-center gap-4">
             <div class="relative flex-1">
               <span class="absolute inset-y-0 left-0 flex items-center pl-3 z-10">
                 <Show when={!bucketSearch.isSearching()} fallback={
-                  <Loader2 class="h-5 w-5 text-gray-400 animate-spin" />
+                  <LoaderCircle class="h-5 w-5 text-gray-400 animate-spin" />
                 }>
                   <Search class="h-5 w-5 text-gray-400" />
                 </Show>
@@ -135,7 +134,7 @@ function BucketSearch(props: BucketSearchProps) {
                 disabled={bucketSearch.isSearching()}
               />
             </div>
-            
+
             <Show when={searchInput().length > 0}>
               <button
                 onClick={() => handleSearchInput("")}
@@ -146,7 +145,7 @@ function BucketSearch(props: BucketSearchProps) {
                 <X class="h-4 w-4" />
               </button>
             </Show>
-            
+
             <button
               onClick={closeSearch}
               class="btn btn-circle btn-outline hover:btn-error transition-colors"
@@ -162,7 +161,7 @@ function BucketSearch(props: BucketSearchProps) {
               {/* Sort Options */}
               <div class="flex items-center gap-2">
                 <span class="text-base-content/70">Sort by:</span>
-                <select 
+                <select
                   class="select select-sm select-bordered"
                   value={bucketSearch.sortBy()}
                   onChange={async (e) => {
@@ -201,11 +200,11 @@ function BucketSearch(props: BucketSearchProps) {
                   class="btn btn-sm btn-outline btn-warning"
                   disabled={bucketSearch.isSearching()}
                 >
-                  <AlertTriangle class="h-4 w-4 mr-1" />
+                  <TriangleAlert class="h-4 w-4 mr-1" />
                   Community Buckets
                 </button>
               </Show>
-              
+
               <Show when={bucketSearch.cacheExists() || bucketSearch.isExpandedSearch()}>
                 <button
                   onClick={async () => {
@@ -226,7 +225,7 @@ function BucketSearch(props: BucketSearchProps) {
           {/* Error Display */}
           <Show when={bucketSearch.error()}>
             <div class="alert alert-error alert-sm">
-              <AlertTriangle class="h-4 w-4" />
+              <TriangleAlert class="h-4 w-4" />
               <span>{bucketSearch.error()}</span>
             </div>
           </Show>
@@ -241,15 +240,15 @@ function BucketSearch(props: BucketSearchProps) {
               <h3 class="font-bold text-lg">Expand Search to All Buckets</h3>
               <Show when={expandedInfo()}>
                 <div class="flex items-center gap-2 text-warning">
-                  <AlertTriangle class="h-5 w-5" />
+                  <TriangleAlert class="h-5 w-5" />
                   <span class="font-medium text-sm">Large Dataset Warning</span>
                 </div>
               </Show>
             </div>
-            
+
             <Show when={expandedInfo()}>
               <div class="space-y-4">
-                
+
                 <div class="bg-base-400 p-4 rounded-lg space-y-2">
                   <div class="flex justify-between">
                     <span>Estimated download size:</span>
@@ -260,7 +259,7 @@ function BucketSearch(props: BucketSearchProps) {
                     <span class="font-bold">~{expandedInfo()?.total_buckets}</span>
                   </div>
                 </div>
-                
+
                 <p class="text-sm text-base-content/70 break-words">
                   {expandedInfo()?.description}
                 </p>
@@ -268,35 +267,35 @@ function BucketSearch(props: BucketSearchProps) {
 
                 <div class="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
                   <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Note:</strong> This will download ~14MB initially, but only ~0.3-4MB (depending on filters)will be stored as optimized cache. 
+                    <strong>Note:</strong> This will download ~14MB initially, but only ~0.3-4MB (depending on filters)will be stored as optimized cache.
                     The search will include community buckets of varying quality and maintenance levels.
                     After the initial download, all searches will be instant and offline-capable.
                   </p>
                 </div>
-                
+
                 {/* Filter Options */}
                 <div class="bg-base-200 p-4 rounded-lg space-y-2">
                   <div class="flex justify-between items-center">
                     <span class="font-bold">Filter Options</span>
                   </div>
-                  
+
                   {/* Disable Chinese Buckets */}
                   <div class="flex justify-between items-center">
                     <span class="text-sm">Disable Chinese Buckets</span>
-                    <input 
-                      type="checkbox" 
-                      class="checkbox checkbox-primary" 
+                    <input
+                      type="checkbox"
+                      class="checkbox checkbox-primary"
                       checked={tempDisableChineseBuckets()}
                       onChange={(e) => setTempDisableChineseBuckets(e.currentTarget.checked)}
                     />
                   </div>
-                  
+
                   {/* Minimum Star Limit */}
                   <div class="flex justify-between items-center">
                     <span class="text-sm">Minimum Github Stars</span>
-                    <input 
-                      type="number" 
-                      class="input input-bordered input-sm w-20" 
+                    <input
+                      type="number"
+                      class="input input-bordered input-sm w-20"
                       min="0"
                       max="1000"
                       value={tempMinimumStars()}
@@ -308,14 +307,14 @@ function BucketSearch(props: BucketSearchProps) {
             </Show>
 
             <div class="modal-action">
-              <button 
-                class="btn btn-outline" 
+              <button
+                class="btn btn-outline"
                 onClick={() => setShowExpandedDialog(false)}
               >
                 Cancel
               </button>
-              <button 
-                class="btn btn-secondary" 
+              <button
+                class="btn btn-secondary"
                 onClick={confirmExpandedSearch}
                 disabled={bucketSearch.isSearching()}
               >

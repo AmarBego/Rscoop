@@ -1,5 +1,5 @@
 import { Show } from "solid-js";
-import { X, CheckCircle, AlertTriangle, WifiOff, FolderOpen } from "lucide-solid";
+import { X, CircleCheckBig, TriangleAlert, WifiOff, FolderOpen } from "lucide-solid";
 import { View } from "../types/scoop";
 
 interface ScoopStatusModalProps {
@@ -37,7 +37,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
 
           <Show when={props.error}>
             <div class="alert alert-error alert-outline">
-              <AlertTriangle class="w-4 h-4" />
+              <TriangleAlert class="w-4 h-4" />
               <span>Error checking status: {props.error}</span>
             </div>
           </Show>
@@ -50,13 +50,13 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
                 "alert-warning alert-outline": !props.status.is_everything_ok
               }}>
                 <Show when={props.status.is_everything_ok}
-                  fallback={<AlertTriangle class="w-4 h-4" />}
+                  fallback={<TriangleAlert class="w-4 h-4" />}
                 >
-                  <CheckCircle class="w-4 h-4" />
+                  <CircleCheckBig class="w-4 h-4" />
                 </Show>
                 <span>
-                  {props.status.is_everything_ok 
-                    ? "Everything is ok!" 
+                  {props.status.is_everything_ok
+                    ? "Everything is ok!"
                     : "Some issues found"}
                 </span>
               </div>
@@ -64,7 +64,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
               {/* Scoop Updates */}
               <Show when={props.status.scoop_needs_update}>
                 <div class="alert alert-warning alert-outline">
-                  <AlertTriangle class="w-4 h-4" />
+                  <TriangleAlert class="w-4 h-4" />
                   <span>Scoop is out of date. Run 'scoop update' to get the latest changes.</span>
                 </div>
               </Show>
@@ -72,7 +72,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
               {/* Bucket Updates */}
               <Show when={props.status.bucket_needs_update}>
                 <div class="alert alert-warning alert-outline">
-                  <AlertTriangle class="w-4 h-4" />
+                  <TriangleAlert class="w-4 h-4" />
                   <span>Scoop bucket(s) are out of date. Click 'Go to Buckets' to get the latest changes.</span>
                 </div>
               </Show>
@@ -138,7 +138,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
               {/* All Good Message */}
               <Show when={props.status.is_everything_ok && !props.status.network_failure}>
                 <div class="alert alert-success alert-outline">
-                  <CheckCircle class="w-4 h-4" />
+                  <CircleCheckBig class="w-4 h-4" />
                   <span>Scoop is up to date and all packages are in good condition!</span>
                 </div>
               </Show>
@@ -148,7 +148,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
           {/* Action Buttons */}
           <Show when={props.status?.bucket_needs_update && props.onNavigate}>
             <div class="modal-action justify-end">
-              <button 
+              <button
                 class="btn btn-primary btn-sm"
                 onClick={() => {
                   props.onNavigate?.("bucket");

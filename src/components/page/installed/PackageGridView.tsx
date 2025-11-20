@@ -1,6 +1,6 @@
 import { For, Show, Accessor } from "solid-js";
-import { 
-  MoreHorizontal, ArrowUpCircle, Trash2, Lock, Unlock, RefreshCw
+import {
+  Ellipsis, CircleArrowUp, Trash2, Lock, LockOpen, RefreshCw
 } from 'lucide-solid';
 import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
@@ -33,84 +33,84 @@ function PackageGridView(props: PackageGridViewProps) {
                     {pkg.name}
                   </button>
                   <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                      <div class="tooltip" data-tip={`Update available: ${pkg.available_version}`}>
-                        <ArrowUpCircle class="w-4 h-4 text-primary" />
-                      </div>
+                    <div class="tooltip" data-tip={`Update available: ${pkg.available_version}`}>
+                      <CircleArrowUp class="w-4 h-4 text-primary" />
+                    </div>
                   </Show>
                   <Show when={pkg.is_versioned_install}>
-                      <div class="tooltip" data-tip="Versioned install - cannot be updated">
-                        <Lock class="w-4 h-4 text-cyan-400" />
-                      </div>
+                    <div class="tooltip" data-tip="Versioned install - cannot be updated">
+                      <Lock class="w-4 h-4 text-cyan-400" />
+                    </div>
                   </Show>
                   <Show when={heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                       <div class="tooltip" data-tip="This package is on hold">
-                         <Lock class="w-4 h-4 text-warning" />
-                       </div>
-                    </Show>
+                    <div class="tooltip" data-tip="This package is on hold">
+                      <Lock class="w-4 h-4 text-warning" />
+                    </div>
+                  </Show>
                 </h2>
                 <div class="dropdown dropdown-end">
-                    <label tabindex="0" class="btn btn-ghost btn-xs btn-circle">
-                      <MoreHorizontal class="w-4 h-4" />
-                    </label>
-                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[1]">
-                      <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                        <li>
-                          <a onClick={() => props.onUpdate(pkg)}>
-                            <ArrowUpCircle class="w-4 h-4 mr-2" />
-                            Update to {pkg.available_version}
-                          </a>
-                        </li>
-                      </Show>
+                  <label tabindex="0" class="btn btn-ghost btn-xs btn-circle">
+                    <Ellipsis class="w-4 h-4" />
+                  </label>
+                  <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[1]">
+                    <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
                       <li>
-                        <Show when={props.operatingOn() === pkg.name}
-                            fallback={
-                                <Show when={pkg.is_versioned_install}
-                                    fallback={
-                                        <Show when={heldStore.isHeld(pkg.name)}
-                                            fallback={
-                                                <a onClick={() => props.onHold(pkg.name)}>
-                                                    <Lock class="w-4 h-4 mr-2" />
-                                                    <span>Hold Package</span>
-                                                </a>
-                                            }
-                                        >
-                                            <a onClick={() => props.onUnhold(pkg.name)}>
-                                                <Unlock class="w-4 h-4 mr-2" />
-                                                <span>Unhold Package</span>
-                                            </a>
-                                        </Show>
-                                    }
-                                >
-                                    <a class="btn-disabled cursor-not-allowed">
-                                        <Lock class="w-4 h-4 mr-2 text-cyan-400" />
-                                        <span>Cannot Unhold (Versioned)</span>
-                                    </a>
-                                </Show>
-                            }
-                        >
-                            <span class="flex items-center justify-center p-2">
-                                <span class="loading loading-spinner loading-xs"></span>
-                            </span>
-                        </Show>
-                      </li>
-                      <Show when={props.isPackageVersioned(pkg.name)}>
-                        <li>
-                          <a onClick={() => {
-                            props.onViewInfoForVersions(pkg);
-                          }}>
-                            <RefreshCw class="w-4 h-4 mr-2" />
-                            Switch Version
-                          </a>
-                        </li>
-                      </Show>
-                      <li>
-                        <a class="text-error" onClick={() => props.onUninstall(pkg)}>
-                          <Trash2 class="w-4 h-4 mr-2" />
-                          Uninstall
+                        <a onClick={() => props.onUpdate(pkg)}>
+                          <CircleArrowUp class="w-4 h-4 mr-2" />
+                          Update to {pkg.available_version}
                         </a>
                       </li>
-                    </ul>
-                  </div>
+                    </Show>
+                    <li>
+                      <Show when={props.operatingOn() === pkg.name}
+                        fallback={
+                          <Show when={pkg.is_versioned_install}
+                            fallback={
+                              <Show when={heldStore.isHeld(pkg.name)}
+                                fallback={
+                                  <a onClick={() => props.onHold(pkg.name)}>
+                                    <Lock class="w-4 h-4 mr-2" />
+                                    <span>Hold Package</span>
+                                  </a>
+                                }
+                              >
+                                <a onClick={() => props.onUnhold(pkg.name)}>
+                                  <LockOpen class="w-4 h-4 mr-2" />
+                                  <span>Unhold Package</span>
+                                </a>
+                              </Show>
+                            }
+                          >
+                            <a class="btn-disabled cursor-not-allowed">
+                              <Lock class="w-4 h-4 mr-2 text-cyan-400" />
+                              <span>Cannot Unhold (Versioned)</span>
+                            </a>
+                          </Show>
+                        }
+                      >
+                        <span class="flex items-center justify-center p-2">
+                          <span class="loading loading-spinner loading-xs"></span>
+                        </span>
+                      </Show>
+                    </li>
+                    <Show when={props.isPackageVersioned(pkg.name)}>
+                      <li>
+                        <a onClick={() => {
+                          props.onViewInfoForVersions(pkg);
+                        }}>
+                          <RefreshCw class="w-4 h-4 mr-2" />
+                          Switch Version
+                        </a>
+                      </li>
+                    </Show>
+                    <li>
+                      <a class="text-error" onClick={() => props.onUninstall(pkg)}>
+                        <Trash2 class="w-4 h-4 mr-2" />
+                        Uninstall
+                      </a>
+                    </li>
+                  </ul>
+                </div>
               </div>
               <p class="text-sm text-base-content/70">
                 Version {pkg.version}

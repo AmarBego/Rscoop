@@ -2,7 +2,7 @@ import { createSignal, createEffect, onCleanup, For, Show, Component } from "sol
 import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
-import { ShieldAlert, AlertTriangle, ExternalLink } from "lucide-solid";
+import { ShieldAlert, TriangleAlert, ExternalLink } from "lucide-solid";
 
 // Shared types for backend operations
 interface OperationOutput {
@@ -21,7 +21,7 @@ const LineWithLinks: Component<{ line: string }> = (props) => {
   // This regex is designed to strip ANSI color codes from the string.
   const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
   const cleanLine = props.line.replace(ansiRegex, '');
-  
+
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = cleanLine.split(urlRegex);
 
@@ -63,7 +63,7 @@ function OperationModal(props: OperationModalProps) {
   const [showNextStep, setShowNextStep] = createSignal(false);
   const [scanWarning, setScanWarning] = createSignal<VirustotalResult | null>(null);
   let scrollRef: HTMLDivElement | undefined;
-  
+
   // This effect now correctly manages the lifecycle of the listeners
   createEffect(() => {
     let outputListener: UnlistenFn | undefined;
@@ -128,7 +128,7 @@ function OperationModal(props: OperationModalProps) {
       props.onClose(false);
       return;
     }
-    
+
     if (result()) {
       props.onClose(result()?.success ?? false);
     } else {
@@ -143,8 +143,8 @@ function OperationModal(props: OperationModalProps) {
 
   const handleNextStepClick = () => {
     if (props.nextStep) {
-        props.nextStep.onNext();
-        // The title prop will change, triggering the effect above to reset everything.
+      props.nextStep.onNext();
+      // The title prop will change, triggering the effect above to reset everything.
     }
   };
 
@@ -153,7 +153,7 @@ function OperationModal(props: OperationModalProps) {
       <div class="modal modal-open backdrop-blur-sm" role="dialog">
         <div class="modal-box w-11/12 max-w-5xl">
           <h3 class="font-bold text-lg">{props.title}</h3>
-          <div 
+          <div
             ref={scrollRef}
             class="bg-black text-white font-mono text-sm p-4 rounded-lg my-4 max-h-96 overflow-y-auto"
           >
@@ -171,38 +171,38 @@ function OperationModal(props: OperationModalProps) {
               </div>
             </Show>
           </div>
-          
+
           <Show when={scanWarning()}>
-              <div class="alert alert-warning">
-                  <ShieldAlert class="w-6 h-6" />
-                  <span>{scanWarning()!.message}</span>
-              </div>
+            <div class="alert alert-warning">
+              <ShieldAlert class="w-6 h-6" />
+              <span>{scanWarning()!.message}</span>
+            </div>
           </Show>
 
           <Show when={result()}>
-              <div class="alert" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
-                  <span>{result()!.message}</span>
-              </div>
+            <div class="alert" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
+              <span>{result()!.message}</span>
+            </div>
           </Show>
 
           <div class="modal-action">
-              <Show when={scanWarning()}>
-                  <button class="btn btn-warning" onClick={handleInstallAnyway}>
-                      <AlertTriangle class="w-4 h-4 mr-2" />
-                      Install Anyway
-                  </button>
-              </Show>
-              <Show when={showNextStep()}>
-                  <button class="btn btn-info" onClick={handleNextStepClick}>
-                      {props.nextStep?.buttonLabel}
-                  </button>
-              </Show>
-              <button class="btn" onClick={handleCloseOrCancel}>
-                  { result() || scanWarning() ? 'Close' : 'Cancel' }
+            <Show when={scanWarning()}>
+              <button class="btn btn-warning" onClick={handleInstallAnyway}>
+                <TriangleAlert class="w-4 h-4 mr-2" />
+                Install Anyway
               </button>
+            </Show>
+            <Show when={showNextStep()}>
+              <button class="btn btn-info" onClick={handleNextStepClick}>
+                {props.nextStep?.buttonLabel}
+              </button>
+            </Show>
+            <button class="btn" onClick={handleCloseOrCancel}>
+              {result() || scanWarning() ? 'Close' : 'Cancel'}
+            </button>
           </div>
         </div>
-        <div class="modal-backdrop" onClick={() => {if (result()) { props.onClose(result()?.success ?? false) } else { props.onClose(false) }}}></div>
+        <div class="modal-backdrop" onClick={() => { if (result()) { props.onClose(result()?.success ?? false) } else { props.onClose(false) } }}></div>
       </div>
     </Show>
   );

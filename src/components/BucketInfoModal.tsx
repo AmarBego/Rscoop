@@ -6,7 +6,7 @@ import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/github-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
-import { MoreHorizontal, GitBranch, ExternalLink, Download, Trash2, Loader2 } from "lucide-solid";
+import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";
 import { openUrl, openPath } from '@tauri-apps/plugin-opener';
 
 hljs.registerLanguage('bash', bash);
@@ -58,7 +58,7 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
                 // Clean up manifest name (remove (root) suffix if present)
                 const cleanName = manifest.replace(/ \(root\)$/, '');
                 return (
-                  <div 
+                  <div
                     class="hover:text-primary cursor-pointer py-0.5 px-1 rounded hover:bg-base-300 transition-colors"
                     onClick={() => props.onPackageClick?.(cleanName)}
                     title={`Click to view info for ${cleanName}`}
@@ -77,30 +77,30 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
 
 function BucketInfoModal(props: BucketInfoModalProps) {
   const bucketInstall = useBucketInstall();
-  
+
   const bucketName = () => props.bucket?.name || props.searchBucket?.name || '';
   const isExternalBucket = () => !props.bucket && !!props.searchBucket;
-  
+
   // Properly check if bucket is installed
   const isInstalled = () => {
     const name = bucketName();
-    
+
     // If explicitly provided, use that
     if (props.isInstalled !== undefined) {
       return props.isInstalled;
     }
-    
+
     // If we have a bucket from local data (props.bucket), it's installed
     if (props.bucket && !props.searchBucket) {
       return true;
     }
-    
+
     // If we have installed buckets list, check against it
     if (props.installedBuckets && name) {
       const installed = props.installedBuckets.some(installed => installed.name === name);
       return installed;
     }
-    
+
     // Default: if it's a search bucket only, it's not installed
     return false;
   };
@@ -108,20 +108,20 @@ function BucketInfoModal(props: BucketInfoModalProps) {
   // Handle bucket installation
   const handleInstallBucket = async () => {
     if (!props.searchBucket) return;
-    
+
     try {
       const result = await bucketInstall.installBucket({
         name: props.searchBucket.name,
         url: props.searchBucket.url,
         force: false,
       });
-      
+
       if (result.success) {
         console.log('Bucket installed successfully from modal, refreshing bucket list');
-        
+
         // First refresh the bucket list
         props.onBucketInstalled?.();
-        
+
         // Then fetch manifests for the newly installed bucket
         if (props.onFetchManifests) {
           console.log('Fetching manifests for newly installed bucket:', props.searchBucket.name);
@@ -139,10 +139,10 @@ function BucketInfoModal(props: BucketInfoModalProps) {
   const handleRemoveBucket = async () => {
     const name = bucketName();
     if (!name) return;
-    
+
     try {
       const result = await bucketInstall.removeBucket(name);
-      
+
       if (result.success) {
         console.log('Bucket removed successfully from modal, refreshing bucket list');
         props.onBucketInstalled?.();
@@ -206,18 +206,18 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                 </div>
               </Show>
             </div>
-            
+
             <div class="flex items-center gap-2">
               {/* More Actions Dropdown */}
               <div class="dropdown dropdown-end">
                 <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
-                  <MoreHorizontal class="w-5 h-5" />
+                  <Ellipsis class="w-5 h-5" />
                 </div>
                 <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-52 z-[100]">
                   <Show when={props.bucket?.path}>
                     <li>
-                      <button type="button" onClick={async (e) => { 
-                        e.stopPropagation(); 
+                      <button type="button" onClick={async (e) => {
+                        e.stopPropagation();
                         if (props.bucket?.path) {
                           try {
                             await openPath(props.bucket.path);
@@ -239,10 +239,10 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                     </li>
                   </Show>
                   <li>
-                    <button 
-                      type="button" 
-                      onClick={async (e) => { 
-                        e.stopPropagation(); 
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
                         const url = props.bucket?.git_url || props.searchBucket?.url;
                         if (url) {
                           try {
@@ -262,7 +262,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
               </div>
             </div>
           </div>
-          
+
           <div class="py-4">
             <Show when={props.error}>
               <div role="alert" class="alert alert-error mb-4">
@@ -277,7 +277,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                 <div class="flex-1">
                   <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
                   <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
-                    <Show 
+                    <Show
                       when={props.bucket && isInstalled()}
                       fallback={
                         // Show basic info for external buckets
@@ -302,10 +302,10 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                           <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                             <div class="font-semibold text-base-content/70 col-span-1">Repository:</div>
                             <div class="col-span-2">
-                              <a 
-                                href={props.searchBucket!.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
+                              <a
+                                href={props.searchBucket!.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 class="link link-primary break-all text-xs flex items-center gap-1"
                               >
                                 <GitBranch class="w-3 h-3" />
@@ -350,15 +350,15 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                           </div>
                         )}
                       </For>
-                      
+
                       <Show when={props.bucket?.git_url}>
                         <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                           <div class="font-semibold text-base-content/70 col-span-1">Repository:</div>
                           <div class="col-span-2">
-                            <a 
-                              href={props.bucket!.git_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
+                            <a
+                              href={props.bucket!.git_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               class="link link-primary break-all text-xs flex items-center gap-1"
                             >
                               <GitBranch class="w-3 h-3" />
@@ -370,10 +370,10 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                     </Show>
                   </div>
                 </div>
-                
+
                 <div class="flex-1">
-                  <Show 
-                    when={isInstalled() && (props.manifests.length > 0 || props.manifestsLoading)} 
+                  <Show
+                    when={isInstalled() && (props.manifests.length > 0 || props.manifestsLoading)}
                     fallback={
                       // Show description when bucket is not installed or no manifests available
                       <Show when={props.description && !isInstalled()}>
@@ -384,7 +384,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                           </p>
                           <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">
                             <p class="text-xs text-info-content/70">
-                              <strong>Note:</strong> This bucket is not currently installed. 
+                              <strong>Note:</strong> This bucket is not currently installed.
                               Install it to view available packages.
                             </p>
                           </div>
@@ -396,8 +396,8 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                       Available Packages ({props.manifests.length})
                     </h4>
                     <div class="bg-base-100 rounded-lg p-3">
-                      <ManifestsList 
-                        manifests={props.manifests} 
+                      <ManifestsList
+                        manifests={props.manifests}
                         loading={props.manifestsLoading}
                         onPackageClick={(packageName) => props.onPackageClick?.(packageName, props.bucket?.name ?? bucketName())}
                       />
@@ -407,17 +407,17 @@ function BucketInfoModal(props: BucketInfoModalProps) {
               </div>
             </Show>
           </div>
-          
+
           <div class="modal-action">
             <form method="dialog">
               <Show when={!isInstalled() && props.searchBucket}>
-                <button 
+                <button
                   type="button"
                   class="btn btn-primary mr-2"
                   onClick={handleInstallBucket}
                   disabled={bucketInstall.isBucketBusy(bucketName())}
                 >
-                  <Show 
+                  <Show
                     when={bucketInstall.isBucketInstalling(bucketName())}
                     fallback={
                       <>
@@ -426,7 +426,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                       </>
                     }
                   >
-                    <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+                    <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
                     Installing...
                   </Show>
                 </button>
@@ -438,7 +438,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                   onClick={handleRemoveBucket}
                   disabled={bucketInstall.isBucketBusy(bucketName())}
                 >
-                  <Show 
+                  <Show
                     when={bucketInstall.isBucketRemoving(bucketName())}
                     fallback={
                       <>
@@ -447,7 +447,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                       </>
                     }
                   >
-                    <Loader2 class="w-4 h-4 mr-2 animate-spin" />
+                    <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
                     Removing...
                   </Show>
                 </button>

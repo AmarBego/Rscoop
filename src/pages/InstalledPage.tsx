@@ -41,7 +41,6 @@ function InstalledPage(props: InstalledPageProps) {
     handleUninstall,
     handleFetchPackageInfo,
     handleFetchPackageInfoForVersions,
-    handleCloseInfoModal,
     handleCloseInfoModalWithVersions,
     autoShowVersions,
     handleCloseOperationModal,
@@ -66,7 +65,7 @@ function InstalledPage(props: InstalledPageProps) {
 
   return (
     <div class="p-4 sm:p-6 md:p-8">
-      <InstalledPageHeader 
+      <InstalledPageHeader
         updatableCount={updatableCount}
         onUpdateAll={handleUpdateAll}
         onCheckStatus={handleCheckStatus}
@@ -89,7 +88,7 @@ function InstalledPage(props: InstalledPageProps) {
           <span class="loading loading-spinner loading-lg"></span>
         </div>
       </Show>
-      
+
       <Show when={error()}>
         <div role="alert" class="alert alert-error">
           <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -106,7 +105,7 @@ function InstalledPage(props: InstalledPageProps) {
 
       <Show when={!loading() && !error() && filteredPackages().length > 0}>
         <Show when={viewMode() === 'list'}
-          fallback={<PackageGridView 
+          fallback={<PackageGridView
             packages={filteredPackages}
             onViewInfo={handleFetchPackageInfo}
             onViewInfoForVersions={handleFetchPackageInfoForVersions}
@@ -119,7 +118,7 @@ function InstalledPage(props: InstalledPageProps) {
             isPackageVersioned={isPackageVersioned}
           />}
         >
-          <PackageListView 
+          <PackageListView
             packages={filteredPackages}
             onSort={handleSort}
             sortKey={sortKey}
@@ -137,7 +136,7 @@ function InstalledPage(props: InstalledPageProps) {
         </Show>
       </Show>
 
-      <PackageInfoModal 
+      <PackageInfoModal
         pkg={selectedPackage()}
         info={info()}
         loading={infoLoading()}
@@ -152,12 +151,12 @@ function InstalledPage(props: InstalledPageProps) {
         isPackageVersioned={isPackageVersioned}
         onPackageStateChanged={fetchInstalledPackages}
       />
-      <OperationModal 
+      <OperationModal
         title={operationTitle()}
         onClose={handleCloseOperationModal}
         nextStep={operationNextStep() ?? undefined}
       />
-      <ScoopStatusModal 
+      <ScoopStatusModal
         isOpen={showStatusModal()}
         onClose={() => setShowStatusModal(false)}
         status={scoopStatus()}
