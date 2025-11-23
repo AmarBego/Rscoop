@@ -2,8 +2,9 @@ import { For, Show } from "solid-js";
 import { SearchableBucket } from "../../../hooks/useBucketSearch";
 import { BucketInfo } from "../../../hooks/useBuckets";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
-import { ExternalLink, Star, Package, GitFork, Shield, Clock, CircleCheckBig, Download, Trash2, LoaderCircle } from "lucide-solid";
+import { ExternalLink, Star, Package, GitFork, Shield, Clock, Download, Trash2, LoaderCircle } from "lucide-solid";
 import { openUrl } from '@tauri-apps/plugin-opener';
+import Card from "../../common/Card";
 
 interface BucketSearchResultsProps {
   buckets: SearchableBucket[];
@@ -133,33 +134,17 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <For each={props.buckets}>
             {(bucket) => (
-              <div class="card bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300">
-                <div class="card-body p-4">
-                  {/* Header */}
-                  <div class="flex items-start justify-between mb-3 gap-2">
-                    <div class="flex-1 min-w-0">
-                      <h3 class="card-title text-lg flex items-center gap-2 flex-wrap">
-                        <span class="truncate font-semibold">{bucket.name}</span>
-                        <div class="flex items-center gap-1 flex-shrink-0">
-                          <Show when={bucket.is_verified}>
-                            <div class="badge badge-primary badge-sm">
-                              <Shield class="w-3 h-3 mr-1" />
-                              Verified
-                            </div>
-                          </Show>
-                          <Show when={isBucketInstalled(bucket.name)}>
-                            <div class="badge badge-success badge-sm">
-                              <CircleCheckBig class="w-3 h-3 mr-1" />
-                            </div>
-                          </Show>
-                        </div>
-                      </h3>
-                      <p class="text-sm text-base-content/70 font-mono truncate">
-                        {bucket.full_name}
-                      </p>
-                    </div>
-
+              <Card
+                title={
+                  <div class="flex items-center justify-between w-full gap-2">
+                    <span class="truncate font-semibold">{bucket.name}</span>
                     <div class="flex items-center gap-1 flex-shrink-0">
+                      <Show when={bucket.is_verified}>
+                        <div class="badge badge-info badge-outline badge-sm mr-2">
+                          <Shield class="w-3 h-3 mr-1" />
+                          Verified
+                        </div>
+                      </Show>
                       <button
                         type="button"
                         class="btn btn-circle btn-sm btn-ghost hover:btn-primary"
@@ -177,96 +162,103 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       </button>
                     </div>
                   </div>
+                }
+                description={
+                  <>
+                    <p class="text-sm text-base-content/80 line-clamp-2 mb-4 min-h-[2.5rem]">
+                      {bucket.description || "No description available"}
+                    </p>
 
-                  {/* Description */}
-                  <p class="text-sm text-base-content/80 line-clamp-2 mb-4 min-h-[2.5rem]">
-                    {bucket.description || "No description available"}
-                  </p>
+                    {/* Full Name */}
+                    <p class="text-xs text-base-content/70 font-mono truncate mb-4">
+                      {bucket.full_name}
+                    </p>
 
-                  {/* Stats */}
-                  <div class="grid grid-cols-3 gap-2 text-xs mb-4">
-                    <div class="stat-item flex items-center gap-1">
-                      <Star class="w-3 h-3 text-yellow-500" />
-                      <span class="font-medium">{formatNumber(bucket.stars)}</span>
+                    {/* Stats */}
+                    <div class="grid grid-cols-3 gap-2 text-xs mb-4">
+                      <div class="stat-item flex items-center gap-1">
+                        <Star class="w-3 h-3 text-yellow-500" />
+                        <span class="font-medium">{formatNumber(bucket.stars)}</span>
+                      </div>
+
+                      <div class="stat-item flex items-center gap-1">
+                        <Package class="w-3 h-3 text-blue-500" />
+                        <span class="font-medium">{formatNumber(bucket.apps)}</span>
+                      </div>
+
+                      <div class="stat-item flex items-center gap-1">
+                        <GitFork class="w-3 h-3 text-green-500" />
+                        <span class="font-medium">{formatNumber(bucket.forks)}</span>
+                      </div>
                     </div>
 
-                    <div class="stat-item flex items-center gap-1">
-                      <Package class="w-3 h-3 text-blue-500" />
-                      <span class="font-medium">{formatNumber(bucket.apps)}</span>
-                    </div>
-
-                    <div class="stat-item flex items-center gap-1">
-                      <GitFork class="w-3 h-3 text-green-500" />
-                      <span class="font-medium">{formatNumber(bucket.forks)}</span>
-                    </div>
-                  </div>
-
-                  {/* Last Updated */}
-                  <Show when={bucket.last_updated !== "Unknown"}>
-                    <div class="flex items-center gap-1 text-xs text-base-content/60 border-b pb-3 mb-3">
-                      <Clock class="w-3 h-3" />
-                      <span>Updated {formatDate(bucket.last_updated)}</span>
-                    </div>
-                  </Show>
-
-                  {/* Action Buttons */}
-                  <div class="flex items-center gap-2 mb-3">
-                    <Show
-                      when={isBucketInstalled(bucket.name)}
-                      fallback={
-                        <button
-                          class="btn btn-primary btn-sm flex-1"
-                          onClick={(e) => handleInstallBucket(bucket, e)}
-                          disabled={bucketInstall.isBucketBusy(bucket.name)}
-                          title="Install this bucket"
-                        >
-                          <Show
-                            when={bucketInstall.isBucketInstalling(bucket.name)}
-                            fallback={
-                              <>
-                                <Download class="w-4 h-4 mr-1" />
-                                Install
-                              </>
-                            }
-                          >
-                            <LoaderCircle class="w-4 h-4 mr-1 animate-spin" />
-                            Installing...
-                          </Show>
-                        </button>
-                      }
-                    >
+                    {/* Last Updated */}
+                    <Show when={bucket.last_updated !== "Unknown"}>
+                      <div class="flex items-center gap-1 text-xs text-base-content/60 border-b pb-3 mb-3">
+                        <Clock class="w-3 h-3" />
+                        <span>Updated {formatDate(bucket.last_updated)}</span>
+                      </div>
+                    </Show>
+                  </>
+                }
+                class="bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300"
+              >
+                {/* Action Buttons */}
+                <div class="flex items-center gap-2">
+                  <Show
+                    when={isBucketInstalled(bucket.name)}
+                    fallback={
                       <button
-                        class="btn btn-error btn-sm flex-1"
-                        onClick={(e) => handleRemoveBucket(bucket.name, e)}
+                        class="btn btn-primary btn-sm flex-1"
+                        onClick={(e) => handleInstallBucket(bucket, e)}
                         disabled={bucketInstall.isBucketBusy(bucket.name)}
-                        title="Remove this bucket"
+                        title="Install this bucket"
                       >
                         <Show
-                          when={bucketInstall.isBucketRemoving(bucket.name)}
+                          when={bucketInstall.isBucketInstalling(bucket.name)}
                           fallback={
                             <>
-                              <Trash2 class="w-4 h-4 mr-1" />
-                              Remove
+                              <Download class="w-4 h-4 mr-1" />
+                              Install
                             </>
                           }
                         >
                           <LoaderCircle class="w-4 h-4 mr-1 animate-spin" />
-                          Removing...
+                          Installing...
                         </Show>
                       </button>
-                    </Show>
-
+                    }
+                  >
                     <button
-                      class="btn btn-ghost btn-sm"
-                      onClick={() => props.onBucketSelect?.(bucket)}
-                      title="View bucket details"
+                      class="btn btn-error btn-sm flex-1"
+                      onClick={(e) => handleRemoveBucket(bucket.name, e)}
+                      disabled={bucketInstall.isBucketBusy(bucket.name)}
+                      title="Remove this bucket"
                     >
-                      Details
+                      <Show
+                        when={bucketInstall.isBucketRemoving(bucket.name)}
+                        fallback={
+                          <>
+                            <Trash2 class="w-4 h-4 mr-1" />
+                            Remove
+                          </>
+                        }
+                      >
+                        <LoaderCircle class="w-4 h-4 mr-1 animate-spin" />
+                        Removing...
+                      </Show>
                     </button>
-                  </div>
+                  </Show>
 
+                  <button
+                    class="btn-outline btn btn-sm"
+                    onClick={() => props.onBucketSelect?.(bucket)}
+                    title="View bucket details"
+                  >
+                    Details
+                  </button>
                 </div>
-              </div>
+              </Card>
             )}
           </For>
         </div>

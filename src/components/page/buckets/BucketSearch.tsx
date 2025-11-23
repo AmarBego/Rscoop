@@ -216,7 +216,7 @@ function BucketSearch(props: BucketSearchProps) {
                   title="Clear expanded search cache and return to verified buckets only"
                 >
                   <X class="h-4 w-4 mr-1" />
-                  Disable Expanded Search
+                  Disable Community Buckets
                 </button>
               </Show>
             </div>

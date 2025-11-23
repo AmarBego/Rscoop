@@ -27,19 +27,20 @@ const Header: Component<HeaderProps> = (props) => {
   document.addEventListener("keydown", toggleCommandPalette);
 
   return (
-    <div class="navbar bg-base-200">
+    <div class="navbar bg-base-200 border-b border-base-300 shadow-sm">
       <div class="flex-1">
-        <a class="btn btn-ghost text-xl">Rscoop</a>
+        <a class="btn btn-ghost text-xl font-bold">Rscoop</a>
       </div>
       <div class="flex-none">
-        <ul class="menu menu-horizontal px-1">
+        <ul class="menu menu-horizontal px-1 gap-1">
           <For each={navItems}>
             {(item) => (
               <li>
                 <button
-                  class="btn"
+                  class="btn btn-sm btn-ghost transition-colors duration-200"
                   classList={{
-                    "btn-active bg-base-300": props.currentView === item.view,
+                    "bg-base-300 text-info font-semibold": props.currentView === item.view,
+                    "hover:bg-base-300/50": props.currentView !== item.view,
                   }}
                   onClick={() => props.onNavigate(item.view)}
                   onMouseEnter={() => {
