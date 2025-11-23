@@ -26,7 +26,7 @@ pub async fn scan_package(
 ) -> Result<(), String> {
     // The `bucket` parameter may be an empty string or the literal "None"
     // if the user does not specify a bucket.
-    let command_str = if bucket.is_empty() || bucket == "None" {
+    let command_str = if bucket.is_empty() || bucket.eq_ignore_ascii_case("none") {
         format!("scoop virustotal {}", package_name)
     } else {
         format!("scoop virustotal {}/{}", bucket, package_name)

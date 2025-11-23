@@ -1,15 +1,13 @@
 import { For, Show, createEffect, createSignal, createMemo, Switch, Match } from "solid-js";
 import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
-import 'highlight.js/styles/github-dark.css';
-import bash from 'highlight.js/lib/languages/bash';
+import 'highlight.js/styles/atom-one-dark.css';
 import json from 'highlight.js/lib/languages/json';
 import { Download, Ellipsis, FileText, Trash2, ExternalLink, RefreshCw } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import { openPath } from '@tauri-apps/plugin-opener';
 
-hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
 
 interface PackageInfoModalProps {
@@ -261,21 +259,17 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   return (
     <Show when={!!props.pkg}>
       <div class="modal modal-open backdrop-blur-sm" role="dialog" data-no-close-search>
-        <div class="modal-box w-11/12 max-w-5xl bg-base-200 my-8">
-          <div class="flex justify-between items-start">
-            <h3 class="font-bold text-lg">Information for {props.pkg?.name}</h3>
-            <div class="dropdown dropdown-end">
-              <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
-                <Ellipsis class="w-5 h-5" />
-              </label>
-              <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
-                <li>
-                  <a onClick={() => props.pkg && fetchManifest(props.pkg)}>
-                    <FileText class="w-4 h-4 mr-2" />
-                    View Manifest
-                  </a>
-                </li>
-                <Show when={props.pkg?.is_installed}>
+        <div class="modal-box w-11/12 max-w-5xl bg-base-300 shadow-2xl border border-base-300 p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <div class="flex justify-between items-center p-4 border-b border-base-200 bg-base-400">
+            <h3 class="font-bold text-lg flex items-center gap-2">
+              Package: <span class="text-info font-mono">{props.pkg?.name}</span>
+            </h3>
+            <Show when={props.pkg?.is_installed}>
+              <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
+                  <Ellipsis class="w-5 h-5" />
+                </label>
+                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
                   <li>
                     <button type="button" onClick={async () => {
                       if (props.pkg) {
@@ -293,16 +287,14 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                       Open in Explorer
                     </button>
                   </li>
-                </Show>
-                <Show when={props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)}>
-                  <li>
-                    <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
-                      <RefreshCw class="w-4 h-4 mr-2" />
-                      Switch Version
-                    </a>
-                  </li>
-                </Show>
-                <Show when={props.pkg?.is_installed}>
+                  <Show when={props.isPackageVersioned?.(props.pkg!.name)}>
+                    <li>
+                      <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
+                        <RefreshCw class="w-4 h-4 mr-2" />
+                        Switch Version
+                      </a>
+                    </li>
+                  </Show>
                   <li>
                     <a onClick={async () => {
                       if (props.pkg) {
@@ -322,12 +314,12 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                       Debug Structure
                     </a>
                   </li>
-                </Show>
-              </ul>
-            </div>
+                </ul>
+              </div>
+            </Show>
           </div>
 
-          <div class="py-4">
+          <div class="p-6 overflow-y-auto flex-1">
             <Show when={props.loading}>
               <div class="flex justify-center items-center h-40">
                 <span class="loading loading-spinner loading-lg"></span>
@@ -350,6 +342,9 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                           <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}{key === 'Installed' || key === 'Includes'}:</div>
                           <div class="col-span-2">
                             <Switch fallback={<DetailValue value={value} />}>
+                              <Match when={key === 'Bucket' && value.includes('(missing)')}>
+                                <span class="text-warning">{value}</span>
+                              </Match>
                               <Match when={key === 'Homepage'}>
                                 <a href={value} target="_blank" rel="noopener noreferrer" class="link link-primary break-all">{value}</a>
                               </Match>
@@ -369,9 +364,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                 <Show when={props.info?.notes}>
                   <div class="flex-1">
                     <h4 class="text-lg font-medium mb-3 border-b pb-2">Notes</h4>
-                    <pre class="text-sm p-3 rounded-xl whitespace-pre-wrap font-sans">
-                      <code ref={codeRef} class="language-bash">{props.info?.notes}</code>
-                    </pre>
+                    <div class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner bg-[#282c34]">
+                      <pre class="p-4 m-0">
+                        <code ref={codeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{props.info?.notes}</code>
+                      </pre>
+                    </div>
                   </div>
                 </Show>
               </div>
@@ -433,7 +430,14 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               </div>
             </Show>
           </div>
-          <div class="modal-action">
+          <div class="modal-action justify-between p-4 border-t border-base-300 bg-base-300 shrink-0 mt-0">
+            <button
+              class="btn btn-outline btn-sm"
+              onClick={() => props.pkg && fetchManifest(props.pkg)}
+            >
+              <FileText class="w-4 h-4 mr-2" />
+              View Manifest
+            </button>
             <form method="dialog">
               <Show when={!props.pkg?.is_installed && props.onInstall}>
                 <button

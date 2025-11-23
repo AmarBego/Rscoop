@@ -1,9 +1,11 @@
 use serde::Serialize;
 use std::process::Stdio;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use tauri::{Emitter, Listener, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::oneshot;
 
 pub const EVENT_OUTPUT: &str = "operation-output";
 pub const EVENT_FINISHED: &str = "operation-finished";
@@ -39,7 +41,7 @@ pub fn create_powershell_command(command_str: &str) -> Command {
 
 /// Spawns a task to read lines from a stream (stdout or stderr) and sends them to the frontend.
 ///
-/// It also sends any lines that indicate an error to the `error_tx` channel.
+/// It also sets the `has_error` flag if an error is detected.
 use tokio::io::AsyncRead;
 
 fn spawn_output_stream_handler(
@@ -47,16 +49,14 @@ fn spawn_output_stream_handler(
     source: &'static str,
     window: Window,
     output_event: String,
-    error_tx: mpsc::Sender<String>,
+    has_error: Arc<AtomicBool>,
 ) {
     let mut reader = BufReader::new(stream).lines();
 
     tokio::spawn(async move {
         while let Ok(Some(line)) = reader.next_line().await {
             if source == "stderr" || line.to_lowercase().starts_with("error") {
-                if let Err(e) = error_tx.send(line.clone()).await {
-                    log::error!("Failed to send error line: {}", e);
-                }
+                has_error.store(true, Ordering::Relaxed);
             }
 
             if let Err(e) = window.emit(
@@ -117,7 +117,7 @@ pub async fn run_and_stream_command(
         .take()
         .expect("Child process did not have a handle to stderr");
 
-    let (error_tx, mut error_rx) = mpsc::channel::<String>(100);
+    let has_error = Arc::new(AtomicBool::new(false));
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
 
     setup_cancellation_handler(&window, cancel_event, cancel_tx);
@@ -127,19 +127,19 @@ pub async fn run_and_stream_command(
         "stdout",
         window.clone(),
         output_event.to_string(),
-        error_tx.clone(),
+        has_error.clone(),
     );
     spawn_output_stream_handler(
         stderr,
         "stderr",
         window.clone(),
         output_event.to_string(),
-        error_tx,
+        has_error.clone(),
     );
 
     tokio::select! {
         status_res = child.wait() => {
-            handle_command_completion(status_res, &operation_name, &window, finished_event, &mut error_rx).await
+            handle_command_completion(status_res, &operation_name, &window, finished_event, has_error).await
         },
         _ = cancel_rx => {
             handle_cancellation(child, &operation_name, &window, finished_event).await
@@ -153,7 +153,7 @@ async fn handle_command_completion(
     operation_name: &str,
     window: &Window,
     finished_event: &str,
-    error_rx: &mut mpsc::Receiver<String>,
+    has_error: Arc<AtomicBool>,
 ) -> Result<(), String> {
     let status = status_res.map_err(|e| {
         format!(
@@ -163,8 +163,7 @@ async fn handle_command_completion(
     })?;
     log::info!("{} finished with status: {}", operation_name, status);
 
-    let has_errors = error_rx.try_recv().is_ok();
-    let was_successful = status.success() && !has_errors;
+    let was_successful = status.success() && !has_error.load(Ordering::Relaxed);
 
     let message = if was_successful {
         format!("{} completed successfully", operation_name)

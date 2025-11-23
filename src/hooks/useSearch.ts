@@ -57,24 +57,33 @@ export function useSearch() {
     };
 
     // Enhanced close operation modal that refreshes search results
-    const closeOperationModal = (wasSuccess: boolean) => {
+    const closeOperationModal = async (wasSuccess: boolean) => {
         packageOperations.closeOperationModal(wasSuccess);
         if (wasSuccess) {
             // Refresh search results to reflect installation state changes
-            refreshSearchResults();
+            await refreshSearchResults();
+
+            // Update selectedPackage if it exists
+            const currentSelected = packageInfo.selectedPackage();
+            if (currentSelected) {
+                const updatedPackage = results().find(p => p.name === currentSelected.name);
+                if (updatedPackage) {
+                    packageInfo.updateSelectedPackage(updatedPackage);
+                }
+            }
         }
     };
 
     return {
-        searchTerm, 
+        searchTerm,
         setSearchTerm,
         loading,
-        activeTab, 
+        activeTab,
         setActiveTab,
         resultsToShow,
         packageResults,
         binaryResults,
-        
+
         // From usePackageInfo
         selectedPackage: packageInfo.selectedPackage,
         info: packageInfo.info,
@@ -82,7 +91,7 @@ export function useSearch() {
         infoError: packageInfo.error,
         fetchPackageInfo: packageInfo.fetchPackageInfo,
         closeModal: packageInfo.closeModal,
-        
+
         // From usePackageOperations (with enhanced closeOperationModal)
         operationTitle: packageOperations.operationTitle,
         operationNextStep: packageOperations.operationNextStep,

@@ -211,25 +211,42 @@ pub async fn check_scoop_status<R: Runtime>(
     // Check if scoop needs updating
     let scoop_current_dir = scoop_path.join("apps").join("scoop").join("current");
     if scoop_current_dir.exists() {
-        match test_update_status(&scoop_current_dir) {
-            Ok(needs_update) => scoop_needs_update = needs_update,
+        let dir_clone = scoop_current_dir.clone();
+        match tokio::task::spawn_blocking(move || test_update_status(&dir_clone)).await {
+            Ok(Ok(needs_update)) => scoop_needs_update = needs_update,
+            Ok(Err(_)) => network_failure = true,
             Err(_) => network_failure = true,
         }
     }
 
     // Check if any buckets need updating
     if !network_failure {
-        for bucket_path in get_local_buckets(&scoop_path) {
-            match test_update_status(&bucket_path) {
-                Ok(needs_update) => {
+        let buckets = get_local_buckets(&scoop_path);
+        let mut tasks = Vec::new();
+
+        for bucket_path in buckets {
+            tasks.push(tokio::task::spawn_blocking(move || {
+                test_update_status(&bucket_path)
+            }));
+        }
+
+        let mut results = Vec::new();
+        for task in tasks {
+            results.push(task.await);
+        }
+
+        for res in results {
+            match res {
+                Ok(Ok(needs_update)) => {
                     if needs_update {
                         bucket_needs_update = true;
-                        break;
                     }
                 }
-                Err(_) => {
+                Ok(Err(_)) => {
                     network_failure = true;
-                    break;
+                }
+                Err(_) => {
+                    // Task panic
                 }
             }
         }

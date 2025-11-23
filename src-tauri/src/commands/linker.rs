@@ -3,13 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use tauri::State;
-use tokio::time::{sleep, Duration};
 
 #[cfg(windows)]
 use std::process::Command;
-
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PackageVersion {
@@ -36,31 +32,13 @@ pub async fn get_package_versions(
     let _is_global = global.unwrap_or(false);
 
     // Try to use cached versions first
-    {
-        let versions_guard = state.package_versions.lock().await;
-        if let Some(cache) = versions_guard.as_ref() {
-            // Check if the installed packages cache fingerprint matches
-            let installed_guard = state.installed_packages.lock().await;
-            if let Some(installed_cache) = installed_guard.as_ref() {
-                if installed_cache.fingerprint == cache.fingerprint {
-                    // Cache is still valid, use it
-                    if let Some(version_dirs) = cache.versions_map.get(&package_name) {
-                        log::debug!(
-                            "Using cached versions for {}: {} versions",
-                            package_name,
-                            version_dirs.len()
-                        );
-                        // Rebuild package version info from cached data
-                        return build_versioned_package_info(
-                            &scoop_path,
-                            &package_name,
-                            version_dirs.clone(),
-                        )
-                        .await;
-                    }
-                }
-            }
-        }
+    if let Some(version_dirs) = get_cached_versions(&state, &package_name).await {
+        log::debug!(
+            "Using cached versions for {}: {} versions",
+            package_name,
+            version_dirs.len()
+        );
+        return build_versioned_package_info(&scoop_path, &package_name, version_dirs).await;
     }
 
     // Cache miss or invalid - perform fresh scan
@@ -80,22 +58,20 @@ pub async fn get_package_versions(
     let mut version_dirs = Vec::new();
 
     if let Ok(entries) = fs::read_dir(&package_dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let path = entry.path();
-                if path.is_dir() {
-                    if let Some(dir_name) = path.file_name() {
-                        let dir_name_str = dir_name.to_string_lossy().to_string();
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(dir_name) = path.file_name() {
+                    let dir_name_str = dir_name.to_string_lossy().to_string();
 
-                        // Skip "current" directory (it's a symlink)
-                        if dir_name_str == "current" {
-                            continue;
-                        }
+                    // Skip "current" directory (it's a symlink)
+                    if dir_name_str == "current" {
+                        continue;
+                    }
 
-                        // Check if this looks like a version directory
-                        if is_version_directory(&path) {
-                            version_dirs.push(dir_name_str);
-                        }
+                    // Check if this looks like a version directory
+                    if is_version_directory(&path) {
+                        version_dirs.push(dir_name_str);
                     }
                 }
             }
@@ -103,22 +79,7 @@ pub async fn get_package_versions(
     }
 
     // Update the cache
-    {
-        let mut versions_guard = state.package_versions.lock().await;
-        if let Ok(installed_guard) = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current()
-                .block_on(async { Ok::<_, ()>(state.installed_packages.lock().await) })
-        }) {
-            if let Some(installed_cache) = installed_guard.as_ref() {
-                let mut map = std::collections::HashMap::new();
-                map.insert(package_name.clone(), version_dirs.clone());
-                *versions_guard = Some(crate::state::PackageVersionsCache {
-                    fingerprint: installed_cache.fingerprint.clone(),
-                    versions_map: map,
-                });
-            }
-        }
-    }
+    update_versions_cache(&state, package_name.clone(), version_dirs.clone()).await;
 
     log::info!(
         "Detected {} versions for: {}",
@@ -238,163 +199,62 @@ pub async fn switch_package_version(
 async fn switch_junction_direct(current_link: &Path, target_dir: &Path) -> Result<(), String> {
     // Remove existing junction if it exists
     if current_link.exists() {
-        remove_junction(current_link).await?;
+        remove_junction(current_link)?;
     }
 
     // Create new junction
-    create_junction(current_link, target_dir).await?;
+    create_junction(target_dir, current_link)?;
 
     Ok(())
 }
 
-/// Remove a directory junction using multiple methods
-async fn remove_junction(junction_path: &Path) -> Result<(), String> {
-    let junction_str = junction_path.to_string_lossy().replace('/', "\\");
-
-    // First check if the path exists
-    if !junction_path.exists() {
-        log::info!(
-            "Junction {} does not exist, nothing to remove",
-            junction_str
-        );
+fn remove_junction(path: &Path) -> Result<(), String> {
+    if !path.exists() {
         return Ok(());
     }
 
-    // Check if any processes might be using the directory
-    log::info!("Attempting to remove junction: {}", junction_str);
+    // Strategy 1: Standard library remove_dir (works for junctions)
+    if fs::remove_dir(path).is_ok() {
+        return Ok(());
+    }
 
-    #[cfg(windows)]
-    {
-        // Method 1: Try using rmdir /s (more aggressive)
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/c", "rmdir", "/s", "/q", &junction_str]);
-        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    // Strategy 2: Standard library remove_file (sometimes needed)
+    if fs::remove_file(path).is_ok() {
+        return Ok(());
+    }
 
-        match cmd.output() {
-            Ok(output) => {
-                if output.status.success() {
-                    log::info!(
-                        "Successfully removed junction with rmdir /s: {}",
-                        junction_str
-                    );
-                    return Ok(());
-                } else {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    log::warn!("rmdir /s failed: {}", stderr);
-                }
-            }
-            Err(e) => {
-                log::warn!("Failed to execute rmdir /s: {}", e);
-            }
-        }
+    // Strategy 3: Windows CMD rmdir
+    if run_command("cmd", &["/C", "rmdir", &path.to_string_lossy()]).is_ok() {
+        return Ok(());
+    }
 
-        // Small delay to allow any file handles to close
-        sleep(Duration::from_millis(100)).await;
-
-        // Method 2: Try PowerShell Remove-Item with Force
-        let mut cmd = Command::new("powershell");
-        cmd.args([
+    // Strategy 4: PowerShell Remove-Item (Last resort)
+    run_command(
+        "powershell",
+        &[
             "-NoProfile",
             "-Command",
             &format!(
-                "Remove-Item '{}' -Force -Recurse -ErrorAction SilentlyContinue",
-                junction_str
+                "Remove-Item -LiteralPath '{}' -Force -Recurse",
+                path.to_string_lossy()
             ),
-        ]);
-        cmd.creation_flags(0x0800_0000);
-
-        match cmd.output() {
-            Ok(output) => {
-                if output.status.success() {
-                    log::info!(
-                        "Successfully removed junction with PowerShell: {}",
-                        junction_str
-                    );
-                    return Ok(());
-                } else {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    log::warn!("PowerShell Remove-Item failed: {}", stderr);
-                }
-            }
-            Err(e) => {
-                log::warn!("Failed to execute PowerShell: {}", e);
-            }
-        }
-
-        // Method 3: Try regular rmdir without /s
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/c", "rmdir", "/q", &junction_str]);
-        cmd.creation_flags(0x0800_0000);
-
-        match cmd.output() {
-            Ok(output) => {
-                if output.status.success() {
-                    log::info!("Successfully removed junction with rmdir: {}", junction_str);
-                    return Ok(());
-                } else {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    log::warn!("rmdir failed: {}", stderr);
-                }
-            }
-            Err(e) => {
-                log::warn!("Failed to execute rmdir: {}", e);
-            }
-        }
-
-        // Method 4: Final fallback with Rust's fs::remove_dir
-        match fs::remove_dir(junction_path) {
-            Ok(()) => {
-                log::info!(
-                    "Successfully removed junction with fs::remove_dir: {}",
-                    junction_str
-                );
-                Ok(())
-            }
-            Err(e) => {
-                log::error!("All junction removal methods failed. Last error: {}", e);
-                Err(format!(
-                    "Failed to remove junction '{}'. This may be due to:\n\
-                    1. Insufficient permissions (try running as administrator)\n\
-                    2. The directory is in use by another process\n\
-                    3. Antivirus software blocking the operation\n\
-                    Error: {}",
-                    junction_str, e
-                ))
-            }
-        }
-    }
+        ],
+    )
+    .map_err(|e| format!("Failed to remove junction: {}", e))
 }
 
-/// Create a directory junction using Windows mklink command
-async fn create_junction(junction_path: &Path, target_path: &Path) -> Result<(), String> {
-    let junction_str = junction_path.to_string_lossy().replace('/', "\\");
-    let target_str = target_path.to_string_lossy().replace('/', "\\");
-
-    #[cfg(windows)]
-    {
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/c", "mklink", "/J", &junction_str, &target_str]);
-        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
-
-        match cmd.output() {
-            Ok(output) => {
-                if output.status.success() {
-                    let stdout = String::from_utf8_lossy(&output.stdout);
-                    log::info!(
-                        "Successfully created junction: {} -> {} (output: {})",
-                        junction_str,
-                        target_str,
-                        stdout.trim()
-                    );
-                    Ok(())
-                } else {
-                    let stderr = String::from_utf8_lossy(&output.stderr);
-                    Err(format!("Failed to create junction: {}", stderr))
-                }
-            }
-            Err(e) => Err(format!("Failed to execute mklink command: {}", e)),
-        }
-    }
+fn create_junction(target: &Path, link: &Path) -> Result<(), String> {
+    run_command(
+        "cmd",
+        &[
+            "/C",
+            "mklink",
+            "/J",
+            &link.to_string_lossy(),
+            &target.to_string_lossy(),
+        ],
+    )
+    .map_err(|e| format!("Failed to create junction: {}", e))
 }
 
 /// Check if a directory looks like a version directory
@@ -426,12 +286,14 @@ pub async fn get_versioned_packages(
             if let Some(installed_cache) = installed_guard.as_ref() {
                 if installed_cache.fingerprint == cache.fingerprint {
                     // Cache is valid, use it to find versioned packages
-                    let versioned: Vec<String> = cache
+                    let mut versioned: Vec<String> = cache
                         .versions_map
                         .iter()
                         .filter(|(_, versions)| versions.len() > 1)
                         .map(|(name, _)| name.clone())
                         .collect();
+
+                    versioned.sort();
 
                     log::debug!(
                         "Using cached versions to find versioned packages: {} found",
@@ -448,54 +310,33 @@ pub async fn get_versioned_packages(
     let mut versioned_packages = Vec::new();
 
     if let Ok(entries) = fs::read_dir(&apps_dir) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                let package_path = entry.path();
-                if package_path.is_dir() {
-                    if let Some(package_name) = package_path.file_name() {
-                        let package_name_str = package_name.to_string_lossy().to_string();
+        for entry in entries.flatten() {
+            let package_path = entry.path();
+            if package_path.is_dir() {
+                if let Some(package_name) = package_path.file_name() {
+                    let package_name_str = package_name.to_string_lossy().to_string();
 
-                        // Count version directories (excluding "current")
-                        let mut version_dirs = Vec::new();
-                        if let Ok(package_entries) = fs::read_dir(&package_path) {
-                            for package_entry in package_entries {
-                                if let Ok(package_entry) = package_entry {
-                                    let path = package_entry.path();
-                                    if path.is_dir() {
-                                        let dir_name = path.file_name().unwrap().to_string_lossy();
-                                        if dir_name != "current" && is_version_directory(&path) {
-                                            version_dirs.push(dir_name.to_string());
-                                        }
-                                    }
+                    // Count version directories (excluding "current")
+                    let mut version_dirs = Vec::new();
+                    if let Ok(package_entries) = fs::read_dir(&package_path) {
+                        for package_entry in package_entries.flatten() {
+                            let path = package_entry.path();
+                            if path.is_dir() {
+                                let dir_name = path.file_name().unwrap().to_string_lossy();
+                                if dir_name != "current" && is_version_directory(&path) {
+                                    version_dirs.push(dir_name.to_string());
                                 }
                             }
                         }
+                    }
 
-                        // If more than one version is installed, it's a versioned package
-                        if version_dirs.len() > 1 {
-                            versioned_packages.push(package_name_str.clone());
+                    // If more than one version is installed, it's a versioned package
+                    if version_dirs.len() > 1 {
+                        versioned_packages.push(package_name_str.clone());
+                    }
 
-                            // Update the cache with this package's versions
-                            let mut versions_guard = state.package_versions.lock().await;
-                            if let Ok(installed_guard) = tokio::task::block_in_place(|| {
-                                tokio::runtime::Handle::current().block_on(async {
-                                    Ok::<_, ()>(state.installed_packages.lock().await)
-                                })
-                            }) {
-                                if let Some(installed_cache) = installed_guard.as_ref() {
-                                    if versions_guard.is_none() {
-                                        *versions_guard =
-                                            Some(crate::state::PackageVersionsCache {
-                                                fingerprint: installed_cache.fingerprint.clone(),
-                                                versions_map: std::collections::HashMap::new(),
-                                            });
-                                    }
-                                    if let Some(cache) = versions_guard.as_mut() {
-                                        cache.versions_map.insert(package_name_str, version_dirs);
-                                    }
-                                }
-                            }
-                        }
+                    if !version_dirs.is_empty() {
+                        update_versions_cache(&state, package_name_str, version_dirs).await;
                     }
                 }
             }
@@ -583,4 +424,57 @@ pub async fn debug_package_structure(
     }
 
     Ok(debug_info.join("\n"))
+}
+
+async fn get_cached_versions(state: &AppState, package_name: &str) -> Option<Vec<String>> {
+    let versions_guard = state.package_versions.lock().await;
+    let cache = versions_guard.as_ref()?;
+
+    let installed_guard = state.installed_packages.lock().await;
+    let installed_cache = installed_guard.as_ref()?;
+
+    if installed_cache.fingerprint == cache.fingerprint {
+        cache.versions_map.get(package_name).cloned()
+    } else {
+        None
+    }
+}
+
+async fn update_versions_cache(state: &AppState, package_name: String, versions: Vec<String>) {
+    let fingerprint = {
+        let installed_guard = state.installed_packages.lock().await;
+        installed_guard.as_ref().map(|c| c.fingerprint.clone())
+    };
+
+    if let Some(fp) = fingerprint {
+        let mut versions_guard = state.package_versions.lock().await;
+
+        if let Some(cache) = versions_guard.as_mut() {
+            if cache.fingerprint == fp {
+                cache.versions_map.insert(package_name, versions);
+                return;
+            }
+        }
+
+        // Create new cache or overwrite if fingerprint mismatch
+        let mut map = std::collections::HashMap::new();
+        map.insert(package_name, versions);
+        *versions_guard = Some(crate::state::PackageVersionsCache {
+            fingerprint: fp,
+            versions_map: map,
+        });
+    }
+}
+
+fn run_command(cmd: &str, args: &[&str]) -> Result<(), String> {
+    let output = Command::new(cmd)
+        .args(args)
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(String::from_utf8_lossy(&output.stderr).to_string())
+    }
 }

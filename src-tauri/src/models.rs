@@ -86,3 +86,17 @@ pub struct ScoopStatus {
     pub apps_with_issues: Vec<AppStatusInfo>,
     pub is_everything_ok: bool,
 }
+
+// -----------------------------------------------------------------------------
+// Manifest Types (from installed.rs)
+// -----------------------------------------------------------------------------
+#[derive(Deserialize, Debug, Clone)]
+pub struct PackageManifest {
+    pub description: Option<String>,
+    pub version: String,
+}
+
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct InstallManifest {
+    pub bucket: Option<String>,
+}

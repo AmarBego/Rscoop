@@ -42,37 +42,20 @@ pub async fn update_all_packages_headless(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     use crate::commands::powershell;
-    use tokio::io::AsyncReadExt;
 
     log::info!("(Headless) Updating all packages");
-    let mut cmd = powershell::create_powershell_command("scoop update *");
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("Failed to spawn scoop update *: {}", e))?;
-
-    let mut stdout = String::new();
-    if let Some(mut out) = child.stdout.take() {
-        let mut buf = [0u8; 8192];
-        // Read a chunk to avoid huge memory usage; not streaming to UI
-        if let Ok(n) = out.read(&mut buf).await {
-            stdout.push_str(&String::from_utf8_lossy(&buf[..n]));
-        }
-    }
-    let status = child
-        .wait()
+    let output = powershell::create_powershell_command("scoop update *")
+        .output()
         .await
-        .map_err(|e| format!("Failed waiting for scoop update *: {}", e))?;
-    if !status.success() {
+        .map_err(|e| format!("Failed to execute scoop update *: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
         log::warn!(
-            "Headless update_all_packages exited with status: {}",
-            status
+            "Headless update_all_packages exited with status: {}. Error: {}",
+            output.status,
+            stderr
         );
-        if !stdout.is_empty() {
-            log::debug!(
-                "Partial stdout: {}",
-                stdout.lines().take(20).collect::<Vec<_>>().join(" | ")
-            );
-        }
         return Err("Headless package update failed".to_string());
     }
 

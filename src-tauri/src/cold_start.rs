@@ -44,12 +44,7 @@ pub fn run_cold_start<R: Runtime>(app: AppHandle<R>) {
                 COLD_START_DONE.store(false, Ordering::SeqCst);
 
                 // Emit failure events
-                if let Err(err) = app.emit("cold-start-finished", false) {
-                    log::error!("Failed to emit cold-start-finished failure event: {}", err);
-                }
-                if let Err(err) = app.emit("scoop-ready", false) {
-                    log::error!("Failed to emit scoop-ready failure event: {}", err);
-                }
+                emit_ready_events_with_retry(&app, false).await;
             }
         }
     });

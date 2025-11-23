@@ -1,23 +1,27 @@
-### Release Notes 1.4.3
+### Release Notes 1.4.5
 
-#### Added
-- **Settings Page Redesign**: Settings are now organized into clear tabs (Automation, Management, Security, Window & UI, About) for faster navigation.
-- **Automatic Bucket & Package Updates**: Background scheduler with wall-clock persistence auto-updates buckets and optionally packages after bucket refresh. Supports custom intervals and short debug intervals.
-- **Start on Boot**: New Startup toggle lets Rscoop launch automatically with Windows; integrates version-aware MSI mismatch handling.
-- **Auto cleanup**: Automatically clean up old versions and cache on install/update and uninstall
+#### New Features
+- **Native MSI Launch Fix**: Rscoop now automatically detects if it was launched in a restricted MSI context (common after fresh installs) and seamlessly relaunches itself with correct permissions and working directory. The "MSI Launch Notice" screen has been removed.
+- **Enhanced Manifest Viewer**: The manifest viewer now features improved syntax highlighting (Atom One Dark), a copy-to-clipboard button, and a cleaner UI.
 
-#### Improved
-- **Version-Aware Launch Behavior**: Updated builds trigger a mismatch notice even on auto-start to ensure a clean post-update relaunch.
+#### Improvements
+- **Massive Backend Refactor**:
+  - **Non-blocking Operations**: Heavy tasks like searching, status checks, and updates now run in non-blocking threads, keeping the UI responsive even during intensive operations.
+  - **Modular Architecture**: Scheduler logic moved to a dedicated module; cleaner separation of concerns across commands.
+  - **Robust Junction Handling**: The linker now uses multiple strategies (std fs, cmd, PowerShell) to reliably remove and create junctions, fixing issues with version switching.
+- **State Management**: Package info modals now automatically update their state after operations (install/uninstall/update) without needing to close and reopen.
+- **Performance**: Optimized file system scanning and modification time checks.
+- **Packages without Buckets**: Packages without buckets display normally and warn the User the bucket is missing
+- **Moved `View Manifest` Button**: Moved to the Modal itself for ease of access for power-users
+- **Slight theming and consistency Improvements**: To unify it better text and colors have been slightly adjusted
 
+#### Bug Fixes
+- **Versioned Installs**: Fixed issues where `install.json` was missing or unreadable for versioned package installs.
+- **Bucket Manifests**: Improved logic for locating and counting manifests within buckets, supporting both flat and nested structures.
+- **Auto-Cleanup**: Ensure auto-cleanup is reliably triggered after uninstalling packages or clearing cache.
+- **Search**: Fixed JSON parsing for `bin` fields in manifests to correctly identify binary matches.
 
-#### Documentation
-- Updated settings to reflect new changes
-
-### 1.4.4 specific =>
-#### Bug Fixes / Reliability
-- **Startup Event Race**: Registered cold-start and readiness listeners before any asynchronous update/network checks to prevent missed backend events causing long (10s) spinner fallback.
-- **Updater Timeout Stall**: Moved update check to deferred phase after readiness with a 4s timeout safeguard so a slow/failed request no longer blocks initial UI rendering.
-- **Duplicate Emissions Reduced**: Added `is_cold_start_ready` backend command to allow future polling and reduce reliance on repeated multi-attempt event emission loops.
-- **Loading Screen Variability**: Eliminated cases where loading screen persisted until fallback due to late listener registration; readiness now reflects actual cold-start completion promptly.
-- **Resilience on Network Errors**: Gracefully logs updater failures without elevating severity or holding UI readiness state.
-- **Debug logs**: Now rotate upon launch to not cause exhaustive debugs
+#### Next Version
+- **Light Mode**: Next version will include a light theme
+- **Accent Colors**: Selectable accent colors
+- **Got any ideas?**: Open an issue! 

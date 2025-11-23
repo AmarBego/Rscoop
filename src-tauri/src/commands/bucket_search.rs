@@ -42,119 +42,128 @@ pub struct ExpandedSearchInfo {
 }
 
 // Default verified buckets - these show automatically
+static VERIFIED_BUCKETS_DATA: &[(&str, &str, &str, &str, u32, u32, u32, &str)] = &[
+    (
+        "main",
+        "ScoopInstaller/Main",
+        "📦 The default bucket for Scoop. (scoop's built-in bucket 'main')",
+        "https://github.com/ScoopInstaller/Main",
+        1733,
+        1069,
+        1402,
+        "2025-09-16",
+    ),
+    (
+        "extras",
+        "ScoopInstaller/Extras",
+        "📦 The Extras bucket for Scoop. (scoop's built-in bucket 'extras')",
+        "https://github.com/ScoopInstaller/Extras",
+        1958,
+        1511,
+        2183,
+        "2025-09-16",
+    ),
+    (
+        "games",
+        "Calinou/scoop-games",
+        "Scoop bucket for open source/freeware games and game-related tools (scoop's built-in bucket 'games')",
+        "https://github.com/Calinou/scoop-games",
+        321,
+        172,
+        360,
+        "2025-09-16",
+    ),
+    (
+        "nerd-fonts",
+        "matthewjberger/scoop-nerd-fonts",
+        "A scoop bucket for installing nerd fonts (scoop's built-in bucket 'nerd-fonts')",
+        "https://github.com/matthewjberger/scoop-nerd-fonts",
+        418,
+        45,
+        367,
+        "2025-09-13",
+    ),
+    (
+        "sysinternals",
+        "niheaven/scoop-sysinternals",
+        "A Scoop bucket for Windows Sysinternals utilities",
+        "https://github.com/niheaven/scoop-sysinternals",
+        80,
+        15,
+        70,
+        "2025-09-10",
+    ),
+    (
+        "java",
+        "ScoopInstaller/Java",
+        "📦 A bucket for Scoop, for Oracle Java, OpenJDK, Eclipse Temurin, IBM Semeru, Zulu, ojdkbuild, Amazon Corretto, BellSoft Liberica, SapMachine and Microsoft JDK. (scoop's built-in bucket 'java')",
+        "https://github.com/ScoopInstaller/Java",
+        288,
+        100,
+        299,
+        "2025-09-16",
+    ),
+    (
+        "nirsoft",
+        "ScoopInstaller/Nirsoft",
+        "A Scoop bucket of useful NirSoft utilities (scoop's built-in bucket 'nirsoft')",
+        "https://github.com/ScoopInstaller/Nirsoft",
+        143,
+        43,
+        276,
+        "2025-09-15",
+    ),
+    (
+        "nonportable",
+        "ScoopInstaller/Nonportable",
+        "A bucket for Scoop containing non-portable applications",
+        "https://github.com/ScoopInstaller/Nonportable",
+        120,
+        80,
+        200,
+        "2025-09-15",
+    ),
+    (
+        "php",
+        "ScoopInstaller/PHP",
+        "A bucket for PHP versions for Scoop",
+        "https://github.com/ScoopInstaller/PHP",
+        85,
+        30,
+        25,
+        "2025-09-12",
+    ),
+    (
+        "versions",
+        "ScoopInstaller/Versions",
+        "📦 A Scoop bucket for alternative versions of apps. (scoop's built-in bucket 'versions')",
+        "https://github.com/ScoopInstaller/Versions",
+        240,
+        234,
+        510,
+        "2025-09-16",
+    ),
+];
+
 fn get_verified_buckets() -> Vec<SearchableBucket> {
-    vec![
-        SearchableBucket {
-            name: "main".to_string(),
-            full_name: "ScoopInstaller/Main".to_string(),
-            description: "📦 The default bucket for Scoop. (scoop's built-in bucket 'main')".to_string(),
-            url: "https://github.com/ScoopInstaller/Main".to_string(),
-            stars: 1733,
-            forks: 1069,
-            apps: 1402,
-            last_updated: "2025-09-16".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "extras".to_string(),
-            full_name: "ScoopInstaller/Extras".to_string(),
-            description: "📦 The Extras bucket for Scoop. (scoop's built-in bucket 'extras')".to_string(),
-            url: "https://github.com/ScoopInstaller/Extras".to_string(),
-            stars: 1958,
-            forks: 1511,
-            apps: 2183,
-            last_updated: "2025-09-16".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "games".to_string(),
-            full_name: "Calinou/scoop-games".to_string(),
-            description: "Scoop bucket for open source/freeware games and game-related tools (scoop's built-in bucket 'games')".to_string(),
-            url: "https://github.com/Calinou/scoop-games".to_string(),
-            stars: 321,
-            forks: 172,
-            apps: 360,
-            last_updated: "2025-09-16".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "nerd-fonts".to_string(),
-            full_name: "matthewjberger/scoop-nerd-fonts".to_string(),
-            description: "A scoop bucket for installing nerd fonts (scoop's built-in bucket 'nerd-fonts')".to_string(),
-            url: "https://github.com/matthewjberger/scoop-nerd-fonts".to_string(),
-            stars: 418,
-            forks: 45,
-            apps: 367,
-            last_updated: "2025-09-13".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "sysinternals".to_string(),
-            full_name: "niheaven/scoop-sysinternals".to_string(),
-            description: "A Scoop bucket for Windows Sysinternals utilities".to_string(),
-            url: "https://github.com/niheaven/scoop-sysinternals".to_string(),
-            stars: 80,
-            forks: 15,
-            apps: 70,
-            last_updated: "2025-09-10".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "java".to_string(),
-            full_name: "ScoopInstaller/Java".to_string(),
-            description: "📦 A bucket for Scoop, for Oracle Java, OpenJDK, Eclipse Temurin, IBM Semeru, Zulu, ojdkbuild, Amazon Corretto, BellSoft Liberica, SapMachine and Microsoft JDK. (scoop's built-in bucket 'java')".to_string(),
-            url: "https://github.com/ScoopInstaller/Java".to_string(),
-            stars: 288,
-            forks: 100,
-            apps: 299,
-            last_updated: "2025-09-16".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "nirsoft".to_string(),
-            full_name: "ScoopInstaller/Nirsoft".to_string(),
-            description: "A Scoop bucket of useful NirSoft utilities (scoop's built-in bucket 'nirsoft')".to_string(),
-            url: "https://github.com/ScoopInstaller/Nirsoft".to_string(),
-            stars: 143,
-            forks: 43,
-            apps: 276,
-            last_updated: "2025-09-15".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "nonportable".to_string(),
-            full_name: "ScoopInstaller/Nonportable".to_string(),
-            description: "A bucket for Scoop containing non-portable applications".to_string(),
-            url: "https://github.com/ScoopInstaller/Nonportable".to_string(),
-            stars: 120,
-            forks: 80,
-            apps: 200,
-            last_updated: "2025-09-15".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "php".to_string(),
-            full_name: "ScoopInstaller/PHP".to_string(),
-            description: "A bucket for PHP versions for Scoop".to_string(),
-            url: "https://github.com/ScoopInstaller/PHP".to_string(),
-            stars: 85,
-            forks: 30,
-            apps: 25,
-            last_updated: "2025-09-12".to_string(),
-            is_verified: true,
-        },
-        SearchableBucket {
-            name: "versions".to_string(),
-            full_name: "ScoopInstaller/Versions".to_string(),
-            description: "📦 A Scoop bucket for alternative versions of apps. (scoop's built-in bucket 'versions')".to_string(),
-            url: "https://github.com/ScoopInstaller/Versions".to_string(),
-            stars: 240,
-            forks: 234,
-            apps: 510,
-            last_updated: "2025-09-16".to_string(),
-            is_verified: true,
-        },
-    ]
+    VERIFIED_BUCKETS_DATA
+        .iter()
+        .map(
+            |&(name, full_name, description, url, stars, forks, apps, last_updated)| {
+                SearchableBucket {
+                    name: name.to_string(),
+                    full_name: full_name.to_string(),
+                    description: description.to_string(),
+                    url: url.to_string(),
+                    stars,
+                    forks,
+                    apps,
+                    last_updated: last_updated.to_string(),
+                    is_verified: true,
+                }
+            },
+        )
+        .collect()
 }
 
 // Parse the massive bucket list from GitHub using efficient parser
@@ -176,71 +185,18 @@ fn filter_buckets(buckets: &[SearchableBucket], query: &str) -> Vec<SearchableBu
     }
 
     let query_lower = query.to_lowercase();
-    let mut scored_buckets = Vec::new();
-
-    for bucket in buckets {
-        let mut score = 0.0;
-
-        // Primary search: Bucket name (heavily weighted)
-        if bucket.name.to_lowercase() == query_lower {
-            score += 1000.0; // Exact bucket name match gets highest priority
-        } else if bucket.name.to_lowercase().starts_with(&query_lower) {
-            score += 500.0; // Name starts with query gets very high priority
-        } else if bucket.name.to_lowercase().contains(&query_lower) {
-            score += 250.0; // Name contains query gets high priority
-        }
-
-        // Secondary search: Repository name without "scoop-" prefix (medium weight)
-        let repo_name = bucket
-            .full_name
-            .split('/')
-            .nth(1)
-            .unwrap_or("")
-            .to_lowercase();
-        let clean_repo_name = repo_name.replace("scoop-", "").replace("scoop_", "");
-
-        if score == 0.0 {
-            // Only check repo name if bucket name didn't match
-            if clean_repo_name == query_lower {
-                score += 100.0;
-            } else if clean_repo_name.starts_with(&query_lower) {
-                score += 50.0;
-            } else if clean_repo_name.contains(&query_lower) {
-                score += 25.0;
+    let mut scored_buckets: Vec<(SearchableBucket, f64)> = buckets
+        .iter()
+        .filter_map(|bucket| {
+            let score = calculate_bucket_score(bucket, &query_lower);
+            if score > 0.0 {
+                Some((bucket.clone(), score))
+            } else {
+                None
             }
-        }
+        })
+        .collect();
 
-        // Tertiary search: Full repository name (lower weight, only if no name matches)
-        if score == 0.0 {
-            if bucket.full_name.to_lowercase().contains(&query_lower) {
-                score += 10.0;
-            }
-        }
-
-        // Last resort: Description search (very low weight)
-        if score == 0.0 {
-            if bucket.description.to_lowercase().contains(&query_lower) {
-                score += 1.0;
-            }
-        }
-
-        // Apply bonuses only if there's already a match
-        if score > 0.0 {
-            // Bonus for verified buckets
-            if bucket.is_verified {
-                score += 50.0;
-            }
-
-            // Small bonus based on popularity (much smaller impact)
-            score += (bucket.stars as f64 * 0.001) + (bucket.apps as f64 * 0.002);
-        }
-
-        if score > 0.0 {
-            scored_buckets.push((bucket.clone(), score));
-        }
-    }
-
-    // Sort by score (descending)
     scored_buckets.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     scored_buckets
@@ -395,4 +351,59 @@ pub async fn check_bucket_cache_exists() -> Result<bool, String> {
             Ok(false) // Default to false if we can't check
         }
     }
+}
+
+fn calculate_bucket_score(bucket: &SearchableBucket, query_lower: &str) -> f64 {
+    let mut score = 0.0;
+
+    // Primary search: Bucket name (heavily weighted)
+    if bucket.name.to_lowercase() == query_lower {
+        score += 1000.0; // Exact bucket name match gets highest priority
+    } else if bucket.name.to_lowercase().starts_with(query_lower) {
+        score += 500.0; // Name starts with query gets very high priority
+    } else if bucket.name.to_lowercase().contains(query_lower) {
+        score += 250.0; // Name contains query gets high priority
+    }
+
+    // Secondary search: Repository name without "scoop-" prefix (medium weight)
+    if score == 0.0 {
+        let repo_name = bucket
+            .full_name
+            .split('/')
+            .nth(1)
+            .unwrap_or("")
+            .to_lowercase();
+        let clean_repo_name = repo_name.replace("scoop-", "").replace("scoop_", "");
+
+        if clean_repo_name == query_lower {
+            score += 100.0;
+        } else if clean_repo_name.starts_with(query_lower) {
+            score += 50.0;
+        } else if clean_repo_name.contains(query_lower) {
+            score += 25.0;
+        }
+    }
+
+    // Tertiary search: Full repository name (lower weight, only if no name matches)
+    if score == 0.0 && bucket.full_name.to_lowercase().contains(query_lower) {
+        score += 10.0;
+    }
+
+    // Last resort: Description search (very low weight)
+    if score == 0.0 && bucket.description.to_lowercase().contains(query_lower) {
+        score += 1.0;
+    }
+
+    // Apply bonuses only if there's already a match
+    if score > 0.0 {
+        // Bonus for verified buckets
+        if bucket.is_verified {
+            score += 50.0;
+        }
+
+        // Small bonus based on popularity (much smaller impact)
+        score += (bucket.stars as f64 * 0.001) + (bucket.apps as f64 * 0.002);
+    }
+
+    score
 }

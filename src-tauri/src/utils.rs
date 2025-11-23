@@ -1,9 +1,12 @@
 use crate::commands::settings;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
+use url::Url;
 
 #[derive(Debug, Clone)]
 pub struct ScoopAppShortcut {
@@ -322,10 +325,6 @@ fn locate_package_manifest_impl(
 ) -> Result<(PathBuf, String), String> {
     let buckets_dir = scoop_dir.join("buckets");
 
-    if !buckets_dir.is_dir() {
-        return Err("Scoop 'buckets' directory not found.".to_string());
-    }
-
     let search_buckets = |bucket_path: PathBuf| -> Result<(PathBuf, String), String> {
         if bucket_path.is_dir() {
             let bucket_name = bucket_path
@@ -349,22 +348,63 @@ fn locate_package_manifest_impl(
         Err(format!("Package '{}' not found.", package_name))
     };
 
-    if let Some(source) = package_source {
-        if !source.is_empty() && source != "None" {
-            let specific_bucket_path = buckets_dir.join(&source);
-            return search_buckets(specific_bucket_path).map_err(|_| {
-                format!(
-                    "Package '{}' not found in bucket '{}'.",
-                    package_name, source
-                )
-            });
+    // 1. Try to find in specific bucket if provided
+    if let Some(source) = &package_source {
+        if !source.is_empty() && source != "None" && buckets_dir.is_dir() {
+            let specific_bucket_path = buckets_dir.join(source);
+            if let Ok(found) = search_buckets(specific_bucket_path) {
+                return Ok(found);
+            }
         }
     }
 
-    for entry in std::fs::read_dir(buckets_dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if let Ok(found) = search_buckets(entry.path()) {
-            return Ok(found);
+    // 2. Search all buckets
+    if buckets_dir.is_dir() {
+        if let Ok(entries) = std::fs::read_dir(&buckets_dir) {
+            for entry in entries.flatten() {
+                if let Ok(found) = search_buckets(entry.path()) {
+                    return Ok(found);
+                }
+            }
+        }
+    }
+
+    // 3. Check installed apps if not found in buckets
+    let installed_manifest_path = scoop_dir
+        .join("apps")
+        .join(package_name)
+        .join("current")
+        .join("manifest.json");
+
+    if installed_manifest_path.exists() {
+        // Try to read install.json to get the original bucket name if possible
+        let install_json_path = scoop_dir
+            .join("apps")
+            .join(package_name)
+            .join("current")
+            .join("install.json");
+
+        let mut bucket_name = "Installed (Bucket missing)".to_string();
+
+        if install_json_path.exists() {
+            if let Ok(content) = std::fs::read_to_string(install_json_path) {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+                    if let Some(bucket) = json.get("bucket").and_then(|b| b.as_str()) {
+                        bucket_name = format!("{} (missing)", bucket);
+                    }
+                }
+            }
+        }
+
+        return Ok((installed_manifest_path, bucket_name));
+    }
+
+    if let Some(source) = package_source {
+        if !source.is_empty() && source != "None" {
+            return Err(format!(
+                "Package '{}' not found in bucket '{}'.",
+                package_name, source
+            ));
         }
     }
 
@@ -440,7 +480,7 @@ pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
 }
 
 /// Get Scoop root directory as fallback when AppState is not available
-fn get_scoop_root_fallback() -> PathBuf {
+pub fn get_scoop_root_fallback() -> PathBuf {
     let candidates = build_candidate_list(Vec::<PathBuf>::new());
 
     if let Some(best) = select_best_scoop_root(candidates, None) {
@@ -602,5 +642,214 @@ pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<()
             log::error!("{}", error_msg);
             Err(error_msg)
         }
+    }
+}
+
+/// Checks if the current working directory matches the executable directory.
+/// If not, it relaunches the application with the correct working directory using ShellExecute.
+/// This fixes issues with MSI installers launching the app with the wrong CWD and restricted tokens.
+#[cfg(windows)]
+pub fn ensure_correct_cwd_and_launch() {
+    // Skip this check in development mode
+    if cfg!(debug_assertions) {
+        return;
+    }
+
+    use std::env;
+    use std::fs;
+    use std::process::Command;
+
+    let sentinel_path = env::temp_dir().join("rscoop_relaunch.lock");
+
+    // Check for sentinel file (loop breaker)
+    if sentinel_path.exists() {
+        // If sentinel exists, we are the relaunched process.
+        // Force CWD to exe dir and clean up.
+        if let Ok(exe_path) = env::current_exe() {
+            if let Some(exe_dir) = exe_path.parent() {
+                let _ = env::set_current_dir(exe_dir);
+            }
+        }
+        let _ = fs::remove_file(&sentinel_path);
+        return;
+    }
+
+    if let (Ok(exe_path), Ok(_cwd)) = (env::current_exe(), env::current_dir()) {
+        if let Some(_exe_dir) = exe_path.parent() {
+            // Use the shared mismatch check
+            if !is_cwd_mismatch() {
+                return;
+            }
+
+            // Create sentinel file to prevent loop
+            let _ = fs::write(&sentinel_path, "Relaunching...");
+
+            // Relaunch via Explorer to escape MSI environment
+            let _ = Command::new("explorer").arg(&exe_path).spawn();
+            std::process::exit(0);
+        }
+    }
+}
+
+/// Checks if the current working directory matches the application's install directory.
+/// Returns true if they don't match.
+pub fn is_cwd_mismatch() -> bool {
+    // Helper to strip UNC prefix for comparison
+    fn normalize(p: &std::path::Path) -> PathBuf {
+        let s = p.to_string_lossy();
+        if s.starts_with(r"\\?\") {
+            PathBuf::from(&s[4..])
+        } else {
+            p.to_path_buf()
+        }
+    }
+
+    if let (Ok(exe_path), Ok(cwd)) = (env::current_exe(), env::current_dir()) {
+        // Get the directory containing the executable
+        let exe_dir = if let Some(parent) = exe_path.parent() {
+            parent.to_path_buf()
+        } else {
+            return false;
+        };
+
+        let exe_dir_norm = normalize(&exe_dir).to_string_lossy().to_lowercase();
+        let cwd_norm = normalize(&cwd).to_string_lossy().to_lowercase();
+
+        exe_dir_norm != cwd_norm
+    } else {
+        false
+    }
+}
+
+/// Counts the number of manifest (.json) files in a bucket directory.
+/// Handles both flat structure and bucket/ subdirectory structure.
+pub fn count_manifests(bucket_path: &std::path::Path) -> u32 {
+    let mut count = 0;
+
+    // Check for manifests in the root of the bucket
+    if let Ok(entries) = fs::read_dir(bucket_path) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
+                // Skip certain files that aren't package manifests
+                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                    if !file_name.starts_with('.') && file_name != "bucket.json" {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Always check the bucket/ subdirectory as well (many buckets primarily use this structure)
+    let bucket_subdir = bucket_path.join("bucket");
+    if bucket_subdir.is_dir() {
+        if let Ok(entries) = fs::read_dir(bucket_subdir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
+                    count += 1;
+                }
+            }
+        }
+    }
+
+    count
+}
+
+// -----------------------------------------------------------------------------
+// URL and Bucket Helpers
+// -----------------------------------------------------------------------------
+
+// Regex to validate and normalize Git URLs
+static GIT_URL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^(?:https?://)?(?:www\.)?(?:github\.com|gitlab\.com|bitbucket\.org)/([^/]+)/([^/]+?)(?:\.git)?/?$").unwrap()
+});
+
+/// Validate and normalize repository URL
+pub fn validate_and_normalize_url(url: &str) -> Result<String, String> {
+    // Handle common URL formats
+    let normalized_url = if url.starts_with("http://") || url.starts_with("https://") {
+        url.to_string()
+    } else if url.contains("github.com")
+        || url.contains("gitlab.com")
+        || url.contains("bitbucket.org")
+    {
+        if url.starts_with("git@") {
+            // Convert SSH format to HTTPS
+            if let Some(captures) = Regex::new(r"git@([^:]+):([^/]+)/(.+?)(?:\.git)?$")
+                .unwrap()
+                .captures(url)
+            {
+                let host = &captures[1];
+                let user = &captures[2];
+                let repo = &captures[3];
+                format!("https://{}/{}/{}.git", host, user, repo)
+            } else {
+                return Err("Invalid SSH Git URL format".to_string());
+            }
+        } else {
+            // Assume it's a GitHub shorthand like "user/repo"
+            if url.split('/').count() == 2 && !url.contains('.') {
+                format!("https://github.com/{}.git", url)
+            } else {
+                format!("https://{}", url.trim_start_matches("www."))
+            }
+        }
+    } else if url.split('/').count() == 2 && !url.contains('.') {
+        // Handle GitHub shorthand "user/repo"
+        format!("https://github.com/{}.git", url)
+    } else {
+        return Err(
+            "URL must be a valid Git repository (GitHub, GitLab, or Bitbucket)".to_string(),
+        );
+    };
+
+    // Ensure .git extension for consistency
+    let final_url = if !normalized_url.ends_with(".git")
+        && (normalized_url.contains("github.com")
+            || normalized_url.contains("gitlab.com")
+            || normalized_url.contains("bitbucket.org"))
+    {
+        format!("{}.git", normalized_url)
+    } else {
+        normalized_url
+    };
+
+    // Validate URL format
+    match Url::parse(&final_url) {
+        Ok(_) => Ok(final_url),
+        Err(_) => Err("Invalid URL format".to_string()),
+    }
+}
+
+/// Extract bucket name from URL or use provided name
+pub fn extract_bucket_name_from_url(
+    url: &str,
+    provided_name: Option<&str>,
+) -> Result<String, String> {
+    if let Some(name) = provided_name {
+        if !name.is_empty() {
+            return Ok(name.to_lowercase().trim().to_string());
+        }
+    }
+
+    // Try to extract from URL
+    if let Some(captures) = GIT_URL_REGEX.captures(url) {
+        let repo_name = captures.get(2).unwrap().as_str();
+        // Remove common prefixes and clean up
+        let clean_name = repo_name
+            .replace("scoop-", "")
+            .replace("Scoop-", "")
+            .replace("scoop_", "")
+            .to_lowercase();
+
+        if clean_name.is_empty() {
+            return Err("Could not extract valid bucket name from URL".to_string());
+        }
+
+        Ok(clean_name)
+    } else {
+        Err("Could not extract bucket name from URL. Please provide a name.".to_string())
     }
 }

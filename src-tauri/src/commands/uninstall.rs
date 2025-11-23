@@ -33,10 +33,10 @@ pub async fn uninstall_package(
     .await?;
     invalidate_manifest_cache().await;
     invalidate_installed_cache(state.clone()).await;
-    
+
     // Trigger auto cleanup after uninstall
     trigger_auto_cleanup(app, state).await;
-    
+
     Ok(())
 }
 
@@ -65,10 +65,10 @@ pub async fn clear_package_cache(
         &bucket,
     )
     .await?;
-    
+
     // Trigger auto cleanup after clearing cache
     trigger_auto_cleanup(app, state).await;
-    
+
     Ok(())
 }
 
@@ -85,11 +85,7 @@ async fn execute_package_operation(
 ) -> Result<(), String> {
     // The bucket is not used by `scoop uninstall` or `scoop cache rm`, but we parse it
     // for logging consistency and to align with the `install` command's signature.
-    let bucket_opt = if bucket.is_empty() || bucket.eq_ignore_ascii_case("none") {
-        None
-    } else {
-        Some(bucket)
-    };
+    let bucket_opt = (!bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")).then(|| bucket);
 
     log::info!(
         "{} package '{}' from bucket '{}'",

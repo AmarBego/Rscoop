@@ -139,63 +139,69 @@ pub async fn search_scoop<R: tauri::Runtime>(
 
     let pattern = build_search_regex(&term)?;
 
-    let mut packages: Vec<ScoopPackage> = manifest_paths
-        .par_iter()
-        .filter_map(|path| {
-            // Check if the file name (package name) matches first
-            let file_name = path.file_stem().and_then(|s| s.to_str())?;
-            let name_matches = pattern.is_match(file_name);
+    let manifest_paths_clone = manifest_paths.clone();
 
-            // Determine if the search term matches one of the binaries declared in the manifest.
-            // We only do this expensive parse if the package name itself did **not** match.
-            let match_source = if name_matches {
-                MatchSource::Name
-            } else {
-                // Load and inspect the manifest's `bin` field
-                let content = std::fs::read_to_string(path).ok()?;
-                let json: Value = serde_json::from_str(&content).ok()?;
+    let mut packages: Vec<ScoopPackage> = tokio::task::spawn_blocking(move || {
+        manifest_paths_clone
+            .par_iter()
+            .filter_map(|path| {
+                // Check if the file name (package name) matches first
+                let file_name = path.file_stem().and_then(|s| s.to_str())?;
+                let name_matches = pattern.is_match(file_name);
 
-                let does_bin_match = json.get("bin").map_or(false, |bin_val| {
-                    match bin_val {
-                        Value::String(s) => pattern.is_match(s),
-                        Value::Array(arr) => arr.iter().any(|entry| match entry {
+                // Determine if the search term matches one of the binaries declared in the manifest.
+                // We only do this expensive parse if the package name itself did **not** match.
+                let match_source = if name_matches {
+                    MatchSource::Name
+                } else {
+                    // Load and inspect the manifest's `bin` field
+                    let content = std::fs::read_to_string(path).ok()?;
+                    let json: Value = serde_json::from_str(&content).ok()?;
+
+                    let does_bin_match = json.get("bin").map_or(false, |bin_val| {
+                        match bin_val {
                             Value::String(s) => pattern.is_match(s),
+                            Value::Array(arr) => arr.iter().any(|entry| match entry {
+                                Value::String(s) => pattern.is_match(s),
+                                Value::Object(obj) => {
+                                    // Some manifests use object syntax { "alias": "path/to/file" }
+                                    obj.keys().any(|k| pattern.is_match(k))
+                                        || obj.values().any(|v| {
+                                            v.as_str().map_or(false, |s| pattern.is_match(s))
+                                        })
+                                }
+                                _ => false,
+                            }),
                             Value::Object(obj) => {
-                                // Some manifests use object syntax { "alias": "path/to/file" }
+                                // Very uncommon, but treat similarly to array/object case
                                 obj.keys().any(|k| pattern.is_match(k))
                                     || obj
                                         .values()
                                         .any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
                             }
                             _ => false,
-                        }),
-                        Value::Object(obj) => {
-                            // Very uncommon, but treat similarly to array/object case
-                            obj.keys().any(|k| pattern.is_match(k))
-                                || obj
-                                    .values()
-                                    .any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
                         }
-                        _ => false,
+                    });
+
+                    if does_bin_match {
+                        MatchSource::Binary
+                    } else {
+                        MatchSource::None
                     }
-                });
+                };
 
-                if does_bin_match {
-                    MatchSource::Binary
-                } else {
-                    MatchSource::None
+                if match_source == MatchSource::None {
+                    return None;
                 }
-            };
 
-            if match_source == MatchSource::None {
-                return None;
-            }
-
-            let mut pkg = parse_package_from_manifest(path)?;
-            pkg.match_source = match_source;
-            Some(pkg)
-        })
-        .collect();
+                let mut pkg = parse_package_from_manifest(path)?;
+                pkg.match_source = match_source;
+                Some(pkg)
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     // Determine which of the found packages are already installed.
     let state = app.state::<AppState>();

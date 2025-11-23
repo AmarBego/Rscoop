@@ -78,24 +78,32 @@ pub async fn check_for_updates<R: Runtime>(
             .collect();
 
     // Check for updates in parallel.
-    let updatable_packages: Vec<UpdatablePackage> = installed_packages
-        .par_iter()
-        .filter(|p| !held_packages.contains(&p.name)) // Exclude held packages
-        .filter_map(|package| {
-            match check_package_for_update(&scoop_path, package) {
-                Ok(Some(updatable)) => Some(updatable),
-                Ok(None) => None, // Package is up-to-date
-                Err(e) => {
-                    log::warn!(
-                        "Could not check for update for package '{}': {}",
-                        package.name,
-                        e
-                    );
-                    None
+    let installed_packages_clone = installed_packages.clone();
+    let scoop_path_clone = scoop_path.clone();
+    let held_packages_clone = held_packages.clone();
+
+    let updatable_packages = tokio::task::spawn_blocking(move || {
+        installed_packages_clone
+            .par_iter()
+            .filter(|p| !held_packages_clone.contains(&p.name)) // Exclude held packages
+            .filter_map(|package| {
+                match check_package_for_update(&scoop_path_clone, package) {
+                    Ok(Some(updatable)) => Some(updatable),
+                    Ok(None) => None, // Package is up-to-date
+                    Err(e) => {
+                        log::warn!(
+                            "Could not check for update for package '{}': {}",
+                            package.name,
+                            e
+                        );
+                        None
+                    }
                 }
-            }
-        })
-        .collect();
+            })
+            .collect::<Vec<UpdatablePackage>>()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
 
     log::info!("Found {} updatable packages", updatable_packages.len());
     Ok(updatable_packages)

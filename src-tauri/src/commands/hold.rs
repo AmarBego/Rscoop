@@ -12,15 +12,8 @@ fn get_current_install_json_path(
     scoop_dir: &std::path::Path,
     package_name: &str,
 ) -> Result<PathBuf, String> {
-    let package_path = scoop_dir.join("apps").join(package_name);
-    if !package_path.is_dir() {
-        return Err(format!(
-            "Package directory for '{}' not found.",
-            package_name
-        ));
-    }
+    let current_path = scoop_dir.join("apps").join(package_name).join("current");
 
-    let current_path = package_path.join("current");
     if !current_path.exists() {
         return Err(format!(
             "Package '{}' is not installed correctly (missing 'current' link).",
@@ -64,20 +57,20 @@ fn modify_hold_status(scoop_dir: &Path, package_name: &str, hold: bool) -> Resul
     let mut value: Value = serde_json::from_str(&content)
         .map_err(|e| format!("Invalid JSON in install.json: {}", e))?;
 
-    let obj = value
-        .as_object_mut()
-        .ok_or("install.json is not a valid JSON object.")?;
+    if let Some(obj) = value.as_object_mut() {
+        if hold {
+            obj.insert("hold".to_string(), serde_json::json!(true));
+        } else {
+            obj.remove("hold");
+        }
 
-    if hold {
-        obj.insert("hold".to_string(), serde_json::json!(true));
+        let new_content = serde_json::to_string_pretty(&value)
+            .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
+        fs::write(&install_json_path, new_content)
+            .map_err(|e| format!("Failed to write to install.json: {}", e))
     } else {
-        obj.remove("hold");
+        Err("install.json is not a valid JSON object.".to_string())
     }
-
-    let new_content = serde_json::to_string_pretty(&value)
-        .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
-    fs::write(&install_json_path, new_content)
-        .map_err(|e| format!("Failed to write to install.json: {}", e))
 }
 
 /// Lists all packages that are currently on hold.

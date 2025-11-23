@@ -76,75 +76,54 @@ pub fn get_app_logs() -> Result<String, String> {
 
     log_info.push_str("Log File Locations:\n");
 
-    // Try to find log files
-    let possible_paths = vec![
-        dirs::cache_dir().map(|d| {
-            let mut p = d;
-            p.push("rscoop");
-            p.push("logs");
-            p
-        }),
-        dirs::data_local_dir().map(|d| {
-            let mut p = d;
-            p.push("rscoop");
-            p.push("logs");
-            p
-        }),
-    ];
+    if let Some(log_path) = get_log_dir() {
+        if log_path.is_dir() {
+            log_info.push_str(&format!("✓ Log directory: {}\n", log_path.display()));
 
-    let mut log_dir_found = false;
-    for log_path_opt in possible_paths {
-        if let Some(log_path) = log_path_opt {
-            if log_path.is_dir() {
-                log_info.push_str(&format!("✓ Log directory: {}\n", log_path.display()));
-                log_dir_found = true;
-                if let Ok(entries) = fs::read_dir(&log_path) {
-                    let mut log_files: Vec<PathBuf> = entries
-                        .filter_map(|entry| {
-                            entry.ok().and_then(|e| {
-                                let path = e.path();
-                                if path.is_file()
-                                    && path.extension().map_or(false, |ext| ext == "log")
-                                {
-                                    Some(path)
-                                } else {
-                                    None
-                                }
-                            })
-                        })
-                        .collect();
-
-                    // Sort by modification time, newest first
-                    log_files.sort_by_key(|path| {
-                        fs::metadata(path)
-                            .and_then(|meta| meta.modified())
-                            .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
-                    });
-                    log_files.reverse();
-
-                    if !log_files.is_empty() {
-                        log_info.push_str("  Recent log files:\n");
-                        for (i, path) in log_files.iter().take(5).enumerate() {
-                            if let Ok(metadata) = fs::metadata(&path) {
-                                let size = metadata.len();
-                                log_info.push_str(&format!(
-                                    "  {}. {} ({} bytes)\n",
-                                    i + 1,
-                                    path.display(),
-                                    size
-                                ));
+            if let Ok(entries) = fs::read_dir(&log_path) {
+                let mut log_files: Vec<PathBuf> = entries
+                    .filter_map(|entry| {
+                        entry.ok().and_then(|e| {
+                            let path = e.path();
+                            if path.is_file() && path.extension().map_or(false, |ext| ext == "log")
+                            {
+                                Some(path)
+                            } else {
+                                None
                             }
+                        })
+                    })
+                    .collect();
+
+                // Sort by modification time, newest first
+                log_files.sort_by_key(|path| {
+                    fs::metadata(path)
+                        .and_then(|meta| meta.modified())
+                        .unwrap_or(std::time::SystemTime::UNIX_EPOCH)
+                });
+                log_files.reverse();
+
+                if !log_files.is_empty() {
+                    log_info.push_str("  Recent log files:\n");
+                    for (i, path) in log_files.iter().take(5).enumerate() {
+                        if let Ok(metadata) = fs::metadata(&path) {
+                            let size = metadata.len();
+                            log_info.push_str(&format!(
+                                "  {}. {} ({} bytes)\n",
+                                i + 1,
+                                path.display(),
+                                size
+                            ));
                         }
                     }
                 }
-                break;
             }
+        } else {
+            log_info.push_str("  Logs not yet created (will be created on first run)\n");
+            log_info.push_str(&format!("  Expected location: {}\n", log_path.display()));
         }
-    }
-
-    if !log_dir_found {
-        log_info.push_str("  Logs not yet created (will be created on first run)\n");
-        log_info.push_str("  Expected location: %LOCALAPPDATA%\\rscoop\\logs\\\n");
+    } else {
+        log_info.push_str("  Could not determine log directory location.\n");
     }
 
     log_info.push_str("\nTo View Logs:\n");
@@ -196,4 +175,8 @@ pub fn read_app_log_file() -> Result<String, String> {
             }
         }
     }
+}
+
+fn get_log_dir() -> Option<PathBuf> {
+    dirs::data_local_dir().map(|d| d.join("rscoop").join("logs"))
 }

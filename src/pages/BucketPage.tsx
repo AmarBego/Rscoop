@@ -24,12 +24,12 @@ function BucketPage() {
   const { buckets, loading, error, fetchBuckets, getBucketManifests } = useBuckets();
   const packageInfo = usePackageInfo();
   const packageOperations = usePackageOperations();
-  
+
   const [selectedBucket, setSelectedBucket] = createSignal<BucketInfo | null>(null);
   const [selectedBucketDescription, setSelectedBucketDescription] = createSignal<string | undefined>(undefined);
   const [manifests, setManifests] = createSignal<string[]>([]);
   const [manifestsLoading, setManifestsLoading] = createSignal(false);
-  
+
   // Search state
   const [isSearchActive, setIsSearchActive] = createSignal(false);
   const [searchResults, setSearchResults] = createSignal<SearchableBucket[]>([]);
@@ -37,10 +37,10 @@ function BucketPage() {
   const [searchLoading, setSearchLoading] = createSignal(false);
   const [searchError, setSearchError] = createSignal<string | null>(null);
   const [isExpandedSearch, setIsExpandedSearch] = createSignal(false);
-  
+
   // Update state
   const [updatingBuckets, setUpdatingBuckets] = createSignal<Set<string>>(new Set());
-  const [updateResults, setUpdateResults] = createSignal<{[key: string]: string}>({});
+  const [updateResults, setUpdateResults] = createSignal<{ [key: string]: string }>({});
 
   onMount(() => {
     fetchBuckets();
@@ -80,7 +80,7 @@ function BucketPage() {
   const handleSearchBucketSelect = async (searchBucket: SearchableBucket) => {
     // First check if this bucket is already installed locally
     const installedBucket = buckets().find(b => b.name === searchBucket.name);
-    
+
     if (installedBucket) {
       // Bucket is installed locally - use the regular handler to show manifests
       console.log(`Bucket "${searchBucket.name}" is installed locally, showing manifests...`);
@@ -98,7 +98,7 @@ function BucketPage() {
         last_updated: searchBucket.last_updated,
         manifest_count: searchBucket.apps,
       };
-      
+
       setSelectedBucket(bucketInfo);
       setSelectedSearchBucket(searchBucket); // Store the search bucket for the modal
       setSelectedBucketDescription(searchBucket.description); // Store description for external buckets
@@ -126,7 +126,7 @@ function BucketPage() {
       info: "",
       match_source: "name"
     };
-    
+
     // Simply open package info modal - bucket modal stays open underneath
     await packageInfo.fetchPackageInfo(pkg);
   };
@@ -156,32 +156,32 @@ function BucketPage() {
   // Handle updating a single bucket
   const handleUpdateBucket = async (bucketName: string) => {
     console.log('Updating bucket:', bucketName);
-    
+
     // Add to updating set
     setUpdatingBuckets(prev => new Set([...prev, bucketName]));
-    
+
     try {
       const result = await invoke<BucketUpdateResult>("update_bucket", {
         bucketName: bucketName
       });
-      
+
       // Store result message
       setUpdateResults(prev => ({
         ...prev,
         [bucketName]: result.message
       }));
-      
+
       if (result.success) {
         // Refresh bucket list to reflect any changes
         await fetchBuckets();
-        
+
         // If this bucket is currently selected, refresh its manifests
         const currentBucket = selectedBucket();
         if (currentBucket && currentBucket.name === bucketName) {
           await handleFetchManifests(bucketName);
         }
       }
-      
+
       console.log('Bucket update result:', result);
     } catch (error) {
       console.error('Failed to update bucket:', bucketName, error);
@@ -203,11 +203,34 @@ function BucketPage() {
   const handleUpdateAllBuckets = async () => {
     console.log('Updating all buckets...');
     const gitBuckets = buckets().filter(bucket => bucket.is_git_repo);
-    
+
     // Update all git buckets in parallel
     await Promise.all(
       gitBuckets.map(bucket => handleUpdateBucket(bucket.name))
     );
+  };
+
+  // Handle closing operation modal and updating package state
+  const handleCloseOperationModal = async (wasSuccess: boolean) => {
+    packageOperations.closeOperationModal(wasSuccess);
+    if (wasSuccess) {
+      const currentSelected = packageInfo.selectedPackage();
+      if (currentSelected) {
+        try {
+          // Check if installed by searching
+          const response = await invoke<{ packages: ScoopPackage[], is_cold: boolean }>("search_scoop", {
+            term: currentSelected.name,
+          });
+          // Find exact match
+          const match = response.packages.find(p => p.name === currentSelected.name);
+          if (match) {
+            packageInfo.updateSelectedPackage(match);
+          }
+        } catch (e) {
+          console.error("Failed to check package status", e);
+        }
+      }
+    }
   };
 
   return (
@@ -222,8 +245,8 @@ function BucketPage() {
                 Manage Scoop buckets - repositories containing package manifests
               </p>
             </div>
-            
-            <BucketSearch 
+
+            <BucketSearch
               isActive={isSearchActive}
               onToggle={toggleSearch}
               onSearchResults={handleSearchResults}
@@ -250,9 +273,8 @@ function BucketPage() {
         <Show when={!loading() && !error()}>
           {/* Search Results */}
           <Show when={isSearchActive()}>
-            <div class={`transition-all duration-300 ${
-              isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-            }`}>
+            <div class={`transition-all duration-300 ${isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}>
               <div class="card bg-base-100">
                 <div class="card-body">
                   <BucketSearchResults
@@ -272,10 +294,9 @@ function BucketPage() {
 
           {/* Regular Buckets View */}
           <Show when={!isSearchActive()}>
-            <div class={`transition-all duration-300 ${
-              !isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-            }`}>
-              <BucketGrid 
+            <div class={`transition-all duration-300 ${!isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+              }`}>
+              <BucketGrid
                 buckets={buckets()}
                 onViewBucket={handleViewBucket}
                 onRefresh={fetchBuckets}
@@ -302,7 +323,7 @@ function BucketPage() {
         onBucketInstalled={handleBucketInstalled}
         onFetchManifests={handleFetchManifests}
       />
-      
+
       <PackageInfoModal
         pkg={packageInfo.selectedPackage()}
         info={packageInfo.info()}
@@ -320,10 +341,10 @@ function BucketPage() {
           }
         }}
       />
-      
+
       <OperationModal
         title={packageOperations.operationTitle()}
-        onClose={packageOperations.closeOperationModal}
+        onClose={handleCloseOperationModal}
         isScan={packageOperations.isScanning()}
         onInstallConfirm={packageOperations.handleInstallConfirm}
         nextStep={packageOperations.operationNextStep() ?? undefined}

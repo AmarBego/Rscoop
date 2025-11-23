@@ -205,184 +205,185 @@ pub async fn fetch_and_parse_bucket_directory(
     Ok(bucket_map)
 }
 
+static COMPLEX_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"\|\s*<a[^>]*>.*?</a>\[\d+\.\]\([^)]*\)\|\s*\[__([^/]+)/([^_]+)__\]\(([^)]+)\):\s*\*([^*]*)\*\|\s*\[(\d+)\]\([^)]*\)\|\s*\[(\d+)\]\([^)]*\)\|\s*\[(\d+)\]\([^)]*\)\|\s*\[([^\]]*)\]\([^)]*"#
+    ).expect("Failed to compile complex regex")
+});
+
+static SIMPLE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"\|\s*\[([^\]]+)\]\(([^)]*)\)\s*\|\s*\[([^\]]*)\]\([^)]*(?:bucket/)?([^./\s)]+)(?:\.json)?[^)]*\)\s*\|\s*([^|]*?)\s*\|\s*(?:\[([^\]]*)\]\([^)]*\)|([^|]*?))\s*\|"#
+    ).expect("Failed to compile simple regex")
+});
+
+static BASIC_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r#"\|\s*\[([^\]]+)\]\(([^)]*)\)\s*\|\s*(?:\[([^\]]*)\]\([^)]*\)|([^|]*?))\s*\|\s*([^|]*?)\s*\|\s*(?:\[([^\]]*)\]\([^)]*\)|([^|]*?))\s*\|"#
+    ).expect("Failed to compile basic regex")
+});
+
+fn try_parse_complex(line: &str) -> Option<SearchableBucket> {
+    let captures = COMPLEX_REGEX.captures(line)?;
+    let owner = captures.get(1).map_or("", |m| m.as_str()).trim();
+    let repo = captures.get(2).map_or("", |m| m.as_str()).trim();
+    let url = captures.get(3).map_or("", |m| m.as_str()).trim();
+    let description = captures.get(4).map_or("", |m| m.as_str()).trim();
+    let apps = captures
+        .get(5)
+        .map_or("0", |m| m.as_str())
+        .parse::<u32>()
+        .unwrap_or(0);
+    let stars = captures
+        .get(6)
+        .map_or("0", |m| m.as_str())
+        .parse::<u32>()
+        .unwrap_or(0);
+    let forks = captures
+        .get(7)
+        .map_or("0", |m| m.as_str())
+        .parse::<u32>()
+        .unwrap_or(0);
+    let date_str = captures.get(8).map_or("Unknown", |m| m.as_str()).trim();
+
+    if !owner.is_empty() && !repo.is_empty() {
+        let bucket_name = extract_bucket_name(repo);
+        let last_updated = parse_encoded_date(date_str);
+
+        Some(SearchableBucket {
+            name: bucket_name,
+            full_name: format!("{}/{}", owner, repo),
+            description: description.to_string(),
+            url: url.to_string(),
+            stars,
+            forks,
+            apps,
+            last_updated,
+            is_verified: false,
+        })
+    } else {
+        None
+    }
+}
+
+fn try_parse_simple(line: &str) -> Option<SearchableBucket> {
+    let captures = SIMPLE_REGEX.captures(line)?;
+    let package_name = captures.get(1).map_or("", |m| m.as_str()).trim();
+    let package_url = captures.get(2).map_or("", |m| m.as_str()).trim();
+    let bucket_name = captures.get(4).map_or("", |m| m.as_str()).trim();
+    let description = captures.get(5).map_or("", |m| m.as_str()).trim();
+
+    if !bucket_name.is_empty() && !package_name.is_empty() {
+        let (owner, repo_name, repo_url) = if package_url.contains("github.com") {
+            let parts: Vec<&str> = package_url.split('/').collect();
+            if parts.len() >= 5 {
+                (
+                    parts[3].to_string(),
+                    parts[4].to_string(),
+                    package_url.to_string(),
+                )
+            } else {
+                (
+                    "unknown".to_string(),
+                    bucket_name.to_string(),
+                    package_url.to_string(),
+                )
+            }
+        } else {
+            (
+                "unknown".to_string(),
+                bucket_name.to_string(),
+                package_url.to_string(),
+            )
+        };
+
+        let clean_bucket_name = extract_bucket_name(&bucket_name);
+
+        Some(SearchableBucket {
+            name: clean_bucket_name,
+            full_name: format!("{}/{}", owner, repo_name),
+            description: description.to_string(),
+            url: repo_url,
+            stars: 0,
+            forks: 0,
+            apps: 1,
+            last_updated: "Unknown".to_string(),
+            is_verified: false,
+        })
+    } else {
+        None
+    }
+}
+
+fn try_parse_basic(line: &str) -> Option<SearchableBucket> {
+    let captures = BASIC_REGEX.captures(line)?;
+    let package_name = captures.get(1).map_or("", |m| m.as_str()).trim();
+    let package_url = captures.get(2).map_or("", |m| m.as_str()).trim();
+    let description = captures.get(5).map_or("", |m| m.as_str()).trim();
+
+    if !package_name.is_empty() {
+        let (owner, repo_name, repo_url) = if package_url.contains("github.com") {
+            let parts: Vec<&str> = package_url.split('/').collect();
+            if parts.len() >= 5 {
+                (
+                    parts[3].to_string(),
+                    parts[4].to_string(),
+                    package_url.to_string(),
+                )
+            } else {
+                (
+                    "unknown".to_string(),
+                    package_name.to_string(),
+                    package_url.to_string(),
+                )
+            }
+        } else {
+            (
+                "unknown".to_string(),
+                package_name.to_string(),
+                package_url.to_string(),
+            )
+        };
+
+        let clean_bucket_name = extract_bucket_name(&repo_name);
+
+        Some(SearchableBucket {
+            name: clean_bucket_name,
+            full_name: format!("{}/{}", owner, repo_name),
+            description: description.to_string(),
+            url: repo_url,
+            stars: 0,
+            forks: 0,
+            apps: 1,
+            last_updated: "Unknown".to_string(),
+            is_verified: false,
+        })
+    } else {
+        None
+    }
+}
+
 fn parse_markdown_to_buckets(content: &str) -> Result<Vec<SearchableBucket>, String> {
     let mut buckets = Vec::new();
 
-    // Complex table format with owner/repo pattern
-    let complex_regex = Regex::new(
-        r#"\|\s*<a[^>]*>.*?</a>\[\d+\.\]\([^)]*\)\|\s*\[__([^/]+)/([^_]+)__\]\(([^)]+)\):\s*\*([^*]*)\*\|\s*\[(\d+)\]\([^)]*\)\|\s*\[(\d+)\]\([^)]*\)\|\s*\[(\d+)\]\([^)]*\)\|\s*\[([^\]]*)\]\([^)]*"#
-    ).map_err(|e| format!("Failed to compile complex regex: {}", e))?;
-
-    // Simple table format for package listings - more flexible version
-    let simple_regex = Regex::new(
-        r#"\|\s*\[([^\]]+)\]\(([^)]*)\)\s*\|\s*\[([^\]]*)\]\([^)]*(?:bucket/)?([^./\s)]+)(?:\.json)?[^)]*\)\s*\|\s*([^|]*?)\s*\|\s*(?:\[([^\]]*)\]\([^)]*\)|([^|]*?))\s*\|"#
-    ).map_err(|e| format!("Failed to compile simple regex: {}", e))?;
-
-    // Very basic table format for simple entries
-    let basic_regex = Regex::new(
-        r#"\|\s*\[([^\]]+)\]\(([^)]*)\)\s*\|\s*(?:\[([^\]]*)\]\([^)]*\)|([^|]*?))\s*\|\s*([^|]*?)\s*\|\s*(?:\[([^\]]*)\]\([^)]*\)|([^|]*?))\s*\|"#
-    ).map_err(|e| format!("Failed to compile basic regex: {}", e))?;
-
     for (line_num, line) in content.lines().enumerate() {
-        let mut parsed = false;
-
-        // Try complex format first (original bucket directory format)
-        if let Some(captures) = complex_regex.captures(line) {
-            let owner = captures.get(1).map_or("", |m| m.as_str()).trim();
-            let repo = captures.get(2).map_or("", |m| m.as_str()).trim();
-            let url = captures.get(3).map_or("", |m| m.as_str()).trim();
-            let description = captures.get(4).map_or("", |m| m.as_str()).trim();
-            let apps = captures
-                .get(5)
-                .map_or("0", |m| m.as_str())
-                .parse::<u32>()
-                .unwrap_or(0);
-            let stars = captures
-                .get(6)
-                .map_or("0", |m| m.as_str())
-                .parse::<u32>()
-                .unwrap_or(0);
-            let forks = captures
-                .get(7)
-                .map_or("0", |m| m.as_str())
-                .parse::<u32>()
-                .unwrap_or(0);
-            let date_str = captures.get(8).map_or("Unknown", |m| m.as_str()).trim();
-
-            if !owner.is_empty() && !repo.is_empty() {
-                // Extract bucket name from repo name
-                let bucket_name = extract_bucket_name(repo);
-
-                // Parse date (format: 25&#x2011;09&#x2011;16)
-                let last_updated = parse_encoded_date(date_str);
-
-                buckets.push(SearchableBucket {
-                    name: bucket_name.clone(),
-                    full_name: format!("{}/{}", owner, repo),
-                    description: description.to_string(),
-                    url: url.to_string(),
-                    stars,
-                    forks,
-                    apps,
-                    last_updated,
-                    is_verified: false,
-                });
-
-                parsed = true;
-            }
+        if let Some(bucket) = try_parse_complex(line) {
+            buckets.push(bucket);
+            continue;
         }
 
-        // Try simple format if complex didn't match (package table format)
-        if !parsed {
-            if let Some(captures) = simple_regex.captures(line) {
-                let package_name = captures.get(1).map_or("", |m| m.as_str()).trim();
-                let package_url = captures.get(2).map_or("", |m| m.as_str()).trim();
-                let bucket_name = captures.get(4).map_or("", |m| m.as_str()).trim();
-                let description = captures.get(5).map_or("", |m| m.as_str()).trim();
-
-                if !bucket_name.is_empty() && !package_name.is_empty() {
-                    // Extract owner/repo from GitHub URL if possible
-                    let (owner, repo_name, repo_url) = if package_url.contains("github.com") {
-                        // Extract from GitHub URL: https://github.com/owner/repo
-                        let parts: Vec<&str> = package_url.split('/').collect();
-                        if parts.len() >= 5 {
-                            let owner = parts[3];
-                            let repo = parts[4];
-                            (owner.to_string(), repo.to_string(), package_url.to_string())
-                        } else {
-                            (
-                                "unknown".to_string(),
-                                bucket_name.to_string(),
-                                package_url.to_string(),
-                            )
-                        }
-                    } else {
-                        // Non-GitHub URL, use bucket name as repo
-                        (
-                            "unknown".to_string(),
-                            bucket_name.to_string(),
-                            package_url.to_string(),
-                        )
-                    };
-
-                    let clean_bucket_name = extract_bucket_name(&bucket_name);
-
-                    buckets.push(SearchableBucket {
-                        name: clean_bucket_name.clone(),
-                        full_name: format!("{}/{}", owner, repo_name),
-                        description: description.to_string(),
-                        url: repo_url,
-                        stars: 0, // Not available in simple format
-                        forks: 0, // Not available in simple format
-                        apps: 1,  // At least one app (the one being listed)
-                        last_updated: "Unknown".to_string(), // Not available in simple format
-                        is_verified: false,
-                    });
-
-                    parsed = true;
-                }
-            }
+        if let Some(bucket) = try_parse_simple(line) {
+            buckets.push(bucket);
+            continue;
         }
 
-        // Try basic format as a last resort
-        if !parsed {
-            if let Some(captures) = basic_regex.captures(line) {
-                let package_name = captures.get(1).map_or("", |m| m.as_str()).trim();
-                let package_url = captures.get(2).map_or("", |m| m.as_str()).trim();
-                let description = captures.get(5).map_or("", |m| m.as_str()).trim();
-
-                if !package_name.is_empty() {
-                    // Try to extract bucket name from GitHub URL or use package name
-                    let (owner, repo_name, repo_url, bucket_name) =
-                        if package_url.contains("github.com") {
-                            let parts: Vec<&str> = package_url.split('/').collect();
-                            if parts.len() >= 5 {
-                                let owner = parts[3];
-                                let repo = parts[4];
-                                (
-                                    owner.to_string(),
-                                    repo.to_string(),
-                                    package_url.to_string(),
-                                    repo.to_string(),
-                                )
-                            } else {
-                                (
-                                    "unknown".to_string(),
-                                    package_name.to_string(),
-                                    package_url.to_string(),
-                                    package_name.to_string(),
-                                )
-                            }
-                        } else {
-                            (
-                                "unknown".to_string(),
-                                package_name.to_string(),
-                                package_url.to_string(),
-                                package_name.to_string(),
-                            )
-                        };
-
-                    let clean_bucket_name = extract_bucket_name(&bucket_name);
-
-                    buckets.push(SearchableBucket {
-                        name: clean_bucket_name.clone(),
-                        full_name: format!("{}/{}", owner, repo_name),
-                        description: description.to_string(),
-                        url: repo_url,
-                        stars: 0,
-                        forks: 0,
-                        apps: 1,
-                        last_updated: "Unknown".to_string(),
-                        is_verified: false,
-                    });
-
-                    parsed = true;
-                }
-            }
+        if let Some(bucket) = try_parse_basic(line) {
+            buckets.push(bucket);
+            continue;
         }
 
         // Log lines that don't match any format for debugging
-        if !parsed && (line.contains("[") && line.contains("]") && line.contains("|")) {
+        if line.contains("[") && line.contains("]") && line.contains("|") {
             log::debug!("Line {} didn't match any regex: {}", line_num, line.trim());
         }
     }

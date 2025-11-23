@@ -19,6 +19,7 @@ interface SettingsPageProps {
 function SettingsPage(props: SettingsPageProps) {
     const { refetch: refetchHeldPackages } = heldStore;
     const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
+    const [isUnholding, setIsUnholding] = createSignal(false);
     let aboutSectionRef: AboutSectionRef | undefined;
 
     const TABS = [
@@ -36,9 +37,10 @@ function SettingsPage(props: SettingsPageProps) {
     });
 
     const handleUnhold = (packageName: string) => {
-        setOperationTitle(`Removing hold from ${packageName}...`);
+        setIsUnholding(true);
         invoke("unhold_package", { packageName }).finally(() => {
             refetchHeldPackages();
+            setIsUnholding(false);
         });
     };
 
@@ -82,7 +84,7 @@ function SettingsPage(props: SettingsPageProps) {
                             <ScoopConfiguration />
                             <HeldPackagesManagement
                                 onUnhold={handleUnhold}
-                                operationInProgress={!!operationTitle()}
+                                operationInProgress={!!operationTitle() || isUnholding()}
                             />
                         </div>
                     </Show>

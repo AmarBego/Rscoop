@@ -13,12 +13,12 @@ export function usePackageInfo() {
             closeModal();
             return;
         }
-        
+
         setSelectedPackage(pkg);
         setLoading(true);
         setError(null);
         setInfo(null);
-        
+
         try {
             const infoResponse = await invoke<ScoopInfo>("get_package_info", {
                 packageName: pkg.name,
@@ -38,6 +38,13 @@ export function usePackageInfo() {
         setError(null);
     };
 
+    const updateSelectedPackage = (pkg: ScoopPackage) => {
+        // Only update if it's the same package (by name)
+        if (selectedPackage()?.name === pkg.name) {
+            setSelectedPackage(pkg);
+        }
+    };
+
     return {
         selectedPackage,
         info,
@@ -45,5 +52,6 @@ export function usePackageInfo() {
         error,
         fetchPackageInfo,
         closeModal,
+        updateSelectedPackage,
     };
-} 
+}

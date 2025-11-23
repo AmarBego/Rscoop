@@ -1,81 +1,38 @@
 //! Command for managing Scoop buckets - repositories containing package manifests.
 use crate::models::BucketInfo;
 use crate::state::AppState;
+use crate::utils;
+use git2::Repository;
 use std::fs;
 use std::path::Path;
 use tauri::{AppHandle, Runtime, State};
-
-/// Counts the number of manifest (.json) files in a bucket directory.
-/// Handles both flat structure and bucket/ subdirectory structure.
-/// Checks both root and bucket/ subdirectory as some buckets may have manifests in both locations.
-fn count_manifests(bucket_path: &Path) -> u32 {
-    let mut count = 0;
-
-    // Check for manifests in the root of the bucket
-    if let Ok(entries) = fs::read_dir(bucket_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                // Skip certain files that aren't package manifests
-                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if !file_name.starts_with('.') && file_name != "bucket.json" {
-                        count += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    // Always check the bucket/ subdirectory as well (many buckets primarily use this structure)
-    let bucket_subdir = bucket_path.join("bucket");
-    if bucket_subdir.is_dir() {
-        if let Ok(entries) = fs::read_dir(bucket_subdir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                    count += 1;
-                }
-            }
-        }
-    }
-
-    count
-}
 
 /// Checks if a directory is a Git repository by looking for .git directory.
 fn is_git_repo(path: &Path) -> bool {
     path.join(".git").exists()
 }
 
-/// Attempts to read Git repository information from the .git directory.
+/// Attempts to read Git repository information from the .git directory using git2.
 fn get_git_info(bucket_path: &Path) -> (Option<String>, Option<String>) {
-    let git_dir = bucket_path.join(".git");
-    if !git_dir.exists() {
-        return (None, None);
-    }
+    let repo = match Repository::open(bucket_path) {
+        Ok(r) => r,
+        Err(_) => return (None, None),
+    };
 
     let mut git_url = None;
     let mut git_branch = None;
 
-    // Try to read remote URL from .git/config
-    let config_path = git_dir.join("config");
-    if let Ok(config_content) = fs::read_to_string(config_path) {
-        // Parse the config for remote origin URL
-        for line in config_content.lines() {
-            let line = line.trim();
-            if line.starts_with("url = ") {
-                git_url = Some(line.replace("url = ", "").trim().to_string());
-                break;
-            }
+    // Get remote URL
+    if let Ok(remote) = repo.find_remote("origin") {
+        if let Some(url) = remote.url() {
+            git_url = Some(url.to_string());
         }
     }
 
-    // Try to read current branch from .git/HEAD
-    let head_path = git_dir.join("HEAD");
-    if let Ok(head_content) = fs::read_to_string(head_path) {
-        let head_content = head_content.trim();
-        if head_content.starts_with("ref: refs/heads/") {
-            git_branch = Some(head_content.replace("ref: refs/heads/", ""));
+    // Get current branch
+    if let Ok(head) = repo.head() {
+        if let Some(name) = head.shorthand() {
+            git_branch = Some(name.to_string());
         }
     }
 
@@ -107,7 +64,7 @@ fn load_bucket_info(bucket_path: &Path) -> Result<BucketInfo, String> {
         return Err(format!("Bucket path is not a directory: {:?}", bucket_path));
     }
 
-    let manifest_count = count_manifests(bucket_path);
+    let manifest_count = utils::count_manifests(bucket_path);
     let is_git_repo = is_git_repo(bucket_path);
     let (git_url, git_branch) = if is_git_repo {
         get_git_info(bucket_path)

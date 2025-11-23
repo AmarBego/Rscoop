@@ -3,7 +3,7 @@ import { BucketInfo } from "../hooks/useBuckets";
 import { SearchableBucket } from "../hooks/useBucketSearch";
 import { useBucketInstall } from "../hooks/useBucketInstall";
 import hljs from 'highlight.js/lib/core';
-import 'highlight.js/styles/github-dark.css';
+import 'highlight.js/styles/atom-one-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
 import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";
@@ -183,21 +183,16 @@ function BucketInfoModal(props: BucketInfoModalProps) {
   return (
     <Show when={!!props.bucket || !!props.searchBucket}>
       <div class="modal modal-open backdrop-blur-sm" role="dialog" data-no-close-search>
-        <div class="modal-box w-11/12 max-w-5xl bg-base-200 my-8">
-          <div class="flex justify-between items-start">
+        <div class="modal-box w-11/12 max-w-5xl bg-base-300 shadow-2xl border border-base-300 p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <div class="flex justify-between items-center p-4 border-b border-base-200 bg-base-400">
             <div class="flex items-center gap-2">
-              <h3 class="font-bold text-lg">
-                Bucket: {props.bucket?.name || props.searchBucket?.name}
+              <h3 class="font-bold text-lg flex items-center gap-2">
+                Bucket: <span class="text-info font-mono">{props.bucket?.name || props.searchBucket?.name}</span>
               </h3>
               <Show when={props.bucket?.is_git_repo}>
                 <div class="badge badge-info badge-sm">
                   <GitBranch class="w-3 h-3 mr-1" />
                   Git
-                </div>
-              </Show>
-              <Show when={isInstalled()}>
-                <div class="badge badge-success badge-sm">
-                  Installed
                 </div>
               </Show>
               <Show when={isExternalBucket()}>
@@ -263,7 +258,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
             </div>
           </div>
 
-          <div class="py-4">
+          <div class="p-6 overflow-y-auto flex-1">
             <Show when={props.error}>
               <div role="alert" class="alert alert-error mb-4">
                 <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
@@ -408,7 +403,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
             </Show>
           </div>
 
-          <div class="modal-action">
+          <div class="modal-action p-4 border-t border-base-300 bg-base-300 shrink-0 mt-0">
             <form method="dialog">
               <Show when={!isInstalled() && props.searchBucket}>
                 <button

@@ -20,11 +20,8 @@ pub async fn install_package(
     package_name: String,
     bucket: String,
 ) -> Result<(), String> {
-    let bucket_opt = if bucket.is_empty() || bucket.eq_ignore_ascii_case("none") {
-        None
-    } else {
-        Some(bucket.as_str())
-    };
+    let bucket_opt =
+        (!bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")).then(|| bucket.as_str());
 
     log::info!(
         "Installing package '{}' from bucket '{}'",
@@ -35,9 +32,9 @@ pub async fn install_package(
     scoop::execute_scoop(window, ScoopOp::Install, Some(&package_name), bucket_opt).await?;
     invalidate_manifest_cache().await;
     invalidate_installed_cache(state.clone()).await;
-    
+
     // Trigger auto cleanup after install
     trigger_auto_cleanup(app, state).await;
-    
+
     Ok(())
 }

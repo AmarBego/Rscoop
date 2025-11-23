@@ -97,71 +97,76 @@ async fn cleanup_old_versions_smart(
 
     for package_name in packages {
         let package_path = apps_path.join(package_name);
-
         if !package_path.is_dir() {
             continue;
         }
 
-        // Read all version directories (excluding "current" symlink)
-        let mut versions: Vec<String> = std::fs::read_dir(&package_path)
-            .map_err(|e| format!("Failed to read package directory: {}", e))?
-            .filter_map(|entry| {
-                let entry = entry.ok()?;
-                let file_name = entry.file_name().to_string_lossy().to_string();
+        let versions_to_remove = get_versions_to_remove(&package_path, keep_count)?;
 
-                // Skip "current" symlink and non-directories
-                if file_name == "current" || !entry.file_type().ok()?.is_dir() {
-                    return None;
-                }
-
-                Some(file_name)
-            })
-            .collect();
-
-        // If we have more versions than we want to keep, clean up the old ones
-        if versions.len() > keep_count {
-            // Sort versions (lexicographically - good enough for most version formats)
-            versions.sort();
-
-            // Calculate how many to remove
-            let remove_count = versions.len() - keep_count;
-            let versions_to_remove: Vec<String> = versions.into_iter().take(remove_count).collect();
-
+        if !versions_to_remove.is_empty() {
             log::debug!(
                 "Package '{}' has {} old versions to remove",
                 package_name,
                 versions_to_remove.len()
             );
 
-            // Remove old versions using scoop cleanup for the specific package
-            let command = format!("scoop cleanup {} --cache", package_name);
-
-            match powershell::create_powershell_command(&command)
-                .output()
-                .await
-            {
-                Ok(output) => {
-                    if !output.status.success() {
-                        log::warn!(
-                            "Failed to cleanup old versions for '{}': {}",
-                            package_name,
-                            String::from_utf8_lossy(&output.stderr)
-                        );
-                    } else {
-                        log::debug!(
-                            "Successfully cleaned up old versions for '{}'",
-                            package_name
-                        );
-                    }
-                }
-                Err(e) => {
-                    log::warn!("Failed to execute cleanup for '{}': {}", package_name, e);
-                }
-            }
+            remove_specific_versions(scoop_path, package_name, &versions_to_remove).await;
         }
     }
 
     Ok(())
+}
+
+fn get_versions_to_remove(
+    package_path: &PathBuf,
+    keep_count: usize,
+) -> Result<Vec<String>, String> {
+    // Read all version directories (excluding "current" symlink)
+    let mut versions: Vec<String> = std::fs::read_dir(package_path)
+        .map_err(|e| format!("Failed to read package directory: {}", e))?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            let file_name = entry.file_name().to_string_lossy().to_string();
+
+            // Skip "current" symlink and non-directories
+            if file_name == "current" || !entry.file_type().ok()?.is_dir() {
+                return None;
+            }
+
+            Some(file_name)
+        })
+        .collect();
+
+    // If we have more versions than we want to keep, identify the old ones
+    if versions.len() > keep_count {
+        // Sort versions (lexicographically - good enough for most version formats)
+        versions.sort();
+
+        // Calculate how many to remove
+        let remove_count = versions.len() - keep_count;
+        Ok(versions.into_iter().take(remove_count).collect())
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+async fn remove_specific_versions(scoop_path: &PathBuf, package_name: &str, versions: &[String]) {
+    let package_dir = scoop_path.join("apps").join(package_name);
+
+    for version in versions {
+        let version_dir = package_dir.join(version);
+        log::info!("Removing old version directory: {}", version_dir.display());
+
+        if let Err(e) = std::fs::remove_dir_all(&version_dir) {
+            log::warn!(
+                "Failed to remove version directory {}: {}",
+                version_dir.display(),
+                e
+            );
+        } else {
+            log::debug!("Successfully removed version {}", version);
+        }
+    }
 }
 
 /// Cleans up the cache for specified packages.
@@ -229,37 +234,24 @@ pub async fn trigger_auto_cleanup<R: Runtime>(app: AppHandle<R>, state: State<'_
 
 /// Reads cleanup settings from the persistent store.
 fn read_cleanup_settings<R: Runtime>(app: &AppHandle<R>) -> Result<CleanupSettings, String> {
-    let auto_cleanup_enabled =
-        settings::get_config_value(app.clone(), "cleanup.autoCleanupEnabled".to_string())
+    let get_val = |key: &str| {
+        settings::get_config_value(app.clone(), key.to_string())
             .ok()
             .flatten()
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-    let cleanup_old_versions =
-        settings::get_config_value(app.clone(), "cleanup.cleanupOldVersions".to_string())
-            .ok()
-            .flatten()
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true);
-
-    let cleanup_cache = settings::get_config_value(app.clone(), "cleanup.cleanupCache".to_string())
-        .ok()
-        .flatten()
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true);
-
-    let preserve_version_count =
-        settings::get_config_value(app.clone(), "cleanup.preserveVersionCount".to_string())
-            .ok()
-            .flatten()
-            .and_then(|v| v.as_u64())
-            .unwrap_or(3) as usize;
+    };
 
     Ok(CleanupSettings {
-        auto_cleanup_enabled,
-        cleanup_old_versions,
-        cleanup_cache,
-        preserve_version_count,
+        auto_cleanup_enabled: get_val("cleanup.autoCleanupEnabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        cleanup_old_versions: get_val("cleanup.cleanupOldVersions")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true),
+        cleanup_cache: get_val("cleanup.cleanupCache")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true),
+        preserve_version_count: get_val("cleanup.preserveVersionCount")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(3) as usize,
     })
 }

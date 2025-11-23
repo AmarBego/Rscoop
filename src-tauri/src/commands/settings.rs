@@ -1,6 +1,5 @@
 //! Commands for reading and writing application settings from the persistent store.
 use serde_json::{Map, Value};
-use std::env;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
@@ -38,15 +37,9 @@ where
 ///
 /// Typically: `C:\Users\USER\.config\scoop\config.json`
 fn get_scoop_config_path() -> Result<PathBuf, String> {
-    // Accommodate both Windows and Unix-like systems for development purposes.
-    let home_dir = env::var("USERPROFILE")
-        .or_else(|_| env::var("HOME"))
-        .map_err(|_| "Could not determine the user's home directory.")?;
-
-    Ok(PathBuf::from(home_dir)
-        .join(".config")
-        .join("scoop")
-        .join("config.json"))
+    dirs::config_dir()
+        .ok_or_else(|| "Could not determine config directory".to_string())
+        .map(|p| p.join("scoop").join("config.json"))
 }
 
 /// Reads the Scoop configuration file and returns its contents as a JSON map.

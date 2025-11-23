@@ -46,25 +46,21 @@ fn format_json_value(value: &Value) -> String {
 /// Extracts executable names and aliases from the `bin` field.
 fn format_bin_value(value: &Value) -> String {
     if let Value::Array(arr) = value {
-        let mut names: Vec<String> = Vec::new();
-        for item in arr {
-            match item {
-                Value::String(s) => names.push(s.clone()),
+        let names: Vec<String> = arr
+            .iter()
+            .filter_map(|item| match item {
+                Value::String(s) => Some(s.clone()),
                 Value::Array(sub) => {
                     // First element is the executable path, second (optionally) alias.
-                    if let Some(Value::String(alias)) = sub.get(1) {
-                        names.push(alias.clone());
-                    } else if let Some(Value::String(path)) = sub.get(0) {
-                        names.push(path.clone());
-                    }
+                    sub.get(1)
+                        .or_else(|| sub.get(0))
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
                 }
-                Value::Object(obj) => {
-                    // Object forms: { "alias": "path" }
-                    obj.keys().for_each(|k| names.push(k.clone()));
-                }
-                _ => {}
-            }
-        }
+                Value::Object(obj) => obj.keys().next().map(|k| k.clone()),
+                _ => None,
+            })
+            .collect();
         names.join(", ")
     } else {
         format_json_value(value)
@@ -79,7 +75,20 @@ fn parse_manifest_details(json_value: &Value) -> (Vec<(String, String)>, Option<
     if let Some(obj) = json_value.as_object() {
         for (key, value) in obj {
             if key == "notes" {
-                notes = Some(format_json_value(value));
+                notes = Some(match value {
+                    Value::Array(arr) => arr
+                        .iter()
+                        .map(|v| {
+                            if let Some(s) = v.as_str() {
+                                s.to_string()
+                            } else {
+                                v.to_string().trim_matches('"').to_string()
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                    _ => format_json_value(value),
+                });
             } else if key == "bin" {
                 let formatted_value = format_bin_value(value);
                 details.push(("Includes".to_string(), formatted_value));
@@ -123,38 +132,24 @@ pub fn get_package_info(
         ));
 
         // Read the installed manifest to get the actual installed version
-        let installed_manifest_path = installed_dir.join("manifest.json");
-        if let Ok(installed_manifest_content) = fs::read_to_string(&installed_manifest_path) {
-            if let Ok(installed_manifest) =
-                serde_json::from_str::<Value>(&installed_manifest_content)
-            {
-                if let Some(installed_version) =
-                    installed_manifest.get("version").and_then(|v| v.as_str())
-                {
-                    // Replace the version in details with the installed version, or add it if not present
-                    if let Some(pos) = details.iter().position(|(key, _)| key == "Version") {
-                        details[pos] = (
-                            "Installed Version".to_string(),
-                            installed_version.to_string(),
-                        );
-                        // Also add the latest version from the bucket manifest
-                        if let Some(latest_version) =
-                            json_value.get("version").and_then(|v| v.as_str())
-                        {
-                            if installed_version != latest_version {
-                                details.push((
-                                    "Latest Version".to_string(),
-                                    latest_version.to_string(),
-                                ));
-                            }
-                        }
-                    } else {
-                        details.push((
-                            "Installed Version".to_string(),
-                            installed_version.to_string(),
-                        ));
+        if let Some(installed_version) = get_installed_version(&scoop_dir, &package_name) {
+            // Replace the version in details with the installed version, or add it if not present
+            if let Some(pos) = details.iter().position(|(key, _)| key == "Version") {
+                details[pos] = (
+                    "Installed Version".to_string(),
+                    installed_version.to_string(),
+                );
+                // Also add the latest version from the bucket manifest
+                if let Some(latest_version) = json_value.get("version").and_then(|v| v.as_str()) {
+                    if installed_version != latest_version {
+                        details.push(("Latest Version".to_string(), latest_version.to_string()));
                     }
                 }
+            } else {
+                details.push((
+                    "Installed Version".to_string(),
+                    installed_version.to_string(),
+                ));
             }
         }
     }
@@ -170,4 +165,22 @@ pub fn get_package_info(
         details: ordered_details,
         notes,
     })
+}
+
+/// Gets the installed version of a package by reading its manifest file.
+fn get_installed_version(scoop_dir: &std::path::Path, package_name: &str) -> Option<String> {
+    let installed_manifest_path = scoop_dir
+        .join("apps")
+        .join(package_name)
+        .join("current")
+        .join("manifest.json");
+
+    fs::read_to_string(installed_manifest_path)
+        .ok()
+        .and_then(|content| serde_json::from_str::<Value>(&content).ok())
+        .and_then(|json| {
+            json.get("version")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+        })
 }
