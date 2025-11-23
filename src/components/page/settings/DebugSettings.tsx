@@ -27,10 +27,6 @@ function DebugSettings() {
                 <p class="text-base-content/80 mb-4">
                     Enable debug mode to access detailed system information, logs, and troubleshooting tools.
                 </p>
-                <p class="text-sm text-base-content/60">
-                    When enabled, a Debug button will appear in the bottom-right corner of the application,
-                    providing access to system information and logs.
-                </p>
             </div>
         </div>
     );

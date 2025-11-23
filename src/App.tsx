@@ -1,4 +1,4 @@
-import { createSignal, Show, onMount, createMemo } from "solid-js";
+import { createSignal, Show, onMount, createMemo, createEffect } from "solid-js";
 import "./App.css";
 import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
@@ -16,6 +16,7 @@ import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import installedPackagesStore from "./stores/installedPackagesStore";
+import settingsStore from "./stores/settings";
 
 function App() {
     // Persist selected view across sessions.
@@ -38,6 +39,12 @@ function App() {
 
     // Auto-update modal state
     const [autoUpdateTitle, setAutoUpdateTitle] = createSignal<string | null>(null);
+
+    const { settings } = settingsStore;
+
+    createEffect(() => {
+        document.documentElement.setAttribute('data-theme', settings.theme);
+    });
 
 
     const handleInstallUpdate = async () => {

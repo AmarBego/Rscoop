@@ -10,6 +10,7 @@ import DebugSettings from "../components/page/settings/DebugSettings";
 import AutoCleanupSettings from "../components/page/settings/AutoCleanupSettings";
 import BucketAutoUpdateSettings from "../components/page/settings/BucketAutoUpdateSettings";
 import StartupSettings from "../components/page/settings/StartupSettings";
+import ThemeSettings from "../components/page/settings/ThemeSettings";
 import heldStore from "../stores/held";
 
 interface SettingsPageProps {
@@ -99,6 +100,7 @@ function SettingsPage(props: SettingsPageProps) {
                     {/* Window & UI Tab */}
                     <Show when={activeTab() === 'window'}>
                         <div class="space-y-8">
+                            <ThemeSettings />
                             <WindowBehaviorSettings />
                             <StartupSettings />
                             <DebugSettings />
@@ -122,4 +124,4 @@ function SettingsPage(props: SettingsPageProps) {
     );
 }
 
-export default SettingsPage; 
+export default SettingsPage;

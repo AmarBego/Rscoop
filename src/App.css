@@ -8,20 +8,28 @@
   color-scheme: "dark";
 
   /* Base surfaces */
-  --color-base-100: #222226; /* main background */
-  --color-base-200: #2e2e32; /* header/toolbar */
-  --color-base-300: #343437; /* elevated surfaces (Dark 3) */
-  --color-base-400: #3a3a3d; /* elevated surfaces (Hover) */
-  --color-base-content: #f6f5f4; /* light text (Light 2) */
+  --color-base-100: #222226;
+  /* main background */
+  --color-base-200: #2e2e32;
+  /* header/toolbar */
+  --color-base-300: #343437;
+  /* elevated surfaces (Dark 3) */
+  --color-base-400: #3a3a3d;
+  /* elevated surfaces (Hover) */
+  --color-base-content: #f6f5f4;
+  /* light text (Light 2) */
 
   /* Brand & accents */
-  --color-primary: #3584e4; /* Blue 3 */
+  --color-primary: #3584e4;
+  /* Blue 3 */
   --color-primary-content: #ffffff;
 
-  --color-secondary: #9141ac; /* Purple 3 */
+  --color-secondary: #9141ac;
+  /* Purple 3 */
   --color-secondary-content: #ffffff;
 
-  --color-accent: #62a0ea; /* Blue 2 */
+  --color-accent: #62a0ea;
+  /* Blue 2 */
   --color-accent-content: #ffffff;
 
   /* Neutral */
@@ -29,16 +37,85 @@
   --color-neutral-content: #f6f5f4;
 
   /* Status colors from HIG */
-  --color-info: #62a0ea; /* Blue 2 */
+  --color-info: #62a0ea;
+  /* Blue 2 */
   --color-info-content: #ffffff;
 
-  --color-success: #57e389; /* Green 2 */
+  --color-success: #57e389;
+  /* Green 2 */
   --color-success-content: #0d0d0d;
 
-  --color-warning: #ff7800; /* Yellow 3 */
+  --color-warning: #ff7800;
+  /* Yellow 3 */
   --color-warning-content: #0d0d0d;
 
-  --color-error: #e01b24; /* Red 3 */
+  --color-error: #e01b24;
+  /* Red 3 */
+  --color-error-content: #ffffff;
+
+  /* GNOME’s rounded + clean style */
+  --radius-selector: 0.375rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.5rem;
+
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "light";
+  default: false;
+  prefersdark: false;
+  color-scheme: "light";
+
+  /* Base surfaces */
+  --color-base-100: #ffffff;
+  /* main background */
+  --color-base-200: #f6f5f4;
+  /* header/toolbar */
+  --color-base-300: #deddda;
+  /* elevated surfaces */
+  --color-base-400: #c0bfbc;
+  /* elevated surfaces (Hover) */
+  --color-base-content: #2e2e32;
+  /* dark text */
+
+  /* Brand & accents */
+  --color-primary: #3584e4;
+  /* Blue 3 */
+  --color-primary-content: #ffffff;
+
+  --color-secondary: #9141ac;
+  /* Purple 3 */
+  --color-secondary-content: #ffffff;
+
+  --color-accent: #62a0ea;
+  /* Blue 2 */
+  --color-accent-content: #ffffff;
+
+  /* Neutral */
+  --color-neutral: #f6f5f4;
+  --color-neutral-content: #2e2e32;
+
+  /* Status colors from HIG */
+  --color-info: #62a0ea;
+  /* Blue 2 */
+  --color-info-content: #ffffff;
+
+  --color-success: #57e389;
+  /* Green 2 */
+  --color-success-content: #0d0d0d;
+
+  --color-warning: #ff7800;
+  /* Yellow 3 */
+  --color-warning-content: #0d0d0d;
+
+  --color-error: #e01b24;
+  /* Red 3 */
   --color-error-content: #ffffff;
 
   /* GNOME’s rounded + clean style */

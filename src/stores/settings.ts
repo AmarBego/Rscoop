@@ -12,6 +12,7 @@ interface Settings {
     closeToTray: boolean;
     firstTrayNotificationShown: boolean;
   };
+  theme: 'dark' | 'light';
   debug: {
     enabled: boolean;
   };
@@ -36,6 +37,7 @@ const defaultSettings: Settings = {
     closeToTray: true,
     firstTrayNotificationShown: false,
   },
+  theme: 'dark',
   debug: {
     enabled: false,
   },
@@ -67,6 +69,7 @@ function createSettingsStore() {
           ...defaultSettings.window,
           ...storedSettings.window,
         },
+        theme: storedSettings.theme || defaultSettings.theme,
         debug: {
           ...defaultSettings.debug,
           ...storedSettings.debug,
@@ -112,6 +115,10 @@ function createSettingsStore() {
     });
   };
 
+  const setTheme = (theme: 'dark' | 'light') => {
+    saveSettings({ theme });
+  };
+
   const setDebugSettings = (newDebugSettings: Partial<Settings['debug']>) => {
     saveSettings({
       debug: {
@@ -139,7 +146,7 @@ function createSettingsStore() {
     });
   };
 
-  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings };
+  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setTheme };
 }
 
-export default createRoot(createSettingsStore); 
+export default createRoot(createSettingsStore);
