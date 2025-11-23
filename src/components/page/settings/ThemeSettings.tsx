@@ -1,5 +1,6 @@
 import { Sun, Moon } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
+import SettingsCard from "../../common/SettingsCard";
 
 function ThemeSettings() {
     const { settings, setTheme } = settingsStore;
@@ -9,38 +10,22 @@ function ThemeSettings() {
     };
 
     return (
-        <div class="card bg-base-200 shadow-xl">
-            <div class="card-body">
-                <div class="flex items-center justify-between">
-                    <h2 class="card-title text-xl">
-                        <div class="indicator">
-                            <div class="flex items-center">
-                                {settings.theme === 'dark' ? (
-                                    <Moon class="w-6 h-6 mr-2 text-primary" />
-                                ) : (
-                                    <Sun class="w-6 h-6 mr-2 text-warning" />
-                                )}
-                                Theme
-                            </div>
-                        </div>
-                    </h2>
-                    <div class="form-control">
-                        <label class="label cursor-pointer">
-                            <span class="label-text mr-4">{settings.theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
-                            <input
-                                type="checkbox"
-                                class="toggle toggle-warning"
-                                checked={settings.theme === 'light'}
-                                onChange={(e) => handleThemeChange(e.currentTarget.checked)}
-                            />
-                        </label>
-                    </div>
-                </div>
-                <p class="text-base-content/80">
-                    Switch between dark and light themes.
-                </p>
-            </div>
-        </div>
+        <SettingsCard
+            title="Appearance"
+            icon={settings.theme === 'dark' ? Moon : Sun}
+            description="Switch between dark and light themes."
+            headerAction={
+                <label class="label cursor-pointer">
+                    <span class="label-text mr-4">{settings.theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
+                    <input
+                        type="checkbox"
+                        class="toggle toggle-warning"
+                        checked={settings.theme === 'light'}
+                        onChange={(e) => handleThemeChange(e.currentTarget.checked)}
+                    />
+                </label>
+            }
+        />
     );
 }
 

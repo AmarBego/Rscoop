@@ -192,8 +192,8 @@ pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
     // Show a nice native dialog with information about tray behavior
     let result = app
         .dialog()
-        .message("rScoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?")
-        .title("rScoop - Minimized to Tray")
+        .message("Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?")
+        .title("Rscoop - Minimized to Tray")
         .kind(MessageDialogKind::Info)
         .buttons(MessageDialogButtons::OkCancelCustom("Close and Disable Tray".to_string(), "Keep in Tray".to_string()))
         .blocking_show();

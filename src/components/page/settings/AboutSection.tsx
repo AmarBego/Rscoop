@@ -139,7 +139,7 @@ export default function AboutSection(props: AboutSectionProps) {
       {/* Hero Section */}
       <div class="bg-base-300 p-8 flex flex-col items-center text-center space-y-4">
         <div>
-          <h2 class="text-3xl font-bold tracking-tight">rScoop</h2>
+          <h2 class="text-3xl font-bold tracking-tight">Rscoop</h2>
           <p class="text-base-content/60 font-medium">v{pkgJson.version}</p>
         </div>
         <p class="max-w-md text-base-content/80 leading-relaxed">

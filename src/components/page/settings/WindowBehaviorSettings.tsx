@@ -2,6 +2,8 @@ import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Monitor } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
+import SettingsToggle from "../../common/SettingsToggle";
+import SettingsCard from "../../common/SettingsCard";
 
 function WindowBehaviorSettings() {
     const { settings, setWindowSettings } = settingsStore;
@@ -44,41 +46,29 @@ function WindowBehaviorSettings() {
     };
 
     return (
-        <div class="card bg-base-200 shadow-xl">
-            <div class="card-body">
-                <div class="flex items-center justify-between">
-                    <h2 class="card-title text-xl">
-                        <Monitor class="w-6 h-6 mr-2 text-primary" />
-                        Window Behavior
-                    </h2>
+        <SettingsCard
+            title="Window Behavior"
+            icon={Monitor}
+            description="Configure how the application window behaves when closing and minimize to system tray options."
+            headerAction={
+                <SettingsToggle
+                    checked={settings.window.closeToTray}
+                    onChange={(checked) => handleCloseToTrayChange(checked)}
+                    disabled={isSaving()}
+                    showStatusLabel={true}
+                />
+            }
+        >
+            <div class="space-y-4">
+                {settings.window.closeToTray && (
                     <div class="form-control">
-                        <label class="label cursor-pointer">
-                            <span class="label-text mr-4">Enable</span>
-                            <input
-                                type="checkbox"
-                                class="toggle toggle-primary"
-                                checked={settings.window.closeToTray}
-                                disabled={isSaving()}
-                                onChange={(e) => handleCloseToTrayChange(e.currentTarget.checked)}
-                            />
-                        </label>
+                        <p class="text-sm text-base-content/70 mb-2">
+                            When enabled, closing the window will minimize Rscoop to the system tray instead of exiting the application
+                        </p>
                     </div>
-                </div>
-                <p class="text-base-content/80 mb-4">
-                    Configure how the application window behaves when closing and minimize to system tray options.
-                </p>
-
-                <div class="space-y-4">
-                    {settings.window.closeToTray && (
-                        <div class="form-control">
-                            <p class="text-sm text-base-content/70 mb-2">
-                                When enabled, closing the window will minimize rScoop to the system tray instead of exiting the application
-                            </p>
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
-        </div>
+        </SettingsCard>
     );
 }
 

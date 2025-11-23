@@ -2,6 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCcw } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
+import SettingsCard from "../../common/SettingsCard";
 
 // Predefined new intervals per requirement plus backward compatibility display
 const INTERVAL_OPTIONS: { label: string; value: string; description: string }[] = [
@@ -58,93 +59,88 @@ export default function BucketAutoUpdateSettings() {
     });
 
     return (
-        <div class="card bg-base-200 shadow-xl">
-            <div class="card-body">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="flex items-center">
-                        <RefreshCcw class="w-6 h-6 mr-2 text-primary" />
-                        <h2 class="card-title text-xl">Bucket Auto Update</h2>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <ActiveIntervalDisplay value={settings.buckets.autoUpdateInterval} />
-                        {saving() && <span class="loading loading-spinner loading-xs" />}
-                    </div>
+        <SettingsCard
+            title="Bucket Auto Update"
+            icon={RefreshCcw}
+            description="Rscoop will automatically run updates on all installed buckets to keep manifests fresh."
+            headerAction={
+                <div class="flex items-center gap-3">
+                    <ActiveIntervalDisplay value={settings.buckets.autoUpdateInterval} />
+                    {saving() && <span class="loading loading-spinner loading-xs" />}
                 </div>
-                <p class="text-sm text-base-content/70 mb-4">
-                    Rscoop will automatically run updates on all installed buckets to keep manifests fresh.
-                </p>
-                <div class="flex flex-col gap-2">
-                    {INTERVAL_OPTIONS.map(opt => (
-                        <label class="flex items-center justify-between bg-base-300/60 rounded-md px-3 py-2 cursor-pointer border border-base-content/10 hover:border-base-content/20 transition-colors">
-                            <div class="flex flex-col">
-                                <span class="text-sm font-medium">{opt.label}</span>
-                                <span class="text-[10px] opacity-70">{opt.description}</span>
-                            </div>
-                            <input
-                                type="radio"
-                                name="bucketIntervalPreset"
-                                value={opt.value}
-                                checked={settings.buckets.autoUpdateInterval === opt.value}
-                                disabled={loading() || saving()}
-                                onChange={() => handleSelect(opt.value)}
-                                class="radio radio-primary"
-                            />
-                        </label>
-                    ))}
-                </div>
-
-                {/* Custom interval */}
-                <div class="mt-4 bg-base-300/40 rounded-md p-3 border border-dashed border-base-content/10">
-                    <span class="text-xs font-semibold uppercase tracking-wide opacity-70">Custom Interval</span>
-                    <p class="text-[11px] mt-1 mb-2 opacity-70">Define a custom schedule (minutes, hours, days, weeks).</p>
-                    <CustomIntervalEditor
-                        currentValue={settings.buckets.autoUpdateInterval}
-                        onPersist={persistInterval}
-                        disabled={loading() || saving()}
-                        debug={settings.debug.enabled}
-                    />
-                    <Show when={settings.debug.enabled}>
-                        <div class="mt-3 flex items-center gap-2">
-                            <button
-                                type="button"
-                                class="btn btn-xs btn-warning"
-                                disabled={saving() || loading()}
-                                onClick={() => persistInterval("custom:10")}
-                            >
-                                Debug: 10s Interval
-                            </button>
-                            <span class="text-[10px] opacity-60">Runs scheduler every 10 seconds (debug only)</span>
-                        </div>
-                    </Show>
-                </div>
-
-                <Show when={settings.buckets.autoUpdateInterval !== 'off'}>
-                    <div class="divider my-4"></div>
-                    <div class="flex items-center justify-between">
+            }
+        >
+            <div class="flex flex-col gap-2">
+                {INTERVAL_OPTIONS.map(opt => (
+                    <label class="flex items-center justify-between bg-base-300/60 rounded-md px-3 py-2 cursor-pointer border border-base-content/10 hover:border-base-content/20 transition-colors">
                         <div class="flex flex-col">
-                            <span class="text-sm font-medium">Auto Update Packages</span>
-                            <span class="text-[11px] text-base-content/60">Run full package update after bucket refresh</span>
+                            <span class="text-sm font-medium">{opt.label}</span>
+                            <span class="text-[10px] opacity-70">{opt.description}</span>
                         </div>
-                        <label class="label cursor-pointer">
-                            <input
-                                type="checkbox"
-                                class="toggle toggle-success"
-                                checked={settings.buckets.autoUpdatePackagesEnabled}
-                                onChange={async (e) => {
-                                    setBucketSettings({ autoUpdatePackagesEnabled: e.currentTarget.checked });
-                                    await invoke("set_config_value", { key: "buckets.autoUpdatePackagesEnabled", value: e.currentTarget.checked });
-                                }}
-                            />
-                        </label>
-                    </div>
-                    <div class="mt-2 text-[11px] text-base-content/50">
-                        When enabled, after each scheduled bucket update rScoop will update all installed packages.
+                        <input
+                            type="radio"
+                            name="bucketIntervalPreset"
+                            value={opt.value}
+                            checked={settings.buckets.autoUpdateInterval === opt.value}
+                            disabled={loading() || saving()}
+                            onChange={() => handleSelect(opt.value)}
+                            class="radio radio-primary"
+                        />
+                    </label>
+                ))}
+            </div>
+
+            {/* Custom interval */}
+            <div class="mt-4 bg-base-300/40 rounded-md p-3 border border-dashed border-base-content/10">
+                <span class="text-xs font-semibold uppercase tracking-wide opacity-70">Custom Interval</span>
+                <p class="text-[11px] mt-1 mb-2 opacity-70">Define a custom schedule (minutes, hours, days, weeks).</p>
+                <CustomIntervalEditor
+                    currentValue={settings.buckets.autoUpdateInterval}
+                    onPersist={persistInterval}
+                    disabled={loading() || saving()}
+                    debug={settings.debug.enabled}
+                />
+                <Show when={settings.debug.enabled}>
+                    <div class="mt-3 flex items-center gap-2">
+                        <button
+                            type="button"
+                            class="btn btn-xs btn-warning"
+                            disabled={saving() || loading()}
+                            onClick={() => persistInterval("custom:10")}
+                        >
+                            Debug: 10s Interval
+                        </button>
+                        <span class="text-[10px] opacity-60">Runs scheduler every 10 seconds (debug only)</span>
                     </div>
                 </Show>
-
-                {error() && <div class="alert alert-error mt-4 text-xs">{error()}</div>}
             </div>
-        </div>
+
+            <Show when={settings.buckets.autoUpdateInterval !== 'off'}>
+                <div class="divider my-4"></div>
+                <div class="flex items-center justify-between">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium">Auto Update Packages</span>
+                        <span class="text-[11px] text-base-content/60">Run full package update after bucket refresh</span>
+                    </div>
+                    <label class="label cursor-pointer">
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-primary"
+                            checked={settings.buckets.autoUpdatePackagesEnabled}
+                            onChange={async (e) => {
+                                setBucketSettings({ autoUpdatePackagesEnabled: e.currentTarget.checked });
+                                await invoke("set_config_value", { key: "buckets.autoUpdatePackagesEnabled", value: e.currentTarget.checked });
+                            }}
+                        />
+                    </label>
+                </div>
+                <div class="mt-2 text-[11px] text-base-content/50">
+                    When enabled, after each scheduled bucket update Rscoop will update all installed packages.
+                </div>
+            </Show>
+
+            {error() && <div class="alert alert-error mt-4 text-xs">{error()}</div>}
+        </SettingsCard>
     );
 }
 
