@@ -12,20 +12,23 @@ interface CardProps {
     gridCols?: 1 | 2 | 3 | 4;
 }
 
-export default function Card(props: CardProps) {
-    const descriptionId = typeof props.title === 'string'
-        ? `card-desc-${props.title.replace(/\s+/g, "-").toLowerCase()}`
-        : undefined;
+export default function Card({
+    layout = "list",
+    gridCols = 3,
+    ...props
+}: CardProps) {
+    const descriptionId =
+        typeof props.title === "string" && props.description
+            ? `card-desc-${props.title.replace(/\s+/g, "-").toLowerCase()}`
+            : undefined;
 
-    const getGridColsClass = (cols: number = 3) => {
-        switch (cols) {
-            case 1: return "grid-cols-1";
-            case 2: return "grid-cols-2";
-            case 3: return "grid-cols-3";
-            case 4: return "grid-cols-4";
-            default: return "grid-cols-3";
-        }
+    const gridColsMap: Record<1 | 2 | 3 | 4, string> = {
+        1: "grid-cols-1",
+        2: "grid-cols-2",
+        3: "grid-cols-3",
+        4: "grid-cols-4",
     };
+
 
     return (
         <section
@@ -35,29 +38,34 @@ export default function Card(props: CardProps) {
             <div class="card-body">
                 <div class="flex items-center justify-between">
                     <h2 class="card-title text-xl flex items-center">
-                        <Show when={props.icon}>
-                            <Dynamic component={props.icon!} class="w-6 h-6 mr-2 text-primary" />
-                        </Show>
+                        {props.icon && (
+                            <Dynamic component={props.icon} class="w-6 h-6 mr-2 text-primary" />
+                        )}
+
                         {props.title}
                     </h2>
                     <Show when={props.headerAction}>
                         <div class="form-control">{props.headerAction}</div>
                     </Show>
                 </div>
+
                 <Show when={props.description}>
                     <div id={descriptionId} class="text-base-content/80 mb-4">
                         {props.description}
                     </div>
                 </Show>
 
-                <div class={
-                    props.layout === "grid"
-                        ? `grid gap-4 ${getGridColsClass(props.gridCols)}`
-                        : "flex flex-col gap-4"
-                }>
+                <div
+                    class={
+                        layout === "grid"
+                            ? `grid gap-4 ${gridColsMap[gridCols]}`
+                            : "flex flex-col gap-4"
+                    }
+                >
                     {props.children}
                 </div>
             </div>
         </section>
     );
 }
+
