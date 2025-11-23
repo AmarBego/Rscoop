@@ -1,4 +1,4 @@
-import { Zap } from "lucide-solid";
+import { Bug } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 
 function DebugSettings() {
@@ -9,7 +9,7 @@ function DebugSettings() {
             <div class="card-body">
                 <div class="flex items-center justify-between">
                     <h2 class="card-title text-xl">
-                        <Zap class="w-6 h-6 mr-2 text-primary" />
+                        <Bug class="w-6 h-6 mr-2 text-primary" />
                         Debug Mode
                     </h2>
                     <div class="form-control">

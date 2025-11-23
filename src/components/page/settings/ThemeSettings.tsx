@@ -26,7 +26,7 @@ function ThemeSettings() {
                     </h2>
                     <div class="form-control">
                         <label class="label cursor-pointer">
-                            <span class="label-text mr-4">{settings.theme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+                            <span class="label-text mr-4">{settings.theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}</span>
                             <input
                                 type="checkbox"
                                 class="toggle toggle-warning"
