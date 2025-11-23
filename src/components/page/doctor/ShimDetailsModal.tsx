@@ -14,7 +14,7 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
     const handleRemove = () => {
         props.onRemove(props.shim.name);
     }
-    
+
     const handleAlter = () => {
         props.onAlter(props.shim.name);
     }
@@ -26,17 +26,17 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
                     <X />
                 </button>
                 <h3 class="font-bold text-lg text-primary">{props.shim.name}</h3>
-                
+
                 <div class="py-4 space-y-3">
-                    <p class="text-sm text-base-content/80 break-all">
+                    <p class="text-sm  break-all">
                         <span class="font-semibold text-base-content">Source: </span> {props.shim.source}
                     </p>
-                    <p class="text-sm text-base-content/80 break-all">
+                    <p class="text-sm  break-all">
                         <span class="font-semibold text-base-content">Path: </span> {props.shim.path}
                     </p>
                     <Show when={props.shim.args}>
-                        <p class="text-sm text-base-content/80 break-all">
-                            <span class="font-semibold text-base-content">Arguments: </span> 
+                        <p class="text-sm  break-all">
+                            <span class="font-semibold text-base-content">Arguments: </span>
                             <span class="font-mono bg-base-300 px-1 rounded">{props.shim.args}</span>
                         </p>
                     </Show>
@@ -47,7 +47,7 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
                         <Trash2 class="w-4 h-4" /> Remove
                     </button>
                     <button class="btn" onClick={handleAlter} disabled={props.isOperationRunning}>
-                        <Show when={!props.shim.isHidden} fallback={<><Eye class="w-4 h-4"/> Unhide</>}>
+                        <Show when={!props.shim.isHidden} fallback={<><Eye class="w-4 h-4" /> Unhide</>}>
                             <EyeOff class="w-4 h-4" /> Hide
                         </Show>
                     </button>

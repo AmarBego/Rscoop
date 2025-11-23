@@ -165,7 +165,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                 }
                 description={
                   <>
-                    <p class="text-sm text-base-content/80 line-clamp-2 mb-4 min-h-[2.5rem]">
+                    <p class="text-sm  line-clamp-2 mb-4 min-h-[2.5rem]">
                       {bucket.description || "No description available"}
                     </p>
 

@@ -1,6 +1,6 @@
 import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
 import {
-  Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, RefreshCw
+  Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert
 } from 'lucide-solid';
 
 interface InstalledPageHeaderProps {
@@ -22,8 +22,6 @@ interface InstalledPageHeaderProps {
 
   searchQuery: Accessor<string>;
   setSearchQuery: Setter<string>;
-
-  onRefresh: () => void;
 }
 
 function InstalledPageHeader(props: InstalledPageHeaderProps) {
@@ -88,14 +86,6 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
       >
         <h2 class="text-3xl font-bold tracking-tight">Installed Packages</h2>
         <div class="flex items-center gap-2">
-          {/* Refresh Button */}
-          <button
-            class="btn btn-ghost btn-circle tooltip tooltip-bottom"
-            data-tip="Refresh"
-            onClick={props.onRefresh}
-          >
-            <RefreshCw class="w-5 h-5" />
-          </button>
 
           {/* Search Button */}
           <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip="Search" onClick={() => setIsSearchOpen(true)}>

@@ -426,7 +426,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                   <Show when={props.description && !isInstalled()}>
                     <h4 class="text-lg font-medium mb-3 border-b pb-2">Description</h4>
                     <div class="bg-base-100 rounded-lg p-4">
-                      <p class="text-sm text-base-content/80 leading-relaxed">
+                      <p class="text-sm  leading-relaxed">
                         {props.description}
                       </p>
                       <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">

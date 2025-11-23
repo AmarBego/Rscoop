@@ -142,7 +142,7 @@ export default function AboutSection(props: AboutSectionProps) {
           <h2 class="text-3xl font-bold tracking-tight">Rscoop</h2>
           <p class="text-base-content/60 font-medium">v{pkgJson.version}</p>
         </div>
-        <p class="max-w-md text-base-content/80 leading-relaxed">
+        <p class="max-w-md  leading-relaxed">
           A modern, powerful, and fast GUI for Scoop package manager on Windows.
         </p>
       </div>

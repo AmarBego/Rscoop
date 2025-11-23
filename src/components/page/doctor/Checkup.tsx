@@ -73,7 +73,7 @@ function Checkup(props: CheckupProps) {
                                 <Show when={item.suggestion}>
                                     <div class="mt-2 ml-8 text-sm p-2 bg-base-300 rounded-md">
                                         <p class="font-semibold mb-1">Suggestion:</p>
-                                        <code class="font-mono text-base-content/80">{item.suggestion}</code>
+                                        <code class="font-mono ">{item.suggestion}</code>
                                     </div>
                                 </Show>
                             </li>
