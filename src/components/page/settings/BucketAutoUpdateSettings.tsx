@@ -72,7 +72,7 @@ export default function BucketAutoUpdateSettings() {
         >
             <div class="flex flex-col gap-2">
                 {INTERVAL_OPTIONS.map(opt => (
-                    <label class="flex items-center justify-between bg-base-300/60 rounded-md px-3 py-2 cursor-pointer border border-base-content/10 hover:border-base-content/20 transition-colors">
+                    <label class="flex items-center justify-between bg-base-300/60 rounded-md px-3 py-2 cursor-pointer border border-base-content/50 hover:border-base-content/20 transition-colors">
                         <div class="flex flex-col">
                             <span class="text-sm font-medium">{opt.label}</span>
                             <span class="text-[10px] opacity-70">{opt.description}</span>
@@ -91,8 +91,8 @@ export default function BucketAutoUpdateSettings() {
             </div>
 
             {/* Custom interval */}
-            <div class="mt-4 bg-base-300/40 rounded-md p-3 border border-dashed border-base-content/10">
-                <span class="text-xs font-semibold uppercase tracking-wide opacity-70">Custom Interval</span>
+            <div class="mt-4 bg-base-300/40 rounded-md p-3 border border-dashed border-base-content/50">
+                <span class="text-xs font-semibold uppercase tracking-wide opacity-90">Custom Interval</span>
                 <p class="text-[11px] mt-1 mb-2 opacity-70">Define a custom schedule (minutes, hours, days, weeks).</p>
                 <CustomIntervalEditor
                     currentValue={settings.buckets.autoUpdateInterval}

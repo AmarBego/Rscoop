@@ -47,9 +47,9 @@ function WindowBehaviorSettings() {
 
     return (
         <Card
-            title="Window Behavior"
+            title="Tray Support"
             icon={Monitor}
-            description="Configure how the application window behaves when closing and minimize to system tray options."
+            description="Enable tray support to allow Rscoop to run in the system tray when closed."
             headerAction={
                 <SettingsToggle
                     checked={settings.window.closeToTray}
@@ -59,15 +59,6 @@ function WindowBehaviorSettings() {
                 />
             }
         >
-            <div class="space-y-4">
-                {settings.window.closeToTray && (
-                    <div class="form-control">
-                        <p class="text-sm text-base-content/70 mb-2">
-                            When enabled, closing the window will minimize Rscoop to the system tray instead of exiting the application
-                        </p>
-                    </div>
-                )}
-            </div>
         </Card>
     );
 }

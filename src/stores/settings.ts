@@ -53,7 +53,7 @@ const defaultSettings: Settings = {
     autoUpdateInterval: "off",
     autoUpdatePackagesEnabled: false,
   },
-  defaultLaunchPage: "search",
+  defaultLaunchPage: "installed",
 };
 
 function createSettingsStore() {

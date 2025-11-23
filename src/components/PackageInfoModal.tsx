@@ -8,6 +8,7 @@ import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import Modal from "./common/Modal";
 import { openPath } from '@tauri-apps/plugin-opener';
+import settingsStore from "../stores/settings";
 
 hljs.registerLanguage('json', json);
 
@@ -62,7 +63,7 @@ function DetailValue(props: { value: string }) {
 function IncludesValue(props: { value: string }) {
   const items = createMemo(() => props.value.split(/,\s*/).filter((s) => s.length > 0));
   return (
-    <div class="max-h-60 overflow-y-auto">
+    <div class="max-h-[4.5rem] overflow-y-auto">
       <ul class="list-disc list-inside text-xs space-y-0.5">
         <For each={items()}>{(item) => <ul class="break-all">{item}</ul>}</For>
       </ul>
@@ -109,6 +110,11 @@ function LicenseValue(props: { value: string }) {
 
 function PackageInfoModal(props: PackageInfoModalProps) {
   let codeRef: HTMLElement | undefined;
+  const { settings } = settingsStore;
+
+  // Theme-specific colors
+  const isDark = () => settings.theme === 'dark';
+  const codeBgColor = () => isDark() ? '#282c34' : '#f0f4f9';
 
   const orderedDetails = createMemo(() => {
     if (!props.info?.details) return [];
@@ -419,7 +425,10 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             <Show when={props.info?.notes}>
               <div class="flex-1">
                 <h4 class="text-lg font-medium mb-3 border-b pb-2">Notes</h4>
-                <div class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner bg-[#282c34]">
+                <div
+                  class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner"
+                  style={{ "background-color": codeBgColor() }}
+                >
                   <pre class="p-4 m-0">
                     <code ref={codeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{props.info?.notes}</code>
                   </pre>
@@ -496,4 +505,4 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   );
 }
 
-export default PackageInfoModal; 
+export default PackageInfoModal;

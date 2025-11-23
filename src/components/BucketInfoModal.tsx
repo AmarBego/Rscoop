@@ -9,6 +9,7 @@ import json from 'highlight.js/lib/languages/json';
 import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";
 import Modal from "./common/Modal";
 import { openUrl, openPath } from '@tauri-apps/plugin-opener';
+import settingsStore from "../stores/settings";
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
@@ -78,6 +79,10 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
 
 function BucketInfoModal(props: BucketInfoModalProps) {
   const bucketInstall = useBucketInstall();
+  const { settings } = settingsStore;
+
+  const isDark = () => settings.theme === 'dark';
+  const BgColor = () => isDark() ? '#282c34' : '#f0f4f9';
 
   const bucketName = () => props.bucket?.name || props.searchBucket?.name || '';
   const isExternalBucket = () => !props.bucket && !!props.searchBucket;
@@ -424,17 +429,12 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                 fallback={
                   // Show description when bucket is not installed or no manifests available
                   <Show when={props.description && !isInstalled()}>
+
                     <h4 class="text-lg font-medium mb-3 border-b pb-2">Description</h4>
-                    <div class="bg-base-100 rounded-lg p-4">
+                    <div class="rounded-lg p-4" style={{ "background-color": BgColor() }}>
                       <p class="text-sm  leading-relaxed">
                         {props.description}
                       </p>
-                      <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">
-                        <p class="text-xs text-info-content/70">
-                          <strong>Note:</strong> This bucket is not currently installed.
-                          Install it to view available packages.
-                        </p>
-                      </div>
                     </div>
                   </Show>
                 }

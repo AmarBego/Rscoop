@@ -53,7 +53,7 @@
   /* Red 3 */
   --color-error-content: #ffffff;
 
-  /* GNOME’s rounded + clean style */
+  /* GNOME's rounded + clean style */
   --radius-selector: 0.375rem;
   --radius-field: 0.5rem;
   --radius-box: 0.5rem;
@@ -72,24 +72,24 @@
   prefersdark: false;
   color-scheme: "light";
 
-  /* Base surfaces */
-  --color-base-100: #ffffff;
-  /* main background */
-  --color-base-200: #f6f5f4;
-  /* header/toolbar */
-  --color-base-300: #deddda;
-  /* elevated surfaces */
-  --color-base-400: #c0bfbc;
-  /* elevated surfaces (Hover) */
-  --color-base-content: #2e2e32;
-  /* dark text */
+  /* Base surfaces - inverted: gray background, white cards */
+  --color-base-100: #f0f4f9;
+  /* main background - medium gray */
+  --color-base-200: #FAFAF9;
+  /* header/toolbar - slightly darker gray */
+  --color-base-300: #ffffff;
+  /* elevated surfaces (cards) - white */
+  --color-base-400: #fafafa;
+  /* elevated surfaces (Hover) - very light gray */
+  --color-base-content: #18181b;
+  /* dark text - very dark for good contrast */
 
   /* Brand & accents */
-  --color-primary: #3584e4;
+  --color-primary: #3584E4;
   /* Blue 3 */
   --color-primary-content: #ffffff;
 
-  --color-secondary: #9141ac;
+  --color-secondary: #9141AC;
   /* Purple 3 */
   --color-secondary-content: #ffffff;
 
@@ -98,27 +98,27 @@
   --color-accent-content: #ffffff;
 
   /* Neutral */
-  --color-neutral: #f6f5f4;
-  --color-neutral-content: #2e2e32;
+  --color-neutral: #f4f4f5;
+  --color-neutral-content: #18181b;
 
   /* Status colors from HIG */
-  --color-info: #62a0ea;
-  /* Blue 2 */
+  --color-info: #3584e4;
+  /* Blue 3 - slightly darker for better contrast on light bg */
   --color-info-content: #ffffff;
 
-  --color-success: #57e389;
-  /* Green 2 */
-  --color-success-content: #0d0d0d;
+  --color-success: #2EC27E;
+  /* Green 3 - darker for better light mode contrast */
+  --color-success-content: #ffffff;
 
-  --color-warning: #ff7800;
-  /* Yellow 3 */
-  --color-warning-content: #0d0d0d;
+  --color-warning: #FF7800;
+  /* Yellow 4 - better contrast on light */
+  --color-warning-content: #ffffff;
 
-  --color-error: #e01b24;
-  /* Red 3 */
+  --color-error: #E01B24;
+  /* Red 4 - darker for better light mode contrast */
   --color-error-content: #ffffff;
 
-  /* GNOME’s rounded + clean style */
+  /* GNOME's rounded + clean style */
   --radius-selector: 0.375rem;
   --radius-field: 0.5rem;
   --radius-box: 0.5rem;

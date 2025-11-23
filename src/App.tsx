@@ -11,7 +11,6 @@ import DebugModal from "./components/DebugModal.tsx";
 import OperationModal from "./components/OperationModal.tsx";
 import { listen } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
-import { createStoredSignal } from "./hooks/createStoredSignal";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -19,9 +18,8 @@ import installedPackagesStore from "./stores/installedPackagesStore";
 import settingsStore from "./stores/settings";
 
 function App() {
-    // Persist selected view across sessions, but initialize with the user's default launch page
-    const [view, setView] = createStoredSignal<View>(
-        "rscoop-view",
+    // Initialize with the user's default launch page (do not persist view across sessions)
+    const [view, setView] = createSignal<View>(
         settingsStore.settings.defaultLaunchPage
     );
 

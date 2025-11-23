@@ -27,7 +27,7 @@ const Header: Component<HeaderProps> = (props) => {
   document.addEventListener("keydown", toggleCommandPalette);
 
   return (
-    <div class="navbar bg-base-200 border-b border-base-300 shadow-sm">
+    <div class="navbar bg-base-400 border-b border-base-300 shadow-sm">
       <div class="flex-1">
         <a class="btn btn-ghost text-xl font-bold">Rscoop</a>
       </div>

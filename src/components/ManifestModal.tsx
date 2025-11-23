@@ -1,9 +1,11 @@
 import { createEffect, Show, createSignal } from "solid-js";
 import hljs from 'highlight.js/lib/core';
 import 'highlight.js/styles/atom-one-dark.css';
+import 'highlight.js/styles/atom-one-light.css';
 import json from 'highlight.js/lib/languages/json';
 import { Copy, Check } from "lucide-solid";
 import Modal from "./common/Modal";
+import settingsStore from "../stores/settings";
 
 hljs.registerLanguage('json', json);
 
@@ -18,10 +20,19 @@ interface ManifestModalProps {
 function ManifestModal(props: ManifestModalProps) {
   let codeRef: HTMLElement | undefined;
   const [copied, setCopied] = createSignal(false);
+  const { settings } = settingsStore;
+
+  // Theme-specific colors
+  const isDark = () => settings.theme === 'dark';
+  const codeBgColor = () => isDark() ? '#282c34' : '#f0f4f9';
+  const buttonTextColor = () => isDark() ? 'text-white/70 hover:text-white' : 'text-base-content/70 hover:text-base-content';
+  const buttonBgHover = () => isDark() ? 'hover:bg-white/10' : 'hover:bg-base-content/10';
 
   createEffect(() => {
     if (props.manifestContent && codeRef) {
       codeRef.textContent = props.manifestContent;
+      // Remove existing hljs classes to allow re-highlighting
+      codeRef.className = 'language-json font-mono text-sm leading-relaxed !bg-transparent';
       hljs.highlightElement(codeRef);
     }
   });
@@ -66,10 +77,13 @@ function ManifestModal(props: ManifestModalProps) {
       </Show>
 
       <Show when={props.manifestContent}>
-        <div class="relative rounded-xl overflow-hidden border border-base-content/10 shadow-inner bg-[#282c34] group">
+        <div
+          class="relative rounded-xl overflow-hidden border border-base-content/10 shadow-inner group"
+          style={{ "background-color": codeBgColor() }}
+        >
           <div class="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             <button
-              class="btn btn-sm btn-square btn-ghost text-white/70 hover:text-white hover:bg-white/10"
+              class={`btn btn-sm btn-square btn-ghost ${buttonTextColor()} ${buttonBgHover()}`}
               onClick={handleCopy}
               title="Copy to clipboard"
             >

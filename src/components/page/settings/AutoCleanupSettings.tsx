@@ -33,7 +33,7 @@ function AutoCleanupSettings() {
             <Show when={settings.cleanup.autoCleanupEnabled}>
                 <div class="space-y-6">
                     {/* Old Versions Section */}
-                    <div class="bg-base-300/60 rounded-lg p-4 border border-base-content/10">
+                    <div class="bg-base-300/60 rounded-lg p-4 border border-base-content/50">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <h3 class="font-medium flex items-center text-sm">
@@ -71,7 +71,7 @@ function AutoCleanupSettings() {
                     </div>
 
                     {/* Cache Section */}
-                    <div class="bg-base-300/60 rounded-lg p-4 border border-base-content/10">
+                    <div class="bg-base-300/60 rounded-lg p-4 border border-base-content/50">
                         <div class="flex items-start justify-between">
                             <div class="flex-1">
                                 <h3 class="font-medium text-sm">Clean Outdated Cache</h3>
