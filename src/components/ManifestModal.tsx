@@ -48,7 +48,7 @@ function ManifestModal(props: ManifestModalProps) {
       size="large"
       class="bg-base-100"
       footer={
-        <button class="btn" onClick={props.onClose}>Close</button>
+        <button class="btn-close-outline" onClick={props.onClose}>Close</button>
       }
     >
       <Show when={props.loading}>

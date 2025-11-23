@@ -134,3 +134,13 @@
 .bg-base-400 {
   background-color: var(--color-base-400);
 }
+
+/* Custom close button outline style */
+.btn-close-outline {
+  @apply btn btn-outline border-base-content/30 text-base-content hover:border-base-content/50 hover:bg-transparent hover:text-base-content;
+}
+
+/* Custom manifest button style - secondary/info accent */
+.btn-manifest {
+  @apply btn btn-outline border-info/40 text-info hover:border-info/70 hover:bg-transparent hover:text-info;
+}

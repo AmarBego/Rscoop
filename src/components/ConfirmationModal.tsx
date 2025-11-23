@@ -19,7 +19,7 @@ function ConfirmationModal(props: ConfirmationModalProps) {
             size="medium"
             footer={
                 <>
-                    <button class="btn" onClick={props.onCancel}>
+                    <button class="btn-close-outline" onClick={props.onCancel}>
                         {props.cancelText || "Cancel"}
                     </button>
                     <button class="btn btn-error" onClick={props.onConfirm}>

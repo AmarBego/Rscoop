@@ -108,7 +108,7 @@ const DebugModal = () => {
                             {isLoading() ? "Loading..." : "Refresh"}
                         </button>
                         <button
-                            class="btn btn-sm btn-info"
+                            class="btn btn-sm btn-primary"
                             onClick={exportDebugData}
                             disabled={isLoading() || !debugInfo()}
                         >
@@ -123,7 +123,7 @@ const DebugModal = () => {
                             </button>
                         </Show>
                         <button
-                            class="btn btn-sm"
+                            class="btn-close-outline"
                             onClick={() => setIsOpen(false)}
                         >
                             Close

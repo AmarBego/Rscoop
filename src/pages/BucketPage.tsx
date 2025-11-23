@@ -234,7 +234,7 @@ function BucketPage() {
   };
 
   return (
-    <div class="p-4 sm:p-6 md:p-8">
+    <div class="p-4">
       <div class="max-w-6xl mx-auto">
         {/* Header Section */}
         <div class={`mb-6 relative transition-all duration-300 ${isSearchActive() ? 'mb-32' : 'mb-6'}`}>

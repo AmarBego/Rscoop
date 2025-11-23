@@ -253,7 +253,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
       <Show when={!isInstalled() && props.searchBucket}>
         <button
           type="button"
-          class="btn btn-primary btn-sm"
+          class="btn btn-primary"
           onClick={handleInstallBucket}
           disabled={bucketInstall.isBucketBusy(bucketName())}
         >
@@ -274,7 +274,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
       <Show when={isInstalled()}>
         <button
           type="button"
-          class="btn btn-error btn-sm"
+          class="btn btn-error"
           onClick={handleRemoveBucket}
           disabled={bucketInstall.isBucketBusy(bucketName())}
         >
@@ -292,7 +292,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
           </Show>
         </button>
       </Show>
-      <button class="btn btn-sm" onClick={props.onClose}>Close</button>
+      <button class="btn-close-outline" onClick={props.onClose}>Close</button>
     </>
   );
 

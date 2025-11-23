@@ -1,6 +1,6 @@
 import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { Rocket } from "lucide-solid";
+import { Power } from "lucide-solid";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
 
@@ -39,7 +39,7 @@ export default function StartupSettings() {
     return (
         <Card
             title="Startup Settings"
-            icon={Rocket}
+            icon={Power}
             description="Configure whether Rscoop should automatically start when Windows boots."
             headerAction={
                 <SettingsToggle

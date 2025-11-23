@@ -51,7 +51,7 @@ function SettingsPage(props: SettingsPageProps) {
 
     return (
         <>
-            <div class="p-4 sm:p-6 md:p-8">
+            <div class="p-2">
                 <h1 class="text-3xl font-bold mb-4">Settings</h1>
                 {/* Tab Navigation */}
                 <div role="tablist" aria-label="Settings Sections" class="tabs tabs-border mb-6">

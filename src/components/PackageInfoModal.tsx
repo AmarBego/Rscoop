@@ -316,7 +316,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   const footer = (
     <>
       <button
-        class="btn btn-outline btn-sm"
+        class="btn-manifest"
         onClick={() => props.pkg && fetchManifest(props.pkg)}
       >
         <FileText class="w-4 h-4 mr-2" />
@@ -326,7 +326,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         <Show when={!props.pkg?.is_installed && props.onInstall}>
           <button
             type="button"
-            class="btn btn-primary btn-sm"
+            class="btn btn-primary btn-md"
             onClick={() => {
               if (props.pkg) {
                 props.onInstall!(props.pkg);
@@ -341,7 +341,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         <Show when={props.pkg?.is_installed}>
           <button
             type="button"
-            class="btn btn-error btn-sm"
+            class="btn btn-error btn-md"
             onClick={() => {
               if (props.pkg) {
                 props.onUninstall?.(props.pkg);
@@ -353,7 +353,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             Uninstall
           </button>
         </Show>
-        <button class="btn btn-sm" onClick={props.onClose}>
+        <button class="btn-close-outline" onClick={props.onClose}>
           {props.showBackButton ? "Back to Bucket" : "Close"}
         </button>
       </div>

@@ -30,7 +30,7 @@ function SearchPage() {
   } = useSearch();
 
   return (
-    <div class="p-4 sm:p-6 md:p-8">
+    <div class="p-4">
       <div class="max-w-3xl mx-auto">
         <SearchBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 

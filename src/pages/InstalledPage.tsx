@@ -51,7 +51,7 @@ function InstalledPage(props: InstalledPageProps) {
   const [searchQuery, setSearchQuery] = createSignal("");
   const [showStatusModal, setShowStatusModal] = createSignal(false);
 
-  const handleCheckStatus = async () => {
+  const handleCheckStatus = async (): Promise<void> => {
     await checkScoopStatus();
     setShowStatusModal(true);
   };
@@ -64,7 +64,7 @@ function InstalledPage(props: InstalledPageProps) {
   });
 
   return (
-    <div class="p-4 sm:p-6 md:p-8">
+    <div class="p-4">
       <InstalledPageHeader
         updatableCount={updatableCount}
         onUpdateAll={handleUpdateAll}

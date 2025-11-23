@@ -79,16 +79,16 @@ function DoctorPage() {
             invoke("cleanup_outdated_cache")
         );
     };
-    
+
     const handleCloseOperationModal = () => {
         setOperationTitle(null);
     };
-    
+
     return (
         <>
-            <div class="p-4 sm:p-6 md:p-8">
+            <div class="p-4">
                 <h1 class="text-3xl font-bold mb-6">System Doctor</h1>
-                
+
                 <div class="space-y-8">
                     <Show when={needsAttention()}>
                         <Checkup
@@ -100,8 +100,8 @@ function DoctorPage() {
                             installingHelper={installingHelper()}
                         />
                     </Show>
-                    
-                    <Cleanup 
+
+                    <Cleanup
                         onCleanupApps={handleCleanupApps}
                         onCleanupCache={handleCleanupCache}
                     />
@@ -109,7 +109,7 @@ function DoctorPage() {
                     <ShimManager />
 
                     <Show when={!needsAttention()}>
-                         <Checkup
+                        <Checkup
                             checkupResult={checkupResult()}
                             isLoading={isCheckupLoading()}
                             error={checkupError()}
@@ -120,7 +120,7 @@ function DoctorPage() {
                     </Show>
                 </div>
             </div>
-            <OperationModal 
+            <OperationModal
                 title={operationTitle()}
                 onClose={handleCloseOperationModal}
             />
