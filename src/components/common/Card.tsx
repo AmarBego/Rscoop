@@ -2,19 +2,36 @@ import { Component, JSX, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 interface CardProps {
-    title: string;
+    title: string | JSX.Element;
     icon?: Component<{ class?: string }>;
     description?: string | JSX.Element;
     headerAction?: JSX.Element;
     children?: JSX.Element | JSX.Element[];
     class?: string;
+    layout?: "list" | "grid";
+    gridCols?: 1 | 2 | 3 | 4;
 }
 
 export default function Card(props: CardProps) {
-    const descriptionId = `card-desc-${props.title.replace(/\s+/g, "-").toLowerCase()}`;
+    const descriptionId = typeof props.title === 'string'
+        ? `card-desc-${props.title.replace(/\s+/g, "-").toLowerCase()}`
+        : undefined;
+
+    const getGridColsClass = (cols: number = 3) => {
+        switch (cols) {
+            case 1: return "grid-cols-1";
+            case 2: return "grid-cols-2";
+            case 3: return "grid-cols-3";
+            case 4: return "grid-cols-4";
+            default: return "grid-cols-3";
+        }
+    };
 
     return (
-        <section class={`card bg-base-200 shadow-xl ${props.class ?? ""}`}>
+        <section
+            class={`card bg-base-200 shadow-xl ${props.class ?? ""}`}
+            aria-describedby={descriptionId}
+        >
             <div class="card-body">
                 <div class="flex items-center justify-between">
                     <h2 class="card-title text-xl flex items-center">
@@ -32,7 +49,14 @@ export default function Card(props: CardProps) {
                         {props.description}
                     </div>
                 </Show>
-                {props.children}
+
+                <div class={
+                    props.layout === "grid"
+                        ? `grid gap-4 ${getGridColsClass(props.gridCols)}`
+                        : "flex flex-col gap-4"
+                }>
+                    {props.children}
+                </div>
             </div>
         </section>
     );
