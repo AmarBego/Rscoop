@@ -1,6 +1,7 @@
 import { For, Show } from "solid-js";
 import { ScoopPackage } from "../../../types/scoop";
 import { Download } from "lucide-solid";
+import Card from "../../common/Card";
 
 interface SearchResultsListProps {
     loading: boolean;
@@ -9,7 +10,7 @@ interface SearchResultsListProps {
     activeTab: "packages" | "includes";
     onViewInfo: (pkg: ScoopPackage) => void;
     onInstall: (pkg: ScoopPackage) => void;
-    onPackageStateChanged?: () => void; // Callback for when package state changes
+    onPackageStateChanged?: () => void;
 }
 
 function SearchResultsList(props: SearchResultsListProps) {
@@ -35,19 +36,19 @@ function SearchResultsList(props: SearchResultsListProps) {
             <div class="space-y-4">
                 <For each={props.results}>
                     {(pkg) => (
-                        <div
-                            class="card bg-base-200 shadow-xl cursor-pointer transition-all duration-200 transform hover:scale-101"
-                            onClick={() => props.onViewInfo(pkg)}
-                        >
-                            <div class="card-body">
-                                <div class="flex justify-between items-start">
-                                    <div class="flex-grow">
-                                        <h3 class="card-title">{pkg.name}</h3>
-                                        <p>
+                        <div onClick={() => props.onViewInfo(pkg)}>
+                            <Card
+                                class="cursor-pointer transition-all duration-200 transform hover:scale-101"
+                                title={
+                                    <div class="flex flex-col gap-0">
+                                        <span class="text-base font-semibold">{pkg.name}</span>
+                                        <span class="text-sm font-normal text-base-content/70">
                                             from bucket: <strong>{pkg.source}</strong>
-                                        </p>
+                                        </span>
                                     </div>
-                                    <div class="flex-shrink-0 ml-4 text-right flex items-center gap-2">
+                                }
+                                headerAction={
+                                    <div class="flex items-center gap-2">
                                         <span class="badge badge-primary badge-soft">
                                             {pkg.version}
                                         </span>
@@ -59,7 +60,6 @@ function SearchResultsList(props: SearchResultsListProps) {
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     props.onInstall(pkg);
-                                                    // Notify parent that package state may change
                                                     props.onPackageStateChanged?.();
                                                 }}
                                             >
@@ -67,8 +67,8 @@ function SearchResultsList(props: SearchResultsListProps) {
                                             </button>
                                         )}
                                     </div>
-                                </div>
-                            </div>
+                                }
+                            />
                         </div>
                     )}
                 </For>

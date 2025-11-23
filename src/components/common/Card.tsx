@@ -8,34 +8,20 @@ interface CardProps {
     headerAction?: JSX.Element;
     children?: JSX.Element | JSX.Element[];
     class?: string;
-    layout?: "list" | "grid";
-    gridCols?: 1 | 2 | 3 | 4;
 }
 
-export default function Card({
-    layout = "list",
-    gridCols = 3,
-    ...props
-}: CardProps) {
+export default function Card(props: CardProps) {
     const descriptionId =
         typeof props.title === "string" && props.description
             ? `card-desc-${props.title.replace(/\s+/g, "-").toLowerCase()}`
             : undefined;
 
-    const gridColsMap: Record<1 | 2 | 3 | 4, string> = {
-        1: "grid-cols-1",
-        2: "grid-cols-2",
-        3: "grid-cols-3",
-        4: "grid-cols-4",
-    };
-
-
     return (
         <section
-            class={`card bg-base-200 shadow-xl ${props.class ?? ""}`}
+            class={`card bg-base-300 shadow-xl ${props.class ?? ""}`}
             aria-describedby={descriptionId}
         >
-            <div class="card-body">
+            <div class="card-body p-4">
                 <div class="flex items-center justify-between">
                     <h2 class="card-title text-xl flex items-center">
                         {props.icon && (
@@ -55,15 +41,7 @@ export default function Card({
                     </div>
                 </Show>
 
-                <div
-                    class={
-                        layout === "grid"
-                            ? `grid gap-4 ${gridColsMap[gridCols]}`
-                            : "flex flex-col gap-4"
-                    }
-                >
-                    {props.children}
-                </div>
+                {props.children}
             </div>
         </section>
     );

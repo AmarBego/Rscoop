@@ -46,7 +46,7 @@ const SortableHeader = (props: {
 
 function PackageListView(props: PackageListViewProps) {
   return (
-    <div class="overflow-x-auto bg-base-200 rounded-xl shadow-xl">
+    <div class="overflow-x-auto bg-base-300 rounded-xl shadow-xl">
       <table class="table">
         <thead>
           <tr>
