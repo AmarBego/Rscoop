@@ -11,6 +11,7 @@ import AutoCleanupSettings from "../components/page/settings/AutoCleanupSettings
 import BucketAutoUpdateSettings from "../components/page/settings/BucketAutoUpdateSettings";
 import StartupSettings from "../components/page/settings/StartupSettings";
 import ThemeSettings from "../components/page/settings/ThemeSettings";
+import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
 import heldStore from "../stores/held";
 
 interface SettingsPageProps {
@@ -103,6 +104,7 @@ function SettingsPage(props: SettingsPageProps) {
                             <ThemeSettings />
                             <WindowBehaviorSettings />
                             <StartupSettings />
+                            <DefaultLaunchPageSettings />
                             <DebugSettings />
                         </div>
                     </Show>

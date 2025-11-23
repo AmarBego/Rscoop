@@ -19,10 +19,10 @@ import installedPackagesStore from "./stores/installedPackagesStore";
 import settingsStore from "./stores/settings";
 
 function App() {
-    // Persist selected view across sessions.
+    // Persist selected view across sessions, but initialize with the user's default launch page
     const [view, setView] = createStoredSignal<View>(
         "rscoop-view",
-        "search"
+        settingsStore.settings.defaultLaunchPage
     );
 
     // Always start with false on app launch to ensure loading screen shows

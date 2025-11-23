@@ -123,7 +123,7 @@ const DebugModal = () => {
                             </button>
                         </Show>
                         <button
-                            class="btn-close-outline"
+                            class="btn btn-sm btn-outline"
                             onClick={() => setIsOpen(false)}
                         >
                             Close

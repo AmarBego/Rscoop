@@ -1,5 +1,6 @@
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
+import { View } from "../types/scoop";
 
 const LOCAL_STORAGE_KEY = 'rscoop-settings';
 
@@ -26,6 +27,7 @@ interface Settings {
     autoUpdateInterval: string; // "off" | "1h" | "6h" | "24h"
     autoUpdatePackagesEnabled: boolean;
   };
+  defaultLaunchPage: View;
 }
 
 const defaultSettings: Settings = {
@@ -51,6 +53,7 @@ const defaultSettings: Settings = {
     autoUpdateInterval: "off",
     autoUpdatePackagesEnabled: false,
   },
+  defaultLaunchPage: "search",
 };
 
 function createSettingsStore() {
@@ -82,6 +85,7 @@ function createSettingsStore() {
           ...defaultSettings.buckets,
           ...storedSettings.buckets,
         },
+        defaultLaunchPage: storedSettings.defaultLaunchPage || defaultSettings.defaultLaunchPage,
       };
     }
     return defaultSettings;
@@ -146,7 +150,11 @@ function createSettingsStore() {
     });
   };
 
-  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setTheme };
+  const setDefaultLaunchPage = (page: View) => {
+    saveSettings({ defaultLaunchPage: page });
+  };
+
+  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setTheme, setDefaultLaunchPage };
 }
 
 export default createRoot(createSettingsStore);
