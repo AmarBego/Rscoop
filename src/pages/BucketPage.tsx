@@ -241,9 +241,6 @@ function BucketPage() {
           <div class="flex items-center justify-between">
             <div class={`transition-all duration-300 ${isSearchActive() ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
               <h1 class="text-3xl font-bold mb-2">Buckets</h1>
-              <p class="text-base-content/70">
-                Manage Scoop buckets - repositories containing package manifests
-              </p>
             </div>
 
             <BucketSearch

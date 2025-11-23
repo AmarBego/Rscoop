@@ -263,7 +263,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
           <Ellipsis class="w-5 h-5" />
         </label>
-        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
+        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-[100]">
           <li>
             <button type="button" onClick={async () => {
               if (props.pkg) {
