@@ -3,6 +3,7 @@ import { listen, emit } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { VirustotalResult } from "../types/scoop";
 import { ShieldAlert, TriangleAlert, ExternalLink } from "lucide-solid";
+import Modal from "./common/Modal";
 
 // Shared types for backend operations
 interface OperationOutput {
@@ -149,63 +150,64 @@ function OperationModal(props: OperationModalProps) {
   };
 
   return (
-    <Show when={!!props.title}>
-      <div class="modal modal-open backdrop-blur-sm" role="dialog">
-        <div class="modal-box w-11/12 max-w-5xl">
-          <h3 class="font-bold text-lg">{props.title}</h3>
-          <div
-            ref={scrollRef}
-            class="bg-black text-white font-mono text-sm p-4 rounded-lg my-4 max-h-96 overflow-y-auto"
-          >
-            <For each={output()}>
-              {(line) => (
-                <p classList={{ 'text-red-400': line.source === 'stderr' }}>
-                  <LineWithLinks line={line.line} />
-                </p>
-              )}
-            </For>
-            <Show when={!result() && !scanWarning()}>
-              <div class="flex items-center animate-pulse mt-2">
-                <span class="loading loading-spinner loading-xs mr-2"></span>
-                In progress...
-              </div>
-            </Show>
-          </div>
-
+    <Modal
+      isOpen={!!props.title}
+      onClose={handleCloseOrCancel}
+      title={props.title || ""}
+      size="large"
+      preventBackdropClose={!result()}
+      footer={
+        <>
           <Show when={scanWarning()}>
-            <div class="alert alert-warning">
-              <ShieldAlert class="w-6 h-6" />
-              <span>{scanWarning()!.message}</span>
-            </div>
-          </Show>
-
-          <Show when={result()}>
-            <div class="alert" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
-              <span>{result()!.message}</span>
-            </div>
-          </Show>
-
-          <div class="modal-action">
-            <Show when={scanWarning()}>
-              <button class="btn btn-warning" onClick={handleInstallAnyway}>
-                <TriangleAlert class="w-4 h-4 mr-2" />
-                Install Anyway
-              </button>
-            </Show>
-            <Show when={showNextStep()}>
-              <button class="btn btn-info" onClick={handleNextStepClick}>
-                {props.nextStep?.buttonLabel}
-              </button>
-            </Show>
-            <button class="btn" onClick={handleCloseOrCancel}>
-              {result() || scanWarning() ? 'Close' : 'Cancel'}
+            <button class="btn btn-warning" onClick={handleInstallAnyway}>
+              <TriangleAlert class="w-4 h-4 mr-2" />
+              Install Anyway
             </button>
+          </Show>
+          <Show when={showNextStep()}>
+            <button class="btn btn-info" onClick={handleNextStepClick}>
+              {props.nextStep?.buttonLabel}
+            </button>
+          </Show>
+          <button class="btn" onClick={handleCloseOrCancel}>
+            {result() || scanWarning() ? 'Close' : 'Cancel'}
+          </button>
+        </>
+      }
+    >
+      <div
+        ref={scrollRef}
+        class="bg-black text-white font-mono text-sm p-4 rounded-lg max-h-96 overflow-y-auto"
+      >
+        <For each={output()}>
+          {(line) => (
+            <p classList={{ 'text-red-400': line.source === 'stderr' }}>
+              <LineWithLinks line={line.line} />
+            </p>
+          )}
+        </For>
+        <Show when={!result() && !scanWarning()}>
+          <div class="flex items-center animate-pulse mt-2">
+            <span class="loading loading-spinner loading-xs mr-2"></span>
+            In progress...
           </div>
-        </div>
-        <div class="modal-backdrop" onClick={() => { if (result()) { props.onClose(result()?.success ?? false) } else { props.onClose(false) } }}></div>
+        </Show>
       </div>
-    </Show>
+
+      <Show when={scanWarning()}>
+        <div class="alert alert-warning mt-4">
+          <ShieldAlert class="w-6 h-6" />
+          <span>{scanWarning()!.message}</span>
+        </div>
+      </Show>
+
+      <Show when={result()}>
+        <div class="alert mt-4" classList={{ 'alert-success': result()?.success, 'alert-error': !result()?.success }}>
+          <span>{result()!.message}</span>
+        </div>
+      </Show>
+    </Modal>
   );
 }
 
-export default OperationModal; 
+export default OperationModal;

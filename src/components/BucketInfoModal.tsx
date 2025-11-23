@@ -7,6 +7,7 @@ import 'highlight.js/styles/atom-one-dark.css';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
 import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";
+import Modal from "./common/Modal";
 import { openUrl, openPath } from '@tauri-apps/plugin-opener';
 
 hljs.registerLanguage('bash', bash);
@@ -180,279 +181,279 @@ function BucketInfoModal(props: BucketInfoModalProps) {
     }
   };
 
+  const headerAction = (
+    <div class="flex items-center gap-2">
+      <Show when={props.bucket?.is_git_repo}>
+        <div class="badge badge-info badge-sm">
+          <GitBranch class="w-3 h-3 mr-1" />
+          Git
+        </div>
+      </Show>
+      <Show when={isExternalBucket()}>
+        <div class="badge badge-warning badge-sm">
+          External
+        </div>
+      </Show>
+      <div class="dropdown dropdown-end">
+        <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
+          <Ellipsis class="w-5 h-5" />
+        </div>
+        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-52 z-[100]">
+          <Show when={props.bucket?.path}>
+            <li>
+              <button type="button" onClick={async (e) => {
+                e.stopPropagation();
+                if (props.bucket?.path) {
+                  try {
+                    await openPath(props.bucket.path);
+                  } catch (error) {
+                    console.error('Failed to open path:', error);
+                  }
+                }
+              }}>
+                <ExternalLink class="w-4 h-4 mr-2" />
+                Open in Explorer
+              </button>
+            </li>
+          </Show>
+          <Show when={isInstalled()}>
+            <li>
+              <button type="button" onClick={(e) => { e.stopPropagation(); /* TODO: Refresh Bucket */ }}>
+                Refresh Bucket
+              </button>
+            </li>
+          </Show>
+          <li>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.stopPropagation();
+                const url = props.bucket?.git_url || props.searchBucket?.url;
+                if (url) {
+                  try {
+                    await openUrl(url);
+                  } catch (error) {
+                    console.error('Failed to open URL:', error);
+                  }
+                }
+              }}
+              disabled={!props.bucket?.git_url && !props.searchBucket?.url}
+              class={(!props.bucket?.git_url && !props.searchBucket?.url) ? "text-base-content/50" : ""}
+            >
+              View on GitHub
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+
+  const footer = (
+    <>
+      <Show when={!isInstalled() && props.searchBucket}>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm"
+          onClick={handleInstallBucket}
+          disabled={bucketInstall.isBucketBusy(bucketName())}
+        >
+          <Show
+            when={bucketInstall.isBucketInstalling(bucketName())}
+            fallback={
+              <>
+                <Download class="w-4 h-4 mr-2" />
+                Install
+              </>
+            }
+          >
+            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
+            Installing...
+          </Show>
+        </button>
+      </Show>
+      <Show when={isInstalled()}>
+        <button
+          type="button"
+          class="btn btn-error btn-sm"
+          onClick={handleRemoveBucket}
+          disabled={bucketInstall.isBucketBusy(bucketName())}
+        >
+          <Show
+            when={bucketInstall.isBucketRemoving(bucketName())}
+            fallback={
+              <>
+                <Trash2 class="w-4 h-4 mr-2" />
+                Remove
+              </>
+            }
+          >
+            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
+            Removing...
+          </Show>
+        </button>
+      </Show>
+      <button class="btn btn-sm" onClick={props.onClose}>Close</button>
+    </>
+  );
+
   return (
     <Show when={!!props.bucket || !!props.searchBucket}>
-      <div class="modal modal-open backdrop-blur-sm" role="dialog" data-no-close-search>
-        <div class="modal-box w-11/12 max-w-5xl bg-base-300 shadow-2xl border border-base-300 p-0 overflow-hidden flex flex-col max-h-[90vh]">
-          <div class="flex justify-between items-center p-4 border-b border-base-200 bg-base-400">
-            <div class="flex items-center gap-2">
-              <h3 class="font-bold text-lg flex items-center gap-2">
-                Bucket: <span class="text-info font-mono">{props.bucket?.name || props.searchBucket?.name}</span>
-              </h3>
-              <Show when={props.bucket?.is_git_repo}>
-                <div class="badge badge-info badge-sm">
-                  <GitBranch class="w-3 h-3 mr-1" />
-                  Git
-                </div>
-              </Show>
-              <Show when={isExternalBucket()}>
-                <div class="badge badge-warning badge-sm">
-                  External
-                </div>
-              </Show>
-            </div>
-
-            <div class="flex items-center gap-2">
-              {/* More Actions Dropdown */}
-              <div class="dropdown dropdown-end">
-                <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
-                  <Ellipsis class="w-5 h-5" />
-                </div>
-                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-52 z-[100]">
-                  <Show when={props.bucket?.path}>
-                    <li>
-                      <button type="button" onClick={async (e) => {
-                        e.stopPropagation();
-                        if (props.bucket?.path) {
-                          try {
-                            await openPath(props.bucket.path);
-                          } catch (error) {
-                            console.error('Failed to open path:', error);
-                          }
-                        }
-                      }}>
-                        <ExternalLink class="w-4 h-4 mr-2" />
-                        Open in Explorer
-                      </button>
-                    </li>
-                  </Show>
-                  <Show when={isInstalled()}>
-                    <li>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); /* TODO: Refresh Bucket */ }}>
-                        Refresh Bucket
-                      </button>
-                    </li>
-                  </Show>
-                  <li>
-                    <button
-                      type="button"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const url = props.bucket?.git_url || props.searchBucket?.url;
-                        if (url) {
-                          try {
-                            await openUrl(url);
-                          } catch (error) {
-                            console.error('Failed to open URL:', error);
-                          }
-                        }
-                      }}
-                      disabled={!props.bucket?.git_url && !props.searchBucket?.url}
-                      class={(!props.bucket?.git_url && !props.searchBucket?.url) ? "text-base-content/50" : ""}
-                    >
-                      View on GitHub
-                    </button>
-                  </li>
-                </ul>
-              </div>
-            </div>
+      <Modal
+        isOpen={!!props.bucket || !!props.searchBucket}
+        onClose={props.onClose}
+        title={
+          <span class="flex items-center gap-2">
+            Bucket: <span class="text-info font-mono">{props.bucket?.name || props.searchBucket?.name}</span>
+          </span>
+        }
+        size="large"
+        headerAction={headerAction}
+        footer={footer}
+        preventBackdropClose={false}
+      >
+        <Show when={props.error}>
+          <div role="alert" class="alert alert-error mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{props.error}</span>
           </div>
-
-          <div class="p-6 overflow-y-auto flex-1">
-            <Show when={props.error}>
-              <div role="alert" class="alert alert-error mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{props.error}</span>
-              </div>
-            </Show>
-            <Show when={props.bucket || props.searchBucket}>
-              <div class="flex flex-col md:flex-row gap-6">
-                <div class="flex-1">
-                  <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
-                  <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
-                    <Show
-                      when={props.bucket && isInstalled()}
-                      fallback={
-                        // Show basic info for external buckets
-                        <Show when={props.searchBucket}>
-                          <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                            <div class="font-semibold text-base-content/70 col-span-1">Name:</div>
-                            <div class="col-span-2">{props.searchBucket!.name}</div>
+        </Show>
+        <Show when={props.bucket || props.searchBucket}>
+          <div class="flex flex-col md:flex-row gap-6">
+            <div class="flex-1">
+              <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
+              <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
+                <Show
+                  when={props.bucket && isInstalled()}
+                  fallback={
+                    // Show basic info for external buckets
+                    <Show when={props.searchBucket}>
+                      <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                        <div class="font-semibold text-base-content/70 col-span-1">Name:</div>
+                        <div class="col-span-2">{props.searchBucket!.name}</div>
+                      </div>
+                      <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                        <div class="font-semibold text-base-content/70 col-span-1">Type:</div>
+                        <div class="col-span-2">Git Repository</div>
+                      </div>
+                      <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                        <div class="font-semibold text-base-content/70 col-span-1">Packages:</div>
+                        <div class="col-span-2">
+                          <div class="flex items-center gap-1">
+                            <span class="font-bold text-primary">{props.searchBucket!.apps}</span>
+                            <span class="text-xs text-base-content/70">packages</span>
                           </div>
-                          <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                            <div class="font-semibold text-base-content/70 col-span-1">Type:</div>
-                            <div class="col-span-2">Git Repository</div>
-                          </div>
-                          <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                            <div class="font-semibold text-base-content/70 col-span-1">Packages:</div>
-                            <div class="col-span-2">
-                              <div class="flex items-center gap-1">
-                                <span class="font-bold text-primary">{props.searchBucket!.apps}</span>
-                                <span class="text-xs text-base-content/70">packages</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                            <div class="font-semibold text-base-content/70 col-span-1">Repository:</div>
-                            <div class="col-span-2">
-                              <a
-                                href={props.searchBucket!.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                class="link link-primary break-all text-xs flex items-center gap-1"
-                              >
-                                <GitBranch class="w-3 h-3" />
-                                {props.searchBucket!.url}
-                              </a>
-                            </div>
-                          </div>
-                          <Show when={props.searchBucket!.last_updated !== "Unknown"}>
-                            <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                              <div class="font-semibold text-base-content/70 col-span-1">Last Updated:</div>
-                              <div class="col-span-2">{formatDate(props.searchBucket!.last_updated)}</div>
-                            </div>
-                          </Show>
-                        </Show>
-                      }
-                    >
-                      {/* Show detailed info for installed buckets */}
-                      <For each={orderedDetails()}>
-                        {([key, value]) => (
-                          <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                            <div class="font-semibold text-base-content/70 capitalize col-span-1">
-                              {key.replace(/([A-Z])/g, ' $1')}:
-                            </div>
-                            <div class="col-span-2">
-                              <Switch fallback={<DetailValue value={value} />}>
-                                <Match when={key === 'Last Updated'}>
-                                  {formatDate(value as string)}
-                                </Match>
-                                <Match when={key === 'Path'}>
-                                  <div class="text-xs font-mono break-all">
-                                    {value}
-                                  </div>
-                                </Match>
-                                <Match when={key === 'Manifests'}>
-                                  <div class="flex items-center gap-1">
-                                    <span class="font-bold text-primary">{value}</span>
-                                    <span class="text-xs text-base-content/70">packages</span>
-                                  </div>
-                                </Match>
-                              </Switch>
-                            </div>
-                          </div>
-                        )}
-                      </For>
-
-                      <Show when={props.bucket?.git_url}>
+                        </div>
+                      </div>
+                      <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                        <div class="font-semibold text-base-content/70 col-span-1">Repository:</div>
+                        <div class="col-span-2">
+                          <a
+                            href={props.searchBucket!.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="link link-primary break-all text-xs flex items-center gap-1"
+                          >
+                            <GitBranch class="w-3 h-3" />
+                            {props.searchBucket!.url}
+                          </a>
+                        </div>
+                      </div>
+                      <Show when={props.searchBucket!.last_updated !== "Unknown"}>
                         <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                          <div class="font-semibold text-base-content/70 col-span-1">Repository:</div>
-                          <div class="col-span-2">
-                            <a
-                              href={props.bucket!.git_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              class="link link-primary break-all text-xs flex items-center gap-1"
-                            >
-                              <GitBranch class="w-3 h-3" />
-                              {props.bucket!.git_url}
-                            </a>
-                          </div>
+                          <div class="font-semibold text-base-content/70 col-span-1">Last Updated:</div>
+                          <div class="col-span-2">{formatDate(props.searchBucket!.last_updated)}</div>
                         </div>
                       </Show>
                     </Show>
-                  </div>
-                </div>
-
-                <div class="flex-1">
-                  <Show
-                    when={isInstalled() && (props.manifests.length > 0 || props.manifestsLoading)}
-                    fallback={
-                      // Show description when bucket is not installed or no manifests available
-                      <Show when={props.description && !isInstalled()}>
-                        <h4 class="text-lg font-medium mb-3 border-b pb-2">Description</h4>
-                        <div class="bg-base-100 rounded-lg p-4">
-                          <p class="text-sm text-base-content/80 leading-relaxed">
-                            {props.description}
-                          </p>
-                          <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">
-                            <p class="text-xs text-info-content/70">
-                              <strong>Note:</strong> This bucket is not currently installed.
-                              Install it to view available packages.
-                            </p>
-                          </div>
+                  }
+                >
+                  {/* Show detailed info for installed buckets */}
+                  <For each={orderedDetails()}>
+                    {([key, value]) => (
+                      <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                        <div class="font-semibold text-base-content/70 capitalize col-span-1">
+                          {key.replace(/([A-Z])/g, ' $1')}:
                         </div>
-                      </Show>
-                    }
-                  >
-                    <h4 class="text-lg font-medium mb-3 border-b pb-2 flex items-center gap-2">
-                      Available Packages ({props.manifests.length})
-                    </h4>
-                    <div class="bg-base-100 rounded-lg p-3">
-                      <ManifestsList
-                        manifests={props.manifests}
-                        loading={props.manifestsLoading}
-                        onPackageClick={(packageName) => props.onPackageClick?.(packageName, props.bucket?.name ?? bucketName())}
-                      />
+                        <div class="col-span-2">
+                          <Switch fallback={<DetailValue value={value} />}>
+                            <Match when={key === 'Last Updated'}>
+                              {formatDate(value as string)}
+                            </Match>
+                            <Match when={key === 'Path'}>
+                              <div class="text-xs font-mono break-all">
+                                {value}
+                              </div>
+                            </Match>
+                            <Match when={key === 'Manifests'}>
+                              <div class="flex items-center gap-1">
+                                <span class="font-bold text-primary">{value}</span>
+                                <span class="text-xs text-base-content/70">packages</span>
+                              </div>
+                            </Match>
+                          </Switch>
+                        </div>
+                      </div>
+                    )}
+                  </For>
+
+                  <Show when={props.bucket?.git_url}>
+                    <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                      <div class="font-semibold text-base-content/70 col-span-1">Repository:</div>
+                      <div class="col-span-2">
+                        <a
+                          href={props.bucket!.git_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="link link-primary break-all text-xs flex items-center gap-1"
+                        >
+                          <GitBranch class="w-3 h-3" />
+                          {props.bucket!.git_url}
+                        </a>
+                      </div>
                     </div>
                   </Show>
-                </div>
+                </Show>
               </div>
-            </Show>
-          </div>
+            </div>
 
-          <div class="modal-action p-4 border-t border-base-300 bg-base-300 shrink-0 mt-0">
-            <form method="dialog">
-              <Show when={!isInstalled() && props.searchBucket}>
-                <button
-                  type="button"
-                  class="btn btn-primary mr-2"
-                  onClick={handleInstallBucket}
-                  disabled={bucketInstall.isBucketBusy(bucketName())}
-                >
-                  <Show
-                    when={bucketInstall.isBucketInstalling(bucketName())}
-                    fallback={
-                      <>
-                        <Download class="w-4 h-4 mr-2" />
-                        Install
-                      </>
-                    }
-                  >
-                    <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
-                    Installing...
+            <div class="flex-1">
+              <Show
+                when={isInstalled() && (props.manifests.length > 0 || props.manifestsLoading)}
+                fallback={
+                  // Show description when bucket is not installed or no manifests available
+                  <Show when={props.description && !isInstalled()}>
+                    <h4 class="text-lg font-medium mb-3 border-b pb-2">Description</h4>
+                    <div class="bg-base-100 rounded-lg p-4">
+                      <p class="text-sm text-base-content/80 leading-relaxed">
+                        {props.description}
+                      </p>
+                      <div class="mt-4 p-3 bg-info/10 rounded-lg border border-info/20">
+                        <p class="text-xs text-info-content/70">
+                          <strong>Note:</strong> This bucket is not currently installed.
+                          Install it to view available packages.
+                        </p>
+                      </div>
+                    </div>
                   </Show>
-                </button>
+                }
+              >
+                <h4 class="text-lg font-medium mb-3 border-b pb-2 flex items-center gap-2">
+                  Available Packages ({props.manifests.length})
+                </h4>
+                <div class="bg-base-100 rounded-lg p-3">
+                  <ManifestsList
+                    manifests={props.manifests}
+                    loading={props.manifestsLoading}
+                    onPackageClick={(packageName) => props.onPackageClick?.(packageName, props.bucket?.name ?? bucketName())}
+                  />
+                </div>
               </Show>
-              <Show when={isInstalled()}>
-                <button
-                  type="button"
-                  class="btn btn-error mr-2"
-                  onClick={handleRemoveBucket}
-                  disabled={bucketInstall.isBucketBusy(bucketName())}
-                >
-                  <Show
-                    when={bucketInstall.isBucketRemoving(bucketName())}
-                    fallback={
-                      <>
-                        <Trash2 class="w-4 h-4 mr-2" />
-                        Remove
-                      </>
-                    }
-                  >
-                    <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
-                    Removing...
-                  </Show>
-                </button>
-              </Show>
-              <button class="btn" onClick={props.onClose}>Close</button>
-            </form>
+            </div>
           </div>
-        </div>
-        <div class="modal-backdrop" onClick={props.onClose}></div>
-      </div>
+        </Show>
+      </Modal>
     </Show>
   );
 }

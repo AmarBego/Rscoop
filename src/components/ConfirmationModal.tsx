@@ -1,4 +1,4 @@
-import { Show, onCleanup, onMount } from "solid-js";
+import Modal from "./common/Modal";
 
 interface ConfirmationModalProps {
     isOpen: boolean;
@@ -11,47 +11,28 @@ interface ConfirmationModalProps {
 }
 
 function ConfirmationModal(props: ConfirmationModalProps) {
-    const handleKeyUp = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-            props.onCancel();
-        }
-    };
-
-    onMount(() => {
-        document.addEventListener('keyup', handleKeyUp);
-    });
-
-    onCleanup(() => {
-        document.removeEventListener('keyup', handleKeyUp);
-    });
-
     return (
-        <Show when={props.isOpen}>
-            <div class="modal modal-open" role="dialog">
-                <div class="modal-box bg-base-200">
-                    <button 
-                        class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2"
-                        onClick={props.onCancel}
-                    >
-                        ✕
+        <Modal
+            isOpen={props.isOpen}
+            onClose={props.onCancel}
+            title={props.title}
+            size="medium"
+            footer={
+                <>
+                    <button class="btn" onClick={props.onCancel}>
+                        {props.cancelText || "Cancel"}
                     </button>
-                    <h3 class="font-bold text-lg">{props.title}</h3>
-                    <div class="py-4 space-y-2">
-                        {props.children}
-                    </div>
-                    <div class="modal-action">
-                        <button class="btn" onClick={props.onCancel}>
-                            {props.cancelText || "Cancel"}
-                        </button>
-                        <button class="btn btn-error" onClick={props.onConfirm}>
-                            {props.confirmText || "Confirm"}
-                        </button>
-                    </div>
-                </div>
-                 <div class="modal-backdrop" onClick={props.onCancel}></div>
+                    <button class="btn btn-error" onClick={props.onConfirm}>
+                        {props.confirmText || "Confirm"}
+                    </button>
+                </>
+            }
+        >
+            <div class="py-4 space-y-2">
+                {props.children}
             </div>
-        </Show>
+        </Modal>
     );
 }
 
-export default ConfirmationModal; 
+export default ConfirmationModal;

@@ -6,6 +6,7 @@ import json from 'highlight.js/lib/languages/json';
 import { Download, Ellipsis, FileText, Trash2, ExternalLink, RefreshCw } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
+import Modal from "./common/Modal";
 import { openPath } from '@tauri-apps/plugin-opener';
 
 hljs.registerLanguage('json', json);
@@ -256,229 +257,234 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     }
   };
 
+  const headerAction = (
+    <Show when={props.pkg?.is_installed}>
+      <div class="dropdown dropdown-end">
+        <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
+          <Ellipsis class="w-5 h-5" />
+        </label>
+        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
+          <li>
+            <button type="button" onClick={async () => {
+              if (props.pkg) {
+                try {
+                  const packagePath = await invoke<string>("get_package_path", {
+                    packageName: props.pkg.name
+                  });
+                  await openPath(packagePath);
+                } catch (error) {
+                  console.error('Failed to open package path:', error);
+                }
+              }
+            }}>
+              <ExternalLink class="w-4 h-4 mr-2" />
+              Open in Explorer
+            </button>
+          </li>
+          <Show when={props.isPackageVersioned?.(props.pkg!.name)}>
+            <li>
+              <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
+                <RefreshCw class="w-4 h-4 mr-2" />
+                Switch Version
+              </a>
+            </li>
+          </Show>
+          <li>
+            <a onClick={async () => {
+              if (props.pkg) {
+                try {
+                  const debug = await invoke<string>("debug_package_structure", {
+                    packageName: props.pkg.name,
+                    global: false,
+                  });
+                  console.log("Package structure debug:", debug);
+                  alert(debug);
+                } catch (error) {
+                  console.error('Debug failed:', error);
+                }
+              }
+            }}>
+              <FileText class="w-4 h-4 mr-2" />
+              Debug Structure
+            </a>
+          </li>
+        </ul>
+      </div>
+    </Show>
+  );
+
+  const footer = (
+    <>
+      <button
+        class="btn btn-outline btn-sm"
+        onClick={() => props.pkg && fetchManifest(props.pkg)}
+      >
+        <FileText class="w-4 h-4 mr-2" />
+        View Manifest
+      </button>
+      <div class="flex gap-2">
+        <Show when={!props.pkg?.is_installed && props.onInstall}>
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            onClick={() => {
+              if (props.pkg) {
+                props.onInstall!(props.pkg);
+                props.onPackageStateChanged?.();
+              }
+            }}
+          >
+            <Download class="w-4 h-4 mr-2" />
+            Install
+          </button>
+        </Show>
+        <Show when={props.pkg?.is_installed}>
+          <button
+            type="button"
+            class="btn btn-error btn-sm"
+            onClick={() => {
+              if (props.pkg) {
+                props.onUninstall?.(props.pkg);
+                props.onPackageStateChanged?.();
+              }
+            }}
+          >
+            <Trash2 class="w-4 h-4 mr-2" />
+            Uninstall
+          </button>
+        </Show>
+        <button class="btn btn-sm" onClick={props.onClose}>
+          {props.showBackButton ? "Back to Bucket" : "Close"}
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <Show when={!!props.pkg}>
-      <div class="modal modal-open backdrop-blur-sm" role="dialog" data-no-close-search>
-        <div class="modal-box w-11/12 max-w-5xl bg-base-300 shadow-2xl border border-base-300 p-0 overflow-hidden flex flex-col max-h-[90vh]">
-          <div class="flex justify-between items-center p-4 border-b border-base-200 bg-base-400">
-            <h3 class="font-bold text-lg flex items-center gap-2">
-              Package: <span class="text-info font-mono">{props.pkg?.name}</span>
-            </h3>
-            <Show when={props.pkg?.is_installed}>
-              <div class="dropdown dropdown-end">
-                <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
-                  <Ellipsis class="w-5 h-5" />
-                </label>
-                <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-400 rounded-box w-52 z-[100]">
-                  <li>
-                    <button type="button" onClick={async () => {
-                      if (props.pkg) {
-                        try {
-                          const packagePath = await invoke<string>("get_package_path", {
-                            packageName: props.pkg.name
-                          });
-                          await openPath(packagePath);
-                        } catch (error) {
-                          console.error('Failed to open package path:', error);
-                        }
-                      }
-                    }}>
-                      <ExternalLink class="w-4 h-4 mr-2" />
-                      Open in Explorer
-                    </button>
-                  </li>
-                  <Show when={props.isPackageVersioned?.(props.pkg!.name)}>
-                    <li>
-                      <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
-                        <RefreshCw class="w-4 h-4 mr-2" />
-                        Switch Version
-                      </a>
-                    </li>
-                  </Show>
-                  <li>
-                    <a onClick={async () => {
-                      if (props.pkg) {
-                        try {
-                          const debug = await invoke<string>("debug_package_structure", {
-                            packageName: props.pkg.name,
-                            global: false,
-                          });
-                          console.log("Package structure debug:", debug);
-                          alert(debug);
-                        } catch (error) {
-                          console.error('Debug failed:', error);
-                        }
-                      }
-                    }}>
-                      <FileText class="w-4 h-4 mr-2" />
-                      Debug Structure
-                    </a>
-                  </li>
-                </ul>
+      <Modal
+        isOpen={!!props.pkg}
+        onClose={props.onClose}
+        title={
+          <span class="flex items-center gap-2">
+            Package: <span class="text-info font-mono">{props.pkg?.name}</span>
+          </span>
+        }
+        size="large"
+        headerAction={headerAction}
+        footer={footer}
+        preventBackdropClose={false}
+      >
+        <Show when={props.loading}>
+          <div class="flex justify-center items-center h-40">
+            <span class="loading loading-spinner loading-lg"></span>
+          </div>
+        </Show>
+        <Show when={props.error}>
+          <div role="alert" class="alert alert-error">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>{props.error}</span>
+          </div>
+        </Show>
+        <Show when={props.info}>
+          <div class="flex flex-col md:flex-row gap-6">
+            <div class="flex-1">
+              <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
+              <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
+                <For each={orderedDetails()}>
+                  {([key, value]) => (
+                    <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
+                      <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}{key === 'Installed' || key === 'Includes'}:</div>
+                      <div class="col-span-2">
+                        <Switch fallback={<DetailValue value={value} />}>
+                          <Match when={key === 'Bucket' && value.includes('(missing)')}>
+                            <span class="text-warning">{value}</span>
+                          </Match>
+                          <Match when={key === 'Homepage'}>
+                            <a href={value} target="_blank" rel="noopener noreferrer" class="link link-primary break-all">{value}</a>
+                          </Match>
+                          <Match when={key === 'License'}>
+                            <LicenseValue value={value} />
+                          </Match>
+                          <Match when={key === 'Includes'}>
+                            <IncludesValue value={value} />
+                          </Match>
+                        </Switch>
+                      </div>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+            <Show when={props.info?.notes}>
+              <div class="flex-1">
+                <h4 class="text-lg font-medium mb-3 border-b pb-2">Notes</h4>
+                <div class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner bg-[#282c34]">
+                  <pre class="p-4 m-0">
+                    <code ref={codeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{props.info?.notes}</code>
+                  </pre>
+                </div>
               </div>
             </Show>
           </div>
+        </Show>
 
-          <div class="p-6 overflow-y-auto flex-1">
-            <Show when={props.loading}>
-              <div class="flex justify-center items-center h-40">
-                <span class="loading loading-spinner loading-lg"></span>
+        {/* Version Switcher Section */}
+        <Show when={versionInfo()}>
+          <div class="divider">Version Manager</div>
+          <div class="bg-base-300 rounded-lg p-4">
+            <h4 class="text-lg font-medium mb-3">Available Versions</h4>
+            <Show when={versionError()}>
+              <div role="alert" class="alert alert-error mb-3">
+                <span>{versionError()}</span>
               </div>
             </Show>
-            <Show when={props.error}>
-              <div role="alert" class="alert alert-error">
-                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                <span>{props.error}</span>
-              </div>
-            </Show>
-            <Show when={props.info}>
-              <div class="flex flex-col md:flex-row gap-6">
-                <div class="flex-1">
-                  <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
-                  <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
-                    <For each={orderedDetails()}>
-                      {([key, value]) => (
-                        <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}{key === 'Installed' || key === 'Includes'}:</div>
-                          <div class="col-span-2">
-                            <Switch fallback={<DetailValue value={value} />}>
-                              <Match when={key === 'Bucket' && value.includes('(missing)')}>
-                                <span class="text-warning">{value}</span>
-                              </Match>
-                              <Match when={key === 'Homepage'}>
-                                <a href={value} target="_blank" rel="noopener noreferrer" class="link link-primary break-all">{value}</a>
-                              </Match>
-                              <Match when={key === 'License'}>
-                                <LicenseValue value={value} />
-                              </Match>
-                              <Match when={key === 'Includes'}>
-                                <IncludesValue value={value} />
-                              </Match>
-                            </Switch>
-                          </div>
-                        </div>
-                      )}
-                    </For>
-                  </div>
-                </div>
-                <Show when={props.info?.notes}>
-                  <div class="flex-1">
-                    <h4 class="text-lg font-medium mb-3 border-b pb-2">Notes</h4>
-                    <div class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner bg-[#282c34]">
-                      <pre class="p-4 m-0">
-                        <code ref={codeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{props.info?.notes}</code>
-                      </pre>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              <For each={versionInfo()?.available_versions || []}>
+                {(version) => (
+                  <div
+                    class="card bg-base-100 shadow-sm p-3 transition-all hover:shadow-md"
+                    classList={{
+                      "ring-2 ring-primary": version.is_current,
+                    }}
+                  >
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <div class="font-semibold text-sm">{version.version}</div>
+                        <Show when={version.is_current}>
+                          <div class="text-xs text-primary font-medium">Current</div>
+                        </Show>
+                      </div>
+                      <Show when={!version.is_current}>
+                        <button
+                          class="btn btn-xs btn-primary"
+                          disabled={switchingVersion() === version.version}
+                          onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
+                        >
+                          <Show when={switchingVersion() === version.version}
+                            fallback="Switch"
+                          >
+                            <span class="loading loading-spinner loading-xs"></span>
+                          </Show>
+                        </button>
+                      </Show>
                     </div>
                   </div>
-                </Show>
-              </div>
-            </Show>
-
-            {/* Version Switcher Section */}
-            <Show when={versionInfo()}>
-              <div class="divider">Version Manager</div>
-              <div class="bg-base-300 rounded-lg p-4">
-                <h4 class="text-lg font-medium mb-3">Available Versions</h4>
-                <Show when={versionError()}>
-                  <div role="alert" class="alert alert-error mb-3">
-                    <span>{versionError()}</span>
-                  </div>
-                </Show>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  <For each={versionInfo()?.available_versions || []}>
-                    {(version) => (
-                      <div
-                        class="card bg-base-100 shadow-sm p-3 transition-all hover:shadow-md"
-                        classList={{
-                          "ring-2 ring-primary": version.is_current,
-                        }}
-                      >
-                        <div class="flex items-center justify-between">
-                          <div>
-                            <div class="font-semibold text-sm">{version.version}</div>
-                            <Show when={version.is_current}>
-                              <div class="text-xs text-primary font-medium">Current</div>
-                            </Show>
-                          </div>
-                          <Show when={!version.is_current}>
-                            <button
-                              class="btn btn-xs btn-primary"
-                              disabled={switchingVersion() === version.version}
-                              onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
-                            >
-                              <Show when={switchingVersion() === version.version}
-                                fallback="Switch"
-                              >
-                                <span class="loading loading-spinner loading-xs"></span>
-                              </Show>
-                            </button>
-                          </Show>
-                        </div>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </div>
-            </Show>
-
-            <Show when={versionLoading()}>
-              <div class="divider">Version Manager</div>
-              <div class="bg-base-300 rounded-lg p-4">
-                <div class="flex justify-center items-center h-20">
-                  <span class="loading loading-spinner loading-lg"></span>
-                </div>
-              </div>
-            </Show>
+                )}
+              </For>
+            </div>
           </div>
-          <div class="modal-action justify-between p-4 border-t border-base-300 bg-base-300 shrink-0 mt-0">
-            <button
-              class="btn btn-outline btn-sm"
-              onClick={() => props.pkg && fetchManifest(props.pkg)}
-            >
-              <FileText class="w-4 h-4 mr-2" />
-              View Manifest
-            </button>
-            <form method="dialog">
-              <Show when={!props.pkg?.is_installed && props.onInstall}>
-                <button
-                  type="button"
-                  class="btn btn-primary mr-2"
-                  onClick={() => {
-                    if (props.pkg) {
-                      props.onInstall!(props.pkg);
-                      // Notify parent that package state may change
-                      props.onPackageStateChanged?.();
-                    }
-                  }}
-                >
-                  <Download class="w-4 h-4 mr-2" />
-                  Install
-                </button>
-              </Show>
-              <Show when={props.pkg?.is_installed}>
-                <button
-                  type="button"
-                  class="btn btn-error mr-2"
-                  onClick={() => {
-                    if (props.pkg) {
-                      props.onUninstall?.(props.pkg);
-                      // Notify parent that package state may change
-                      props.onPackageStateChanged?.();
-                    }
-                  }}
-                >
-                  <Trash2 class="w-4 h-4 mr-2" />
-                  Uninstall
-                </button>
-              </Show>
-              <button class="btn" onClick={props.onClose}>
-                {props.showBackButton ? "Back to Bucket" : "Close"}
-              </button>
-            </form>
+        </Show>
+
+        <Show when={versionLoading()}>
+          <div class="divider">Version Manager</div>
+          <div class="bg-base-300 rounded-lg p-4">
+            <div class="flex justify-center items-center h-20">
+              <span class="loading loading-spinner loading-lg"></span>
+            </div>
           </div>
-        </div>
-        <div class="modal-backdrop" onClick={props.onClose}></div>
-      </div>
+        </Show>
+      </Modal>
       <ManifestModal
         packageName={props.pkg?.name ?? ""}
         manifestContent={manifestContent()}
