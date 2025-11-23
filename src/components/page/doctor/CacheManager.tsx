@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Trash2, Archive, RefreshCw, TriangleAlert, Inbox } from "lucide-solid";
 import { formatBytes } from "../../../utils/format";
 import ConfirmationModal from "../../ConfirmationModal";
+import Card from "../../common/Card";
 
 interface CacheEntry {
     name: string;
@@ -148,6 +149,7 @@ function CacheManager() {
                 } finally {
                     await fetchCacheContents();
                 }
+                setIsConfirmModalOpen(false);
             }
         });
 
@@ -156,120 +158,113 @@ function CacheManager() {
 
     return (
         <>
-            <div class="card bg-base-200 shadow-xl">
-                <div class="card-body">
-                    <div class="flex items-center justify-between mb-4">
-                        <h2 class="card-title text-xl">
-                            Cache Manager
-                        </h2>
-                        <div class="flex items-center gap-2">
-                            <Show when={cacheContents().length > 0}>
-                                <button
-                                    class="btn btn-warning btn-sm"
-                                    onClick={handleClearSelected}
-                                    disabled={selectedItems().size === 0 || isLoading()}
-                                >
-                                    <Trash2 class="w-4 h-4 mr-2" />
-                                    Remove Selected ({selectedItems().size})
-                                </button>
-                                <button
-                                    class="btn btn-error btn-sm"
-                                    onClick={handleClearAll}
-                                    disabled={isLoading()}
-                                >
-                                    <Archive class="w-4 h-4 mr-2" />
-                                    Remove All
-                                </button>
-                                <div class="divider divider-horizontal m-1" />
-                            </Show>
+            <Card
+                title="Cache Manager"
+                headerAction={
+                    <div class="flex items-center gap-2">
+                        <Show when={cacheContents().length > 0}>
                             <button
-                                class="btn btn-ghost btn-sm"
-                                onClick={fetchCacheContents}
+                                class="btn btn-warning btn-sm"
+                                onClick={handleClearSelected}
+                                disabled={selectedItems().size === 0 || isLoading()}
+                            >
+                                <Trash2 class="w-4 h-4 mr-2" />
+                                Remove Selected ({selectedItems().size})
+                            </button>
+                            <button
+                                class="btn btn-error btn-sm"
+                                onClick={handleClearAll}
                                 disabled={isLoading()}
                             >
-                                <RefreshCw classList={{ "animate-spin": isLoading() }} />
+                                <Archive class="w-4 h-4 mr-2" />
+                                Remove All
                             </button>
+                            <div class="divider divider-horizontal m-1" />
+                        </Show>
+                        <button
+                            class="btn btn-ghost btn-sm"
+                            onClick={fetchCacheContents}
+                            disabled={isLoading()}
+                        >
+                            <RefreshCw classList={{ "animate-spin": isLoading() }} />
+                        </button>
+                    </div>
+                }
+            >
+                <input
+                    type="text"
+                    placeholder="Filter by name or version..."
+                    class="input input-bordered w-full mb-4"
+                    value={filter()}
+                    onInput={(e) => setFilter(e.currentTarget.value)}
+                    disabled={isLoading() || !!error() || cacheContents().length === 0}
+                />
+
+                <div class="max-h-[60vh] overflow-y-auto">
+                    <Show when={error()}>
+                        <div role="alert" class="alert alert-error">
+                            <TriangleAlert />
+                            <span>{error()}</span>
                         </div>
-                    </div>
+                    </Show>
 
-                    <input
-                        type="text"
-                        placeholder="Filter by name or version..."
-                        class="input input-bordered w-full mb-4"
-                        value={filter()}
-                        onInput={(e) => setFilter(e.currentTarget.value)}
-                        disabled={isLoading() || !!error() || cacheContents().length === 0}
-                    />
+                    <Show when={!isLoading() && cacheContents().length === 0 && !error()}>
+                        <div class="text-center p-8">
+                            <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
+                            <p class="mt-4 text-lg font-semibold">Cache is Empty</p>
+                            <p class="text-base-content/60">There are no cached package files to manage.</p>
+                        </div>
+                    </Show>
 
-                    <div class="max-h-[60vh] overflow-y-auto">
-                        <Show when={error()}>
-                            <div role="alert" class="alert alert-error">
-                                <TriangleAlert />
-                                <span>{error()}</span>
-                            </div>
-                        </Show>
-
-                        <Show when={!isLoading() && cacheContents().length === 0 && !error()}>
-                            <div class="text-center p-8">
-                                <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
-                                <p class="mt-4 text-lg font-semibold">Cache is Empty</p>
-                                <p class="text-base-content/60">There are no cached package files to manage.</p>
-                            </div>
-                        </Show>
-
-                        <Show when={cacheContents().length > 0}>
-
-
-                            <div class="overflow-x-auto">
-                                {/* TODO: sticky header, cant figure it out for the life of me */}
-                                <table class="table table-sm">
-                                    <thead>
-                                        <tr>
-                                            <th>
-                                                <label>
-                                                    <input
-                                                        type="checkbox"
-                                                        class="checkbox checkbox-primary"
-                                                        checked={isAllSelected()}
-                                                        onChange={toggleSelectAll}
-                                                    />
-                                                </label>
-                                            </th>
-                                            <th>Name</th>
-                                            <th>Version</th>
-                                            <th>Size</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <For each={filteredCacheContents()}>
-                                            {(item) => {
-                                                const id = getCacheIdentifier(item);
-                                                return (
-                                                    <tr class="hover">
-                                                        <td>
-                                                            <label>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    class="checkbox checkbox-primary"
-                                                                    checked={selectedItems().has(id)}
-                                                                    onChange={() => toggleSelection(id)}
-                                                                />
-                                                            </label>
-                                                        </td>
-                                                        <td>{item.name}</td>
-                                                        <td>{item.version}</td>
-                                                        <td>{formatBytes(item.length)}</td>
-                                                    </tr>
-                                                );
-                                            }}
-                                        </For>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </Show>
-                    </div>
+                    <Show when={cacheContents().length > 0}>
+                        <div class="overflow-x-auto">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <label>
+                                                <input
+                                                    type="checkbox"
+                                                    class="checkbox checkbox-primary"
+                                                    checked={isAllSelected()}
+                                                    onChange={toggleSelectAll}
+                                                />
+                                            </label>
+                                        </th>
+                                        <th>Name</th>
+                                        <th>Version</th>
+                                        <th>Size</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <For each={filteredCacheContents()}>
+                                        {(item) => {
+                                            const id = getCacheIdentifier(item);
+                                            return (
+                                                <tr class="hover">
+                                                    <td>
+                                                        <label>
+                                                            <input
+                                                                type="checkbox"
+                                                                class="checkbox checkbox-primary"
+                                                                checked={selectedItems().has(id)}
+                                                                onChange={() => toggleSelection(id)}
+                                                            />
+                                                        </label>
+                                                    </td>
+                                                    <td>{item.name}</td>
+                                                    <td>{item.version}</td>
+                                                    <td>{formatBytes(item.length)}</td>
+                                                </tr>
+                                            );
+                                        }}
+                                    </For>
+                                </tbody>
+                            </table>
+                        </div>
+                    </Show>
                 </div>
-            </div>
+            </Card>
 
             <ConfirmationModal
                 isOpen={isConfirmModalOpen()}
@@ -287,4 +282,4 @@ function CacheManager() {
     );
 }
 
-export default CacheManager; 
+export default CacheManager;

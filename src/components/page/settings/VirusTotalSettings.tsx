@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ShieldCheck, KeyRound, Save } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
-import SettingsCard from "../../common/SettingsCard";
+import Card from "../../common/Card";
 
 export default function VirusTotalSettings() {
     const { settings, setVirusTotalSettings } = settingsStore;
@@ -70,7 +70,7 @@ export default function VirusTotalSettings() {
     });
 
     return (
-        <SettingsCard
+        <Card
             title="VirusTotal Integration"
             icon={ShieldCheck}
             description={
@@ -126,6 +126,6 @@ export default function VirusTotalSettings() {
 
             {error() && <div class="alert alert-error mt-4 text-sm">{error()}</div>}
             {successMessage() && <div class="alert alert-success mt-4 text-sm">{successMessage()}</div>}
-        </SettingsCard>
+        </Card>
     );
 }

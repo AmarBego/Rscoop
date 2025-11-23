@@ -1,17 +1,17 @@
 import { Component, JSX, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
-interface SettingsCardProps {
+interface CardProps {
     title: string;
     icon?: Component<{ class?: string }>;
-    description: string | JSX.Element;
+    description?: string | JSX.Element;
     headerAction?: JSX.Element;
     children?: JSX.Element | JSX.Element[];
     class?: string;
 }
 
-export default function SettingsCard(props: SettingsCardProps) {
-    const descriptionId = `settings-card-desc-${props.title.replace(/\s+/g, "-").toLowerCase()}`;
+export default function Card(props: CardProps) {
+    const descriptionId = `card-desc-${props.title.replace(/\s+/g, "-").toLowerCase()}`;
 
     return (
         <section class={`card bg-base-200 shadow-xl ${props.class ?? ""}`}>
@@ -27,9 +27,11 @@ export default function SettingsCard(props: SettingsCardProps) {
                         <div class="form-control">{props.headerAction}</div>
                     </Show>
                 </div>
-                <div id={descriptionId} class="text-base-content/80 mb-4">
-                    {props.description}
-                </div>
+                <Show when={props.description}>
+                    <div id={descriptionId} class="text-base-content/80 mb-4">
+                        {props.description}
+                    </div>
+                </Show>
                 {props.children}
             </div>
         </section>

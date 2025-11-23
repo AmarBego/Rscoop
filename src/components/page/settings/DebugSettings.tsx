@@ -1,13 +1,13 @@
 import { Bug } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
-import SettingsCard from "../../common/SettingsCard";
+import Card from "../../common/Card";
 
 function DebugSettings() {
     const { settings, setDebugSettings } = settingsStore;
 
     return (
-        <SettingsCard
+        <Card
             title="Debug Mode"
             icon={Bug}
             description="Enable debug mode to access detailed system information, logs, and troubleshooting tools."

@@ -2,7 +2,7 @@ import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Rocket } from "lucide-solid";
 import SettingsToggle from "../../common/SettingsToggle";
-import SettingsCard from "../../common/SettingsCard";
+import Card from "../../common/Card";
 
 export default function StartupSettings() {
     const [isAutoStartEnabled, setIsAutoStartEnabled] = createSignal(false);
@@ -37,7 +37,7 @@ export default function StartupSettings() {
     });
 
     return (
-        <SettingsCard
+        <Card
             title="Startup Settings"
             icon={Rocket}
             description="Configure whether Rscoop should automatically start when Windows boots."

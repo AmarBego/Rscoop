@@ -1,6 +1,6 @@
 import { Sun, Moon } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
-import SettingsCard from "../../common/SettingsCard";
+import Card from "../../common/Card";
 
 function ThemeSettings() {
     const { settings, setTheme } = settingsStore;
@@ -10,7 +10,7 @@ function ThemeSettings() {
     };
 
     return (
-        <SettingsCard
+        <Card
             title="Appearance"
             icon={settings.theme === 'dark' ? Moon : Sun}
             description="Switch between dark and light themes."

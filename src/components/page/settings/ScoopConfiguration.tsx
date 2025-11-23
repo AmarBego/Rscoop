@@ -1,7 +1,6 @@
 import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { FolderCog, Save } from "lucide-solid";
-import SettingsCard from "../../common/SettingsCard";
 
 export default function ScoopConfiguration() {
     const [scoopPath, setScoopPath] = createSignal("");
@@ -43,34 +42,39 @@ export default function ScoopConfiguration() {
     });
 
     return (
-        <SettingsCard
-            title="Scoop Configuration"
-            icon={FolderCog}
-            description="Set the installation path for your Scoop directory. The application may need to be restarted for this to take full effect."
-        >
-            <div class="form-control w-full max-w-lg">
-                <label class="label">
-                    <span class="label-text font-semibold flex items-center">
-                        Scoop Installation Path
-                    </span>
-                </label>
-                <div class="join">
-                    <input
-                        type="text"
-                        placeholder={pathIsLoading() ? "Loading..." : "Enter Scoop path (e.g. C:\\scoop)"}
-                        class="input input-bordered join-item w-full"
-                        value={scoopPath()}
-                        onInput={(e) => setScoopPath(e.currentTarget.value)}
-                        disabled={pathIsLoading()}
-                    />
-                    <button class="btn btn-primary join-item" onClick={handleSavePath} disabled={pathIsLoading()}>
-                        <Save class="w-4 h-4 mr-1" />
-                        Save
-                    </button>
+        <div class="card bg-base-200 shadow-xl">
+            <div class="card-body">
+                <h2 class="card-title text-xl">
+                    <FolderCog class="w-6 h-6 mr-2 text-primary" />
+                    Scoop Configuration
+                </h2>
+                <p class="text-base-content/80 mb-4">
+                    Set the installation path for your Scoop directory. The application may need to be restarted for this to take full effect.
+                </p>
+                <div class="form-control w-full max-w-lg">
+                    <label class="label">
+                        <span class="label-text font-semibold flex items-center">
+                            Scoop Installation Path
+                        </span>
+                    </label>
+                    <div class="join">
+                        <input
+                            type="text"
+                            placeholder={pathIsLoading() ? "Loading..." : "Enter Scoop path (e.g. C:\\scoop)"}
+                            class="input input-bordered join-item w-full"
+                            value={scoopPath()}
+                            onInput={(e) => setScoopPath(e.currentTarget.value)}
+                            disabled={pathIsLoading()}
+                        />
+                        <button class="btn btn-primary join-item" onClick={handleSavePath} disabled={pathIsLoading()}>
+                            <Save class="w-4 h-4 mr-1" />
+                            Save
+                        </button>
+                    </div>
                 </div>
+                {pathError() && <div class="alert alert-error mt-4 text-sm">{pathError()}</div>}
+                {pathSuccessMessage() && <div class="alert alert-success mt-4 text-sm">{pathSuccessMessage()}</div>}
             </div>
-            {pathError() && <div class="alert alert-error mt-4 text-sm">{pathError()}</div>}
-            {pathSuccessMessage() && <div class="alert alert-success mt-4 text-sm">{pathSuccessMessage()}</div>}
-        </SettingsCard>
+        </div>
     );
-}
+} 

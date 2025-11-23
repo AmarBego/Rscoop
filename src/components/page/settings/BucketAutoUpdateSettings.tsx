@@ -2,7 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCcw } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
-import SettingsCard from "../../common/SettingsCard";
+import Card from "../../common/Card";
 
 // Predefined new intervals per requirement plus backward compatibility display
 const INTERVAL_OPTIONS: { label: string; value: string; description: string }[] = [
@@ -59,7 +59,7 @@ export default function BucketAutoUpdateSettings() {
     });
 
     return (
-        <SettingsCard
+        <Card
             title="Bucket Auto Update"
             icon={RefreshCcw}
             description="Rscoop will automatically run updates on all installed buckets to keep manifests fresh."
@@ -67,7 +67,7 @@ export default function BucketAutoUpdateSettings() {
                 <div class="flex items-center gap-3">
                     <ActiveIntervalDisplay value={settings.buckets.autoUpdateInterval} />
                     {saving() && <span class="loading loading-spinner loading-xs" />}
-                </div>
+                </div >
             }
         >
             <div class="flex flex-col gap-2">
@@ -140,7 +140,7 @@ export default function BucketAutoUpdateSettings() {
             </Show>
 
             {error() && <div class="alert alert-error mt-4 text-xs">{error()}</div>}
-        </SettingsCard>
+        </Card >
     );
 }
 

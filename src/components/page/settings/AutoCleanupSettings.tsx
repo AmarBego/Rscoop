@@ -2,7 +2,7 @@ import { createSignal, Show } from "solid-js";
 import { Recycle, Sparkles } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
-import SettingsCard from "../../common/SettingsCard";
+import Card from "../../common/Card";
 
 function AutoCleanupSettings() {
     const { settings, setCleanupSettings } = settingsStore;
@@ -17,7 +17,7 @@ function AutoCleanupSettings() {
     };
 
     return (
-        <SettingsCard
+        <Card
             title="Auto Cleanup"
             icon={Recycle}
             description="Automatically tidy up old package versions and outdated cache assets after install, update, or uninstall operations."
@@ -89,7 +89,7 @@ function AutoCleanupSettings() {
                     </div>
                 </div>
             </Show>
-        </SettingsCard>
+        </Card>
     );
 }
 

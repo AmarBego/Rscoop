@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { RefreshCw, TriangleAlert, Inbox, Link, EyeOff, Plus, BookText } from "lucide-solid";
 import ShimDetailsModal from "./ShimDetailsModal";
 import AddShimModal from "./AddShimModal";
+import Card from "../../common/Card";
 
 export interface Shim {
     name: string;
@@ -97,115 +98,112 @@ function ShimManager() {
     };
 
     return (
-        <div class="card bg-base-200 shadow-xl">
-            <div class="card-body">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="card-title text-xl">
-                        Shim Manager
-                    </h2>
-                    <div class="flex items-center gap-2">
-                        <button
-                            class="btn btn-primary btn-sm"
-                            onClick={() => setIsAddModalOpen(true)}
-                            disabled={isLoading() || isProcessing()}
-                        >
-                            <Plus class="w-4 h-4" /> Add Shim
-                        </button>
-                        <div class="divider divider-horizontal m-1" />
-                        <button
-                            class="btn btn-ghost btn-sm"
-                            onClick={fetchShims}
-                            disabled={isLoading() || isProcessing()}
-                        >
-                            <RefreshCw classList={{ "animate-spin": isLoading() }} />
-                        </button>
+        <Card
+            title="Shim Manager"
+            headerAction={
+                <div class="flex items-center gap-2">
+                    <button
+                        class="btn btn-primary btn-sm"
+                        onClick={() => setIsAddModalOpen(true)}
+                        disabled={isLoading() || isProcessing()}
+                    >
+                        <Plus class="w-4 h-4" /> Add Shim
+                    </button>
+                    <div class="divider divider-horizontal m-1" />
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        onClick={fetchShims}
+                        disabled={isLoading() || isProcessing()}
+                    >
+                        <RefreshCw classList={{ "animate-spin": isLoading() }} />
+                    </button>
+                </div>
+            }
+            description=""
+        >
+            <input
+                type="text"
+                placeholder="Filter by name or source..."
+                class="input input-bordered w-full mb-4"
+                value={filter()}
+                onInput={(e) => setFilter(e.currentTarget.value)}
+                disabled={isLoading() || !!error() || allShims().length === 0}
+            />
+
+            <div class="max-h-[60vh] overflow-y-auto">
+
+
+                <Show when={error()}>
+                    <div role="alert" class="alert alert-error"><TriangleAlert /><span>{error()}</span></div>
+                </Show>
+
+                <Show when={!isLoading() && allShims().length === 0 && !error()}>
+                    <div class="text-center p-8">
+                        <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
+                        <p class="mt-4 text-lg font-semibold">No Shims Found</p>
                     </div>
-                </div>
+                </Show>
 
-                <input
-                    type="text"
-                    placeholder="Filter by name or source..."
-                    class="input input-bordered w-full mb-4"
-                    value={filter()}
-                    onInput={(e) => setFilter(e.currentTarget.value)}
-                    disabled={isLoading() || !!error() || allShims().length === 0}
-                />
+                <Show when={filteredShims().length > 0}>
+                    <div class="overflow-x-auto">
+                        {/* TODO: sticky header, cant figure it out for the life of me */}
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Source Package</th>
+                                    <th>Attributes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <For each={filteredShims()}>
+                                    {(item) => (
+                                        <tr class="hover cursor-pointer" onClick={() => setSelectedShim(item)}>
+                                            <td class="font-mono text-sm">{item.name}</td>
+                                            <td>
+                                                <div class="flex items-center gap-2">
+                                                    <Link class="w-4 h-4 text-base-content/60" />
+                                                    {item.source}
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="flex gap-2">
+                                                    <Show when={item.isHidden}>
+                                                        <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3" />Hidden</div>
+                                                    </Show>
+                                                    <Show when={item.args}>
+                                                        <div class="badge badge-accent gap-1"><BookText class="w-3 h-3" />Args</div>
+                                                    </Show>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </For>
+                            </tbody>
+                        </table>
+                    </div>
+                </Show>
 
-                <div class="max-h-[60vh] overflow-y-auto">
+                <Show when={selectedShim()}>
+                    <ShimDetailsModal
+                        shim={selectedShim()!}
+                        onClose={() => setSelectedShim(null)}
+                        onRemove={handleRemoveShim}
+                        onAlter={handleAlterShim}
+                        isOperationRunning={isProcessing()}
+                    />
+                </Show>
 
-
-                    <Show when={error()}>
-                        <div role="alert" class="alert alert-error"><TriangleAlert /><span>{error()}</span></div>
-                    </Show>
-
-                    <Show when={!isLoading() && allShims().length === 0 && !error()}>
-                        <div class="text-center p-8">
-                            <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
-                            <p class="mt-4 text-lg font-semibold">No Shims Found</p>
-                        </div>
-                    </Show>
-
-                    <Show when={filteredShims().length > 0}>
-                        <div class="overflow-x-auto">
-                            {/* TODO: sticky header, cant figure it out for the life of me */}
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Source Package</th>
-                                        <th>Attributes</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <For each={filteredShims()}>
-                                        {(item) => (
-                                            <tr class="hover cursor-pointer" onClick={() => setSelectedShim(item)}>
-                                                <td class="font-mono text-sm">{item.name}</td>
-                                                <td>
-                                                    <div class="flex items-center gap-2">
-                                                        <Link class="w-4 h-4 text-base-content/60" />
-                                                        {item.source}
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <div class="flex gap-2">
-                                                        <Show when={item.isHidden}>
-                                                            <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3" />Hidden</div>
-                                                        </Show>
-                                                        <Show when={item.args}>
-                                                            <div class="badge badge-accent gap-1"><BookText class="w-3 h-3" />Args</div>
-                                                        </Show>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </For>
-                                </tbody>
-                            </table>
-                        </div>
-                    </Show>
-
-                    <Show when={selectedShim()}>
-                        <ShimDetailsModal
-                            shim={selectedShim()!}
-                            onClose={() => setSelectedShim(null)}
-                            onRemove={handleRemoveShim}
-                            onAlter={handleAlterShim}
-                            isOperationRunning={isProcessing()}
-                        />
-                    </Show>
-
-                    <Show when={isAddModalOpen()}>
-                        <AddShimModal
-                            onClose={() => setIsAddModalOpen(false)}
-                            onAdd={handleAddShim}
-                            isOperationRunning={isProcessing()}
-                        />
-                    </Show>
-                </div>
+                <Show when={isAddModalOpen()}>
+                    <AddShimModal
+                        onClose={() => setIsAddModalOpen(false)}
+                        onAdd={handleAddShim}
+                        isOperationRunning={isProcessing()}
+                    />
+                </Show>
             </div>
-        </div>
+        </Card>
     );
 }
 
-export default ShimManager; 
+export default ShimManager;

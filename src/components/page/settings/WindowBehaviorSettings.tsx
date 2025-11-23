@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Monitor } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
-import SettingsCard from "../../common/SettingsCard";
+import Card from "../../common/Card";
 
 function WindowBehaviorSettings() {
     const { settings, setWindowSettings } = settingsStore;
@@ -46,7 +46,7 @@ function WindowBehaviorSettings() {
     };
 
     return (
-        <SettingsCard
+        <Card
             title="Window Behavior"
             icon={Monitor}
             description="Configure how the application window behaves when closing and minimize to system tray options."
@@ -68,7 +68,7 @@ function WindowBehaviorSettings() {
                     </div>
                 )}
             </div>
-        </SettingsCard>
+        </Card>
     );
 }
 
