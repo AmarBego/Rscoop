@@ -1,7 +1,7 @@
 import { For, Show, createEffect, createSignal, createMemo, Switch, Match } from "solid-js";
 import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
-import 'highlight.js/styles/atom-one-dark.css';
+
 import json from 'highlight.js/lib/languages/json';
 import { Download, Ellipsis, FileText, Trash2, ExternalLink, RefreshCw } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";

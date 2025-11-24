@@ -3,7 +3,7 @@ import { BucketInfo } from "../hooks/useBuckets";
 import { SearchableBucket } from "../hooks/useBucketSearch";
 import { useBucketInstall } from "../hooks/useBucketInstall";
 import hljs from 'highlight.js/lib/core';
-import 'highlight.js/styles/atom-one-dark.css';
+
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
 import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";

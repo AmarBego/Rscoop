@@ -1,7 +1,5 @@
 import { createEffect, Show, createSignal } from "solid-js";
 import hljs from 'highlight.js/lib/core';
-import 'highlight.js/styles/atom-one-dark.css';
-import 'highlight.js/styles/atom-one-light.css';
 import json from 'highlight.js/lib/languages/json';
 import { Copy, Check } from "lucide-solid";
 import Modal from "./common/Modal";
