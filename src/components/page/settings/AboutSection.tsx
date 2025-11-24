@@ -135,14 +135,14 @@ export default function AboutSection(props: AboutSectionProps) {
   props.ref({ checkForUpdates });
 
   return (
-    <div class="card bg-base-100 shadow-sm overflow-hidden border border-base-content/5">
+    <div class="card bg-base-200 shadow-xl overflow-hidden">
       {/* Hero Section */}
-      <div class="p-8 flex flex-col items-center text-center space-y-4 border-b border-base-content/5">
+      <div class="bg-base-300 p-8 flex flex-col items-center text-center space-y-4">
         <div>
           <h2 class="text-3xl font-bold tracking-tight">Rscoop</h2>
           <p class="text-base-content/60 font-medium">v{pkgJson.version}</p>
         </div>
-        <p class="max-w-md text-base-content/80 leading-relaxed">
+        <p class="max-w-md  leading-relaxed">
           A modern, powerful, and fast GUI for Scoop package manager on Windows.
         </p>
       </div>
@@ -150,19 +150,19 @@ export default function AboutSection(props: AboutSectionProps) {
       <div class="card-body p-6 space-y-8">
 
         {/* Update Section */}
-        <div class="bg-base-200/50 rounded-xl p-5">
+        <div class="bg-base-100 rounded-xl p-5 border border-base-content/5 shadow-sm">
           <div class="flex items-center justify-between mb-4">
             <div class="font-semibold flex items-center gap-2">
               <RefreshCw class="w-4 h-4 text-base-content/70" />
               Update Status
             </div>
             {props.isScoopInstalled && (
-              <span class="badge badge-sm badge-ghost">Managed by Scoop</span>
+              <span class="badge badge-sm badge-info badge-outline">Managed by Scoop</span>
             )}
           </div>
 
           {props.isScoopInstalled ? (
-            <div class="text-sm text-base-content/70">
+            <div class="alert alert-info text-sm shadow-sm">
               <span>Use <code>scoop update rscoop</code> in your terminal to update.</span>
             </div>
           ) : (
@@ -171,7 +171,7 @@ export default function AboutSection(props: AboutSectionProps) {
                 <div class="flex items-center justify-between">
                   <span class="text-sm text-base-content/70">Check for the latest version</span>
                   <button
-                    class="btn btn-sm btn-ghost bg-base-200 hover:bg-base-300"
+                    class="btn btn-sm btn-primary"
                     onClick={() => checkForUpdates(true)}
                   >
                     Check Now
@@ -197,7 +197,7 @@ export default function AboutSection(props: AboutSectionProps) {
                     <button class="btn btn-sm" onClick={installAvailableUpdate}>Install</button>
                   </div>
                   <Show when={updateInfo()?.body}>
-                    <div class="bg-base-100 rounded-lg p-3 text-xs max-h-32 overflow-y-auto border border-base-content/5">
+                    <div class="bg-base-200 rounded-lg p-3 text-xs max-h-32 overflow-y-auto border border-base-content/5">
                       <div class="font-bold mb-1 opacity-70">Release Notes:</div>
                       <div class="whitespace-pre-wrap opacity-80">{updateInfo()?.body}</div>
                     </div>
@@ -244,25 +244,25 @@ export default function AboutSection(props: AboutSectionProps) {
         {/* Links */}
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <button
-            class="btn h-auto py-4 flex flex-col gap-2 bg-base-200 hover:bg-base-300 border-none shadow-sm text-base-content"
+            class="btn btn-outline hover:bg-base-content hover:text-base-100 transition-all"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
-            <Github class="w-6 h-6 opacity-80" />
-            <span class="font-normal">GitHub</span>
+            <Github class="w-5 h-5" />
+            GitHub
           </button>
           <button
-            class="btn h-auto py-4 flex flex-col gap-2 bg-base-200 hover:bg-base-300 border-none shadow-sm text-base-content"
+            class="btn btn-outline btn-info hover:text-info-content transition-all"
             onClick={() => openUrl('https://amarbego.github.io/Rscoop/').catch(console.error)}
           >
-            <BookOpen class="w-6 h-6 opacity-80" />
-            <span class="font-normal">Docs</span>
+            <BookOpen class="w-5 h-5" />
+            Docs
           </button>
           <button
-            class="btn h-auto py-4 flex flex-col gap-2 bg-base-200 hover:bg-base-300 border-none shadow-sm text-base-content"
+            class="btn btn-outline btn-warning hover:text-warning-content transition-all"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
-            <Star class="w-6 h-6 opacity-80" />
-            <span class="font-normal">Star Project</span>
+            <Star class="w-5 h-5" />
+            Star Project
           </button>
         </div>
 
