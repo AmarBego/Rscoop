@@ -21,7 +21,7 @@
     "@tauri-apps/plugin-updater": "^2.9.0",
     "highlight.js": "^11.11.1",
     "lucide-solid": "^0.546.0",
-    "solid-js": "^1.9.10"
+    "solid-js": "^1.9.11"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.8",
