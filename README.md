@@ -1,55 +1,81 @@
-# Rscoop - Your Scoop Companion
+<div align="center">
 
-![Installed Packages Grid View](pics/installedpackages.png)
+<img src="pics/logo.png" alt="Rscoop" width="280">
 
-Rscoop is a native desktop interface for [Scoop](https://scoop.sh), the popular command‑line package manager for Windows. Rather than replacing scoop, Rscoop builds on top of it: a Rust back‑end and SolidJS front‑end provide a responsive, modern UI that makes discovering, installing and maintaining software feel effortless.
+A desktop GUI for [Scoop](https://scoop.sh), search, install, update and manage Windows packages without touching the terminal.
 
-## Why another Scoop tool?
+[![GitHub release](https://img.shields.io/github/v/release/AmarBego/Rscoop)](https://github.com/AmarBego/Rscoop/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Softpedia Review](https://img.shields.io/badge/Softpedia-reviewed-brightgreen)](https://www.softpedia.com/get/System/System-Miscellaneous/Rscoop.shtml)
+[![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange)](https://v2.tauri.app)
 
-If you've ever fumbled through long lists of scoop search results or forgotten which bucket a package lives in, you know how the command line can slow you down. Rscoop takes the pain out of package management by giving you the visibility and control you'd expect from a native app:
+</div>
 
-- **Blazing‑fast search:** type a few characters and see matches from every bucket in milliseconds thanks to a native Rust search engine and smart caching. You can even work offline once your buckets are cached.
+---
 
-- **Visual package details:** click on a result to see the manifest, release notes, version history, install size and more. One click queues the install and streams Scoop output in real time.
+![Package search](pics/installedpackages.png)
 
-- **Complete package management:** update, hold, uninstall or switch between versions from the Installed page. Dynamic filters help narrow the list by bucket or name, and a status header highlights packages with updates available.
+## What is Rscoop?
 
-- **Advanced bucket discovery:** browse the buckets you already have, see when they were last updated, or search GitHub for thousands of community buckets filtered by stars, forks or language. You decide which sources to trust and can install or remove buckets with a guided wizard.
+Rscoop is a native Windows app that wraps the [Scoop](https://scoop.sh) CLI. It doesn't replace Scoop — it gives you a proper interface for it. Search across all your buckets at once, install and update packages, manage buckets, clean up disk space, and optionally scan downloads through VirusTotal, all from one window.
 
-- **System doctor & cleanup:** diagnose missing dependencies (Git, 7‑Zip, broken shims) and install helpers with one click. Clear out old versions or stale caches to reclaim disk space and manage shims safely.
+Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Sits in your system tray when you're not using it.
 
-- **Security built‑in:** optional VirusTotal integration scans packages before installation and blocks downloads that exceed your chosen threat threshold. Rscoop doesn't reimplement scoop; it delegates core actions to the official CLI and logs everything for auditing.
+## Features
 
-- **Modern experience:** dark/light themes, tray integration to keep Rscoop running in the background, and a settings panel that lets you tune automation, security, window behaviour and more.
+**Search**: Type a query, get results from every added bucket instantly. Results show the bucket, version, and whether you already have it installed. Click to view the full manifest or install directly.
 
-## Getting started
+**Installed Packages**: Grid view of everything Scoop has installed. Filter by name or bucket, see what has updates available, hold versions, uninstall, or switch to a specific version.
 
-Ready to try it out? Installing Rscoop is straightforward:
+**Buckets**: Browse your current buckets, see last-updated timestamps, or search GitHub for community buckets by stars/forks. Add or remove buckets from the UI.
 
-1. **Install Scoop** (if you haven't already). Rscoop wraps the official Scoop CLI, so you need Scoop installed and initialized first. Follow the instructions on [scoop.sh](https://scoop.sh) from an elevated PowerShell prompt.
+**System Doctor**: Checks for missing dependencies (Git, 7-Zip), broken shims, and other common issues. One-click cleanup for old package versions and stale download caches. Full cache and shim manager with per-file sizes.
 
-2. **Download Rscoop.** Head over to the [GitHub releases page](https://github.com/amarbego/rscoop/releases) and grab either the signed `.msi` installer or the portable `.exe`. Run it. Windows SmartScreen may prompt you to confirm the download. Choose More info → Run anyway to proceed.
+**VirusTotal Integration**: Paste your API key in settings and Rscoop will scan packages before install. Configurable threat threshold blocks anything above it.
 
-3. **First launch.** On first run Rscoop will cache your buckets and package metadata. A welcome banner lets you know when the cold‑start process is finished. Be sure to use the doctor page first if you're a new-comer to scoop! When the tray icon appears you can close the window Rscoop will minimize to the tray unless you disable that in settings.
+**Settings**: Dark/light theme, tray behavior, auto-cleanup, auto-updates, security preferences.
 
-4. **Optional: configure VirusTotal.** If you have an API key, open Settings → Security and paste the key. Rscoop will automatically scan packages before installation and block any that exceed your threat threshold.
+## Screenshots
 
-## Learn more
+| Installed Packages | System Doctor |
+|---|---|
+| ![Installed](pics/packagemodal.png) | ![Doctor](pics/doctor.png) |
 
-This README only scratches the surface of what Rscoop can do. The official documentation provides a full user guide, architecture notes and troubleshooting tips. Check out:
+| Bucket Browser | Settings |
+|---|---|
+| ![Buckets](pics/bucket.png) | ![Settings](pics/settings.png) |
 
-- [**User Guide:**](https://amarbego.github.io/Rscoop/user-guide/) detailed walkthroughs for search, installed packages, buckets, system health and settings.
-- [**Architecture:**](https://amarbego.github.io/Rscoop/architecture.html) high‑level overview of the Rust commands and SolidJS components that make Rscoop feel snappy.
-- [**Developer guide:**](https://amarbego.github.io/Rscoop/developer-guide.html) set up a development environment and learn how to contribute.
+## Install
 
-## Under the hood
+**Prerequisites:** [Scoop](https://scoop.sh) must be installed and working.
 
-Rscoop is a Tauri application written in Rust (backend) and SolidJS with TypeScript (frontend). Rust commands wrap scoop operations and expose them to the UI through Tauri's invoke system. The frontend uses Solid's reactive stores and custom hooks to drive dynamic pages for search, installed packages, buckets and system doctor. Caching strategies minimize repeated Scoop calls and persist view preferences so Rscoop starts quickly and remembers your settings.
+1. Go to [Releases](https://github.com/AmarBego/Rscoop/releases) and download the `.msi` installer or portable `.exe`
+2. Run it. SmartScreen may prompt you, click *More info* → *Run anyway*
+3. On first launch, Rscoop caches your bucket metadata. Use the Doctor page to verify your Scoop setup is healthy
+
+Rscoop includes built-in auto-updates, you'll be notified when a new version is available.
+
+## Tech Stack
+
+| Layer | Tech |
+|---|---|
+| Backend | Rust, Tauri 2 |
+| Frontend | SolidJS, TypeScript, Vite |
+| Package ops | Delegates to the Scoop CLI |
+| Native | System tray, single instance, auto-updater, file dialogs |
+
+The Rust backend exposes 25+ [commands](src-tauri/src/commands/), search, install, uninstall, update, hold, bucket management, VirusTotal scanning, doctor checks, cache/cleanup, shim management, and more. Everything goes through Scoop's CLI under the hood; Rscoop doesn't reimplement package logic.
+
+## Docs
+
+- [User Guide](https://amarbego.github.io/Rscoop/user-guide/): walkthrough of every page
+- [Architecture](https://amarbego.github.io/Rscoop/architecture.html): how the Rust commands and SolidJS pages fit together
+- [Developer Guide](https://amarbego.github.io/Rscoop/developer-guide.html): local dev setup and contributing
 
 ## Contributing
 
-Contributions are welcome! Whether you're fixing a bug, polishing the UI or adding a new feature, we'd love your help. Please read the developer guide for setup instructions and open an issue or pull request on GitHub to discuss your ideas.
+Issues and PRs welcome. See the [Developer Guide](https://amarbego.github.io/Rscoop/developer-guide.html) for setup instructions.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](https://github.com/AmarBego/Rscoop?tab=MIT-1-ov-file#readme) file for details.
+[MIT](LICENSE)
