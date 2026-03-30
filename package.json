@@ -1,6 +1,6 @@
 {
   "name": "rscoop",
-  "version": "1.4.6",
+  "version": "1.4.7",
   "description": "",
   "type": "module",
   "scripts": {
@@ -12,24 +12,24 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@tauri-apps/api": "^2.9.0",
-    "@tauri-apps/plugin-dialog": "^2.4.2",
-    "@tauri-apps/plugin-log": "^2.7.1",
-    "@tauri-apps/plugin-opener": "^2.5.2",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-dialog": "^2.6.0",
+    "@tauri-apps/plugin-log": "^2.8.0",
+    "@tauri-apps/plugin-opener": "^2.5.3",
     "@tauri-apps/plugin-process": "^2.3.1",
-    "@tauri-apps/plugin-store": "^2.4.1",
-    "@tauri-apps/plugin-updater": "^2.9.0",
+    "@tauri-apps/plugin-store": "^2.4.2",
+    "@tauri-apps/plugin-updater": "^2.10.0",
     "highlight.js": "^11.11.1",
-    "lucide-solid": "^0.546.0",
-    "solid-js": "^1.9.10"
+    "lucide-solid": "^1.7.0",
+    "solid-js": "^1.9.12"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.8",
-    "@tauri-apps/cli": "^2",
-    "daisyui": "^5.0.43",
-    "tailwindcss": "^4.1.8",
-    "typescript": "^5.9.2",
-    "vite": "^7.1.11",
-    "vite-plugin-solid": "^2.11.0"
+    "@tailwindcss/vite": "^4.2.2",
+    "@tauri-apps/cli": "^2.10.1",
+    "daisyui": "^5.5.19",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
+    "vite-plugin-solid": "^2.11.11"
   }
 }
