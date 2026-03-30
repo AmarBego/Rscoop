@@ -10,6 +10,7 @@ import OperationModal from "../components/OperationModal";
 import BucketSearch from "../components/page/buckets/BucketSearch";
 import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
+import AddBucketModal from "../components/page/buckets/AddBucketModal";
 import { SearchableBucket } from "../hooks/useBucketSearch";
 
 interface BucketUpdateResult {
@@ -39,6 +40,7 @@ function BucketPage() {
   const [isExpandedSearch, setIsExpandedSearch] = createSignal(false);
 
   // Update state
+  const [showAddBucketModal, setShowAddBucketModal] = createSignal(false);
   const [updatingBuckets, setUpdatingBuckets] = createSignal<Set<string>>(new Set());
   const [updateResults, setUpdateResults] = createSignal<{ [key: string]: string }>({});
 
@@ -299,6 +301,7 @@ function BucketPage() {
                 onRefresh={fetchBuckets}
                 onUpdateBucket={handleUpdateBucket}
                 onUpdateAll={handleUpdateAllBuckets}
+                onAddBucket={() => setShowAddBucketModal(true)}
                 updatingBuckets={updatingBuckets()}
                 updateResults={updateResults()}
               />
@@ -345,6 +348,12 @@ function BucketPage() {
         isScan={packageOperations.isScanning()}
         onInstallConfirm={packageOperations.handleInstallConfirm}
         nextStep={packageOperations.operationNextStep() ?? undefined}
+      />
+
+      <AddBucketModal
+        isOpen={showAddBucketModal()}
+        onClose={() => setShowAddBucketModal(false)}
+        onBucketAdded={handleBucketInstalled}
       />
     </div>
   );
