@@ -262,11 +262,28 @@ pub async fn warm_manifest_cache<R: tauri::Runtime>(
     }
 }
 
-/// Invalidates the global manifest cache.
+/// Invalidates and immediately re-warms the global manifest cache.
 /// This should be called after operations that change the available packages,
 /// such as installing or uninstalling a package or adding/removing buckets.
 pub async fn invalidate_manifest_cache() {
     let mut guard = MANIFEST_CACHE.lock().await;
     *guard = None;
-    log::info!("Manifest cache invalidated.");
+    log::info!("Manifest cache invalidated, re-warming...");
+
+    let start = std::time::Instant::now();
+    let scoop_path = crate::utils::get_scoop_root_fallback();
+    match populate_manifest_cache(&scoop_path).await {
+        Ok(manifests) => {
+            let count = manifests.len();
+            *guard = Some(manifests);
+            log::info!(
+                "Manifest cache re-warmed in {:.2}s ({} manifests)",
+                start.elapsed().as_secs_f64(),
+                count
+            );
+        }
+        Err(e) => {
+            log::warn!("Failed to re-warm manifest cache: {}", e);
+        }
+    }
 }

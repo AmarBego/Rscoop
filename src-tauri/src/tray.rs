@@ -35,6 +35,13 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     let _ = window.show();
                     let _ = window.set_focus();
                 }
+                // Re-warm manifest cache in the background in case it was invalidated
+                let app_clone = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(e) = crate::commands::search::warm_manifest_cache(app_clone).await {
+                        log::warn!("Failed to re-warm manifest cache on tray restore: {}", e);
+                    }
+                });
             }
         })
         .on_menu_event(move |app, event| {
@@ -48,6 +55,12 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                         let _ = window.show();
                         let _ = window.set_focus();
                     }
+                    let app_clone = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = crate::commands::search::warm_manifest_cache(app_clone).await {
+                            log::warn!("Failed to re-warm manifest cache on show: {}", e);
+                        }
+                    });
                 }
                 "hide" => {
                     if let Some(window) = app.get_webview_window("main") {
