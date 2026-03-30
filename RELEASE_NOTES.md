@@ -1,12 +1,17 @@
-### Release Notes 1.4.6
+### Release Notes 1.5.0
 
 #### New Features
-- **Light Theme Support**: Rscoop now fully supports a beautiful Light Theme! It can be manually toggled in settings.
-- **Start Page Configuration**: You can now choose which page Rscoop opens on launch (Search, Installed, Settings, etc.) via the new "Default Launch Page" setting.
+- **Versioned Install Support**: Install specific versions of any package directly from the UI using scoop's `@version` syntax (e.g. `speedtest@1.14.197`). A version input field is now available next to the Install button in package details.
+- **Custom Bucket Support**: Add any git repository as a custom bucket via the new "Add Custom Bucket" button on the Buckets page. Just paste a URL and go.
 
 #### Improvements
-- **Massive Frontend Refactor**:
-  - **Code Simplification**: I've significantly cleaned up the codebase, removing redundancy and improving maintainability.
-  - **Reusable Components**: Introduced a suite of reusable UI components for a more consistent look and feel across the entire application.
-  - **UI Consistency**: Standardized spacing, colors, and typography throughout the app for a polished, professional experience.
-- **Better Modals**: Modals (Bucket Info, Package Info) have been standardized and improved for better readability and interaction.
+- **Version Switcher Visibility**: The version switcher now auto-loads and appears directly in the package info modal for any package with multiple versions, no more hunting through the three-dot menu.
+- **Instant Search from Tray**: The manifest cache now re-warms when restoring the app from the system tray, so search is instant even after long idle periods.
+- **Smarter Auto-Cleanup**: Version cleanup now sorts numerically instead of lexicographically (so `148.0` correctly sorts after `9.0`), always preserves the active version, and properly syncs cleanup settings between the UI and backend.
+- **PowerShell Compatibility Fix**: Fixed a long-standing issue where certain scoop operations (especially versioned installs) would silently fail when launched from the app. Root cause: `-NoProfile` prevented PowerShell from loading core modules.
+
+#### Code Quality
+- Removed duplicate git credential callback logic
+- Extracted shared `is_valid_bucket` helper across install, uninstall, manifest, and virustotal commands
+- Replaced potential panic points (`unwrap`/`expect`) with proper error handling across `bucket_install`, `powershell`, `state`, and `scheduler` modules
+- Fixed event listener leak in the header component
