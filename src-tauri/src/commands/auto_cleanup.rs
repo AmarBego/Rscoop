@@ -4,8 +4,22 @@ use crate::commands::powershell;
 use crate::commands::settings;
 use crate::state::AppState;
 use serde::Deserialize;
+use std::cmp::Ordering;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime, State};
+
+/// Compares two version strings numerically by splitting on `.` and `-`.
+/// For example: "148.0-1" > "147.0.3-2" > "9.0" > "2.0".
+pub fn compare_versions(a: &str, b: &str) -> Ordering {
+    let parse_segments = |s: &str| -> Vec<u64> {
+        s.split(|c: char| c == '.' || c == '-' || c == '_')
+            .map(|seg| seg.parse::<u64>().unwrap_or(0))
+            .collect()
+    };
+    let sa = parse_segments(a);
+    let sb = parse_segments(b);
+    sa.cmp(&sb)
+}
 
 /// Settings for automatic cleanup operations.
 #[derive(Debug, Deserialize)]
@@ -121,6 +135,16 @@ fn get_versions_to_remove(
     package_path: &PathBuf,
     keep_count: usize,
 ) -> Result<Vec<String>, String> {
+    // Resolve which version the "current" junction points to so we never delete it.
+    let current_link = package_path.join("current");
+    let active_version = std::fs::read_link(&current_link)
+        .ok()
+        .and_then(|target| {
+            target
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+        });
+
     // Read all version directories (excluding "current" symlink)
     let mut versions: Vec<String> = std::fs::read_dir(package_path)
         .map_err(|e| format!("Failed to read package directory: {}", e))?
@@ -137,17 +161,29 @@ fn get_versions_to_remove(
         })
         .collect();
 
-    // If we have more versions than we want to keep, identify the old ones
-    if versions.len() > keep_count {
-        // Sort versions (lexicographically - good enough for most version formats)
-        versions.sort();
+    // Sort newest first so we can keep the top N
+    versions.sort_by(|a, b| compare_versions(b, a));
 
-        // Calculate how many to remove
-        let remove_count = versions.len() - keep_count;
-        Ok(versions.into_iter().take(remove_count).collect())
-    } else {
-        Ok(Vec::new())
-    }
+    // Always protect the active version, then keep the newest `keep_count`
+    // versions on top of that.
+    let mut kept = 0usize;
+    let to_remove: Vec<String> = versions
+        .into_iter()
+        .filter(|v| {
+            // Always keep the active version
+            if active_version.as_deref() == Some(v.as_str()) {
+                return false; // don't remove
+            }
+            if kept < keep_count {
+                kept += 1;
+                false // keep this one
+            } else {
+                true // remove
+            }
+        })
+        .collect();
+
+    Ok(to_remove)
 }
 
 async fn remove_specific_versions(scoop_path: &PathBuf, package_name: &str, versions: &[String]) {

@@ -12,22 +12,27 @@ export function usePackageOperations() {
     const [pendingInstallPackage, setPendingInstallPackage] = createSignal<ScoopPackage | null>(null);
     const { settings } = settingsStore;
 
-    const performInstall = (pkg: ScoopPackage) => {
-        setOperationTitle(`Installing ${pkg.name}`);
+    const performInstall = (pkg: ScoopPackage, version?: string) => {
+        const displayName = version ? `${pkg.name}@${version}` : pkg.name;
+        setOperationTitle(`Installing ${displayName}`);
         setIsScanning(false);
         invoke("install_package", {
             packageName: pkg.name,
             bucket: pkg.source,
+            version: version || null,
         }).catch((err) => {
             console.error("Installation invocation failed:", err);
         });
     };
 
-    const handleInstall = (pkg: ScoopPackage) => {
+    const [pendingVersion, setPendingVersion] = createSignal<string | undefined>(undefined);
+
+    const handleInstall = (pkg: ScoopPackage, version?: string) => {
         if (settings.virustotal.enabled && settings.virustotal.autoScanOnInstall) {
             setOperationTitle(`Scanning ${pkg.name} with VirusTotal...`);
             setIsScanning(true);
             setPendingInstallPackage(pkg);
+            setPendingVersion(version);
             invoke("scan_package", {
                 packageName: pkg.name,
                 bucket: pkg.source,
@@ -35,15 +40,16 @@ export function usePackageOperations() {
                 console.error("Scan invocation failed:", err);
             });
         } else {
-            performInstall(pkg);
+            performInstall(pkg, version);
         }
     };
 
     const handleInstallConfirm = () => {
         const pkg = pendingInstallPackage();
         if (pkg) {
-            performInstall(pkg);
+            performInstall(pkg, pendingVersion());
             setPendingInstallPackage(null);
+            setPendingVersion(undefined);
         }
     };
 

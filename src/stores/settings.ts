@@ -1,5 +1,6 @@
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
+import { invoke } from "@tauri-apps/api/core";
 import { View } from "../types/scoop";
 
 const LOCAL_STORAGE_KEY = 'rscoop-settings';
@@ -93,6 +94,13 @@ function createSettingsStore() {
 
   const [settings, setSettings] = createStore<Settings>(getInitialSettings());
 
+  // Sync cleanup settings to Tauri store on startup so the backend
+  // can read them (localStorage is frontend-only).
+  const initial = getInitialSettings();
+  for (const [key, value] of Object.entries(initial.cleanup)) {
+    invoke("set_config_value", { key: `cleanup.${key}`, value }).catch(() => {});
+  }
+
   const saveSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
@@ -133,12 +141,15 @@ function createSettingsStore() {
   };
 
   const setCleanupSettings = (newCleanupSettings: Partial<Settings['cleanup']>) => {
-    saveSettings({
-      cleanup: {
-        ...settings.cleanup,
-        ...newCleanupSettings,
-      },
-    });
+    const merged = { ...settings.cleanup, ...newCleanupSettings };
+    saveSettings({ cleanup: merged });
+
+    // Sync to Tauri store so the backend can read cleanup settings
+    for (const [key, value] of Object.entries(merged)) {
+      invoke("set_config_value", { key: `cleanup.${key}`, value }).catch((e) =>
+        console.error(`Failed to sync cleanup setting cleanup.${key}:`, e)
+      );
+    }
   };
 
   const setBucketSettings = (newBucketSettings: Partial<Settings['buckets']>) => {

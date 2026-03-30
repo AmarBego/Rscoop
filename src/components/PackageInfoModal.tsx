@@ -3,7 +3,7 @@ import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
 
 import json from 'highlight.js/lib/languages/json';
-import { Download, Ellipsis, FileText, Trash2, ExternalLink, RefreshCw } from "lucide-solid";
+import { Download, Ellipsis, FileText, Trash2, ExternalLink } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import Modal from "./common/Modal";
@@ -18,7 +18,7 @@ interface PackageInfoModalProps {
   loading: boolean;
   error: string | null;
   onClose: () => void;
-  onInstall?: (pkg: ScoopPackage) => void;
+  onInstall?: (pkg: ScoopPackage, version?: string) => void;
   onUninstall?: (pkg: ScoopPackage) => void;
   onSwitchVersion?: (pkg: ScoopPackage, version: string) => void;
   showBackButton?: boolean;
@@ -144,6 +144,9 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     return result;
   });
 
+  // State for versioned install
+  const [installVersion, setInstallVersion] = createSignal("");
+
   // State for manifest modal
   const [manifestContent, setManifestContent] = createSignal<string | null>(null);
   const [manifestLoading, setManifestLoading] = createSignal(false);
@@ -161,16 +164,16 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     }
   });
 
-  // Auto-fetch version info if autoShowVersions is true and package is versioned
+  // Auto-fetch version info for installed packages that have multiple versions
   createEffect(() => {
-    if (props.autoShowVersions && props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)) {
+    if (props.pkg?.is_installed && props.isPackageVersioned?.(props.pkg.name)) {
       fetchVersionInfo(props.pkg);
     }
   });
 
-  // Clear version info when package changes or autoShowVersions becomes false
+  // Clear version info when modal closes
   createEffect(() => {
-    if (!props.autoShowVersions || !props.pkg) {
+    if (!props.pkg) {
       setVersionInfo(null);
       setVersionError(null);
       setVersionLoading(false);
@@ -186,6 +189,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       setVersionError(null);
       setVersionLoading(false);
       setSwitchingVersion(null);
+      setInstallVersion("");
     }
     return currentPackageName;
   });
@@ -287,14 +291,6 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               Open in Explorer
             </button>
           </li>
-          <Show when={props.isPackageVersioned?.(props.pkg!.name)}>
-            <li>
-              <a onClick={() => props.pkg && fetchVersionInfo(props.pkg)}>
-                <RefreshCw class="w-4 h-4 mr-2" />
-                Switch Version
-              </a>
-            </li>
-          </Show>
           <li>
             <a onClick={async () => {
               if (props.pkg) {
@@ -330,19 +326,30 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       </button>
       <div class="flex gap-2">
         <Show when={!props.pkg?.is_installed && props.onInstall}>
-          <button
-            type="button"
-            class="btn btn-primary btn-md"
-            onClick={() => {
-              if (props.pkg) {
-                props.onInstall!(props.pkg);
-                props.onPackageStateChanged?.();
-              }
-            }}
-          >
-            <Download class="w-4 h-4 mr-2" />
-            Install
-          </button>
+          <div class="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Version (optional)"
+              class="input input-bordered input-md w-36"
+              value={installVersion()}
+              onInput={(e) => setInstallVersion(e.currentTarget.value)}
+            />
+            <button
+              type="button"
+              class="btn btn-primary btn-md"
+              onClick={() => {
+                if (props.pkg) {
+                  const ver = installVersion().trim();
+                  props.onInstall!(props.pkg, ver || undefined);
+                  props.onPackageStateChanged?.();
+                  setInstallVersion("");
+                }
+              }}
+            >
+              <Download class="w-4 h-4 mr-2" />
+              {installVersion().trim() ? `Install @${installVersion().trim()}` : "Install"}
+            </button>
+          </div>
         </Show>
         <Show when={props.pkg?.is_installed}>
           <button

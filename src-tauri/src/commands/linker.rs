@@ -137,7 +137,7 @@ async fn build_versioned_package_info(
         } else if b.is_current {
             std::cmp::Ordering::Greater
         } else {
-            b.version.cmp(&a.version)
+            crate::commands::auto_cleanup::compare_versions(&b.version, &a.version)
         }
     });
 

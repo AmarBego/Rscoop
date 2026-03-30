@@ -28,7 +28,12 @@ pub struct CommandResult {
 /// Creates a `tokio::process::Command` for running a PowerShell command without a visible window.
 pub fn create_powershell_command(command_str: &str) -> Command {
     let mut cmd = Command::new("powershell");
-    cmd.args(["-NoProfile", "-Command", command_str])
+    cmd.args(["-NoLogo", "-NoProfile", "-Command",
+        // Ensure core modules are available — `-NoProfile` can prevent
+        // auto-loading of modules like Microsoft.PowerShell.Utility
+        // which provides Get-FileHash and other cmdlets scoop needs.
+        &format!("Import-Module Microsoft.PowerShell.Utility -ErrorAction SilentlyContinue; {}", command_str),
+    ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
