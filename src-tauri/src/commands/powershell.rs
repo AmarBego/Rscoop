@@ -55,7 +55,7 @@ fn spawn_output_stream_handler(
 
     tokio::spawn(async move {
         while let Ok(Some(line)) = reader.next_line().await {
-            if source == "stderr" || line.to_lowercase().starts_with("error") {
+            if source == "stderr" || line.to_lowercase().contains("error") {
                 has_error.store(true, Ordering::Relaxed);
             }
 
