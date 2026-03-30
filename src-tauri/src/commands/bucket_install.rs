@@ -7,6 +7,24 @@ use tauri::command;
 use crate::commands::search::invalidate_manifest_cache;
 use crate::utils;
 
+/// Creates git remote callbacks with credential handling for SSH and HTTPS.
+fn create_remote_callbacks() -> RemoteCallbacks<'static> {
+    let mut callbacks = RemoteCallbacks::new();
+    callbacks.credentials(|_url, username_from_url, allowed_types| {
+        if allowed_types.contains(CredentialType::USERNAME) {
+            Cred::username("git")
+        } else if allowed_types.contains(CredentialType::SSH_KEY) {
+            let username = username_from_url.unwrap_or("git");
+            Cred::ssh_key_from_agent(username)
+        } else if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
+            Cred::default()
+        } else {
+            Cred::default()
+        }
+    });
+    callbacks
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BucketInstallOptions {
     pub name: String,
@@ -55,23 +73,7 @@ fn clone_repository(url: &str, target_path: &Path) -> Result<Repository, String>
             .map_err(|e| format!("Failed to create parent directory: {}", e))?;
     }
 
-    // Set up remote callbacks for authentication and progress
-    let mut remote_callbacks = RemoteCallbacks::new();
-
-    // Handle authentication (for private repos)
-    remote_callbacks.credentials(|_url, username_from_url, allowed_types| {
-        if allowed_types.contains(CredentialType::USERNAME) {
-            Cred::username("git")
-        } else if allowed_types.contains(CredentialType::SSH_KEY) {
-            let username = username_from_url.unwrap_or("git");
-            Cred::ssh_key_from_agent(username)
-        } else if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
-            // For HTTPS, use default credentials
-            Cred::default()
-        } else {
-            Cred::default()
-        }
-    });
+    let mut remote_callbacks = create_remote_callbacks();
 
     // Progress callback for logging
     remote_callbacks.pack_progress(|_stage, current, total| {
@@ -257,12 +259,9 @@ pub async fn validate_bucket_install(
     let already_exists = bucket_exists(&bucket_name).unwrap_or(false);
 
     let bucket_path = if already_exists {
-        Some(
-            get_bucket_path(&bucket_name)
-                .unwrap()
-                .to_string_lossy()
-                .to_string(),
-        )
+        get_bucket_path(&bucket_name)
+            .ok()
+            .map(|p| p.to_string_lossy().to_string())
     } else {
         None
     };
@@ -340,20 +339,7 @@ fn update_bucket_sync(bucket_name: &str, bucket_path: &Path) -> Result<BucketIns
                 }
             };
 
-            // Set up callbacks for fetch
-            let mut callbacks = RemoteCallbacks::new();
-            callbacks.credentials(|_url, username_from_url, allowed_types| {
-                if allowed_types.contains(CredentialType::USERNAME) {
-                    Cred::username("git")
-                } else if allowed_types.contains(CredentialType::SSH_KEY) {
-                    let username = username_from_url.unwrap_or("git");
-                    Cred::ssh_key_from_agent(username)
-                } else if allowed_types.contains(CredentialType::USER_PASS_PLAINTEXT) {
-                    Cred::default()
-                } else {
-                    Cred::default()
-                }
-            });
+            let callbacks = create_remote_callbacks();
 
             let mut fetch_options = FetchOptions::new();
             fetch_options.remote_callbacks(callbacks);
@@ -383,8 +369,12 @@ fn update_bucket_sync(bucket_name: &str, bucket_path: &Path) -> Result<BucketIns
                         let remote_branch_name = format!("origin/{}", branch_name);
                         match repo.find_branch(&remote_branch_name, git2::BranchType::Remote) {
                             Ok(remote_branch) => {
-                                let remote_commit = remote_branch.get().peel_to_commit().unwrap();
-                                let local_commit = head.peel_to_commit().unwrap();
+                                let remote_commit = remote_branch.get().peel_to_commit().map_err(|e| {
+                                    format!("Failed to resolve remote commit for bucket '{}': {}", bucket_name, e)
+                                })?;
+                                let local_commit = head.peel_to_commit().map_err(|e| {
+                                    format!("Failed to resolve local commit for bucket '{}': {}", bucket_name, e)
+                                })?;
 
                                 // Check if update is needed
                                 if remote_commit.id() == local_commit.id() {

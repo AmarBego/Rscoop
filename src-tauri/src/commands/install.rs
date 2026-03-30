@@ -21,7 +21,7 @@ pub async fn install_package(
     bucket: String,
 ) -> Result<(), String> {
     let bucket_opt =
-        (!bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")).then(|| bucket.as_str());
+        crate::utils::is_valid_bucket(&bucket).then(|| bucket.as_str());
 
     log::info!(
         "Installing package '{}' from bucket '{}'",

@@ -111,11 +111,11 @@ pub async fn run_and_stream_command(
     let stdout = child
         .stdout
         .take()
-        .expect("Child process did not have a handle to stdout");
+        .ok_or_else(|| format!("Child process did not have a handle to stdout for '{}'", command_str))?;
     let stderr = child
         .stderr
         .take()
-        .expect("Child process did not have a handle to stderr");
+        .ok_or_else(|| format!("Child process did not have a handle to stderr for '{}'", command_str))?;
 
     let has_error = Arc::new(AtomicBool::new(false));
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();

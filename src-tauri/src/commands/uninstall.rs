@@ -85,7 +85,7 @@ async fn execute_package_operation(
 ) -> Result<(), String> {
     // The bucket is not used by `scoop uninstall` or `scoop cache rm`, but we parse it
     // for logging consistency and to align with the `install` command's signature.
-    let bucket_opt = (!bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")).then(|| bucket);
+    let bucket_opt = crate::utils::is_valid_bucket(bucket).then(|| bucket);
 
     log::info!(
         "{} package '{}' from bucket '{}'",

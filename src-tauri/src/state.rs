@@ -43,12 +43,12 @@ impl AppState {
 
     /// Returns the current Scoop root path stored in the application state.
     pub fn scoop_path(&self) -> PathBuf {
-        self.scoop_path.read().unwrap().clone()
+        self.scoop_path.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Updates the Scoop root path stored in the application state.
     pub fn set_scoop_path(&self, new_path: PathBuf) {
-        *self.scoop_path.write().unwrap() = new_path;
+        *self.scoop_path.write().unwrap_or_else(|e| e.into_inner()) = new_path;
     }
 
     /// Gets the timestamp of the last installed packages refresh in milliseconds

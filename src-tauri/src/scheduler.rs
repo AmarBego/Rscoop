@@ -29,14 +29,15 @@ pub fn start_background_tasks(app: AppHandle) {
             .and_then(|v| v.as_str().map(|s| s.to_string()))
             .unwrap_or_else(|| "off".to_string());
 
-            let interval_secs_opt = parse_interval(&interval_raw);
-            if interval_secs_opt.is_none() {
-                // Off: poll more frequently for changes
-                log::trace!("[scheduler] interval='off' polling again in 30s");
-                tokio::time::sleep(Duration::from_secs(30)).await;
-                continue;
-            }
-            let interval_secs = interval_secs_opt.unwrap();
+            let interval_secs = match parse_interval(&interval_raw) {
+                Some(secs) => secs,
+                None => {
+                    // Off: poll more frequently for changes
+                    log::trace!("[scheduler] interval='off' polling again in 30s");
+                    tokio::time::sleep(Duration::from_secs(30)).await;
+                    continue;
+                }
+            };
 
             // Load last run timestamp
             let last_ts_val = commands::settings::get_config_value(
@@ -49,7 +50,7 @@ pub fn start_background_tasks(app: AppHandle) {
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0u64);
 
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
             let elapsed = if last_ts == 0 { interval_secs } else { now.saturating_sub(last_ts) };
 
             if last_ts == 0 {

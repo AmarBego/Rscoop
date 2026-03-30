@@ -26,8 +26,7 @@ pub fn get_package_manifest(
     let scoop_dir = state.scoop_path();
 
     // Handle optional bucket parameter.
-    let bucket_option = (!bucket.is_empty() && !bucket.eq_ignore_ascii_case("none"))
-        .then(|| bucket);
+    let bucket_option = crate::utils::is_valid_bucket(&bucket).then(|| bucket);
 
     let (manifest_path, _) =
         utils::locate_package_manifest(&scoop_dir, &package_name, bucket_option)?;

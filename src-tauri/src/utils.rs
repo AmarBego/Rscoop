@@ -8,6 +8,12 @@ use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
 use url::Url;
 
+/// Returns true if the bucket string represents a valid, specified bucket name
+/// (i.e. not empty and not the sentinel value "none").
+pub fn is_valid_bucket(bucket: &str) -> bool {
+    !bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")
+}
+
 #[derive(Debug, Clone)]
 pub struct ScoopAppShortcut {
     pub name: String,
