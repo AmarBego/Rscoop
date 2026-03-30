@@ -1,6 +1,6 @@
 [package]
 name = "rscoop"
-version = "1.4.6"
+version = "1.4.7"
 description = "A modern, powerful GUI for Scoop"
 authors = ["AmarBego"]
 license = "MIT"
@@ -17,21 +17,21 @@ name = "rscoop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.4", features = [] }
+tauri-build = { version = "2.5.6", features = [] }
 
 [dependencies]
-tauri = { version = "2.9", features = ["tray-icon"] }
-tauri-plugin-shell = "2.3.1"
+tauri = { version = "2.10.3", features = ["tray-icon"] }
+tauri-plugin-shell = "2.3.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-log = "0.4.21"
-tauri-plugin-log = { version = "2.7" }
+log = "0.4.29"
+tauri-plugin-log = { version = "2.8.0" }
 winreg = "0.56.0"
 reqwest = { version = "0.13.2", features = ["json", "blocking"] }
 csv = "1.4"
 tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
-tokio = { version = "1.48.0", features = ["full"] }
-chrono = { version = "0.4.41", features = ["serde"] }
+tokio = { version = "1.50.0", features = ["full"] }
+chrono = { version = "0.4.44", features = ["serde"] }
 dirs = "6.0"
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
@@ -41,14 +41,14 @@ windows-sys = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
 ] }
 regex = "1.12"
-rayon = "1.10"
+rayon = "1.11.0"
 itertools = "0.14"
-once_cell = "1.21.3"
+once_cell = "1.21.4"
 tauri-plugin-dialog = "2"
 tauri-plugin-process = "2"
 lnk = "0.6.3"
 tauri-plugin-opener = "2"
-git2 = "0.20"
+git2 = "0.20.4"
 url = "2.5"
 
 [target."cfg(windows)".dependencies]
