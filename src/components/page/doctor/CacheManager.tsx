@@ -163,30 +163,30 @@ function CacheManager() {
                 headerAction={
                     <div class="flex items-center gap-2">
                         <Show when={cacheContents().length > 0}>
+                            <Show when={selectedItems().size > 0}>
+                                <button
+                                    class="btn btn-ghost btn-xs text-warning"
+                                    onClick={handleClearSelected}
+                                    disabled={isLoading()}
+                                >
+                                    <Trash2 class="w-3.5 h-3.5" />
+                                    Remove {selectedItems().size}
+                                </button>
+                            </Show>
                             <button
-                                class="btn btn-warning btn-sm"
-                                onClick={handleClearSelected}
-                                disabled={selectedItems().size === 0 || isLoading()}
-                            >
-                                <Trash2 class="w-4 h-4 mr-2" />
-                                Remove Selected ({selectedItems().size})
-                            </button>
-                            <button
-                                class="btn btn-error btn-sm"
+                                class="btn btn-ghost btn-xs text-error"
                                 onClick={handleClearAll}
                                 disabled={isLoading()}
                             >
-                                <Archive class="w-4 h-4 mr-2" />
                                 Remove All
                             </button>
-                            <div class="divider divider-horizontal m-1" />
                         </Show>
                         <button
-                            class="btn btn-ghost btn-sm"
+                            class="btn btn-ghost btn-xs"
                             onClick={fetchCacheContents}
                             disabled={isLoading()}
                         >
-                            <RefreshCw classList={{ "animate-spin": isLoading() }} />
+                            <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": isLoading() }} />
                         </button>
                     </div>
                 }
@@ -194,7 +194,7 @@ function CacheManager() {
                 <input
                     type="text"
                     placeholder="Filter by name or version..."
-                    class="input input-bordered w-full mb-4"
+                    class="input input-bordered input-sm w-full mb-3 bg-base-100 text-xs"
                     value={filter()}
                     onInput={(e) => setFilter(e.currentTarget.value)}
                     disabled={isLoading() || !!error() || cacheContents().length === 0}
@@ -209,11 +209,7 @@ function CacheManager() {
                     </Show>
 
                     <Show when={!isLoading() && cacheContents().length === 0 && !error()}>
-                        <div class="text-center p-8">
-                            <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
-                            <p class="mt-4 text-lg font-semibold">Cache is Empty</p>
-                            <p class="text-base-content/60">There are no cached package files to manage.</p>
-                        </div>
+                        <p class="text-sm text-base-content/50 py-4 text-center">No cached files.</p>
                     </Show>
 
                     <Show when={cacheContents().length > 0}>

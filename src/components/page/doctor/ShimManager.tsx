@@ -1,6 +1,6 @@
 import { createSignal, onMount, For, Show, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCw, TriangleAlert, Inbox, Link, EyeOff, Plus, BookText } from "lucide-solid";
+import { RefreshCw, TriangleAlert, Link, EyeOff, Plus, BookText } from "lucide-solid";
 import ShimDetailsModal from "./ShimDetailsModal";
 import AddShimModal from "./AddShimModal";
 import Card from "../../common/Card";
@@ -103,28 +103,26 @@ function ShimManager() {
             headerAction={
                 <div class="flex items-center gap-2">
                     <button
-                        class="btn btn-primary btn-sm"
+                        class="btn btn-ghost btn-xs"
                         onClick={() => setIsAddModalOpen(true)}
                         disabled={isLoading() || isProcessing()}
                     >
-                        <Plus class="w-4 h-4" /> Add Shim
+                        <Plus class="w-3.5 h-3.5" /> Add Shim
                     </button>
-                    <div class="divider divider-horizontal m-1" />
                     <button
-                        class="btn btn-ghost btn-sm"
+                        class="btn btn-ghost btn-xs"
                         onClick={fetchShims}
                         disabled={isLoading() || isProcessing()}
                     >
-                        <RefreshCw classList={{ "animate-spin": isLoading() }} />
+                        <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": isLoading() }} />
                     </button>
                 </div>
             }
-            description=""
         >
             <input
                 type="text"
                 placeholder="Filter by name or source..."
-                class="input input-bordered w-full mb-4"
+                class="input input-bordered input-sm w-full mb-3 bg-base-100 text-xs"
                 value={filter()}
                 onInput={(e) => setFilter(e.currentTarget.value)}
                 disabled={isLoading() || !!error() || allShims().length === 0}
@@ -138,10 +136,7 @@ function ShimManager() {
                 </Show>
 
                 <Show when={!isLoading() && allShims().length === 0 && !error()}>
-                    <div class="text-center p-8">
-                        <Inbox class="w-16 h-16 mx-auto text-base-content/30" />
-                        <p class="mt-4 text-lg font-semibold">No Shims Found</p>
-                    </div>
+                    <p class="text-sm text-base-content/50 py-4 text-center">No shims found.</p>
                 </Show>
 
                 <Show when={filteredShims().length > 0}>

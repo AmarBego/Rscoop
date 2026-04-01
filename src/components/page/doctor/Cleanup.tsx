@@ -10,16 +10,16 @@ function Cleanup(props: CleanupProps) {
     return (
         <Card
             title="System Cleanup"
-            description="Free up disk space by removing old package versions and outdated download caches (this will ignore auto-cleanup constraints)."
+            description="Remove old package versions and outdated caches to free disk space. Ignores auto-cleanup constraints."
         >
-            <div class="flex gap-2 mt-2">
-                <button class="btn btn-primary" onClick={props.onCleanupApps}>
-                    <Trash2 class="w-4 h-4 mr-2" />
-                    Cleanup Old Versions
+            <div class="flex gap-2">
+                <button class="btn btn-sm btn-outline" onClick={props.onCleanupApps}>
+                    <Trash2 class="w-3.5 h-3.5" />
+                    Old Versions
                 </button>
-                <button class="btn btn-secondary" onClick={props.onCleanupCache}>
-                    <Archive class="w-4 h-4 mr-2" />
-                    Cleanup Outdated Cache
+                <button class="btn btn-sm btn-outline" onClick={props.onCleanupCache}>
+                    <Archive class="w-3.5 h-3.5" />
+                    Outdated Cache
                 </button>
             </div>
         </Card>
