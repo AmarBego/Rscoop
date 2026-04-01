@@ -145,6 +145,64 @@
   @apply btn btn-outline border-info/40 text-info hover:border-info/70 hover:bg-transparent hover:text-info;
 }
 
+/* Log viewer syntax coloring */
+.log-viewer {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.5;
+}
+
+.log-error {
+  color: #e06c75;
+  font-weight: 600;
+}
+
+.log-warn {
+  color: #e5c07b;
+}
+
+.log-info {
+  color: #98c379;
+}
+
+.log-debug {
+  color: #61aeee;
+}
+
+.log-trace {
+  color: #636d83;
+}
+
+.log-marker {
+  color: #c678dd;
+  font-weight: 600;
+}
+
+[data-theme="light"] .log-error {
+  color: #e45649;
+  font-weight: 600;
+}
+
+[data-theme="light"] .log-warn {
+  color: #986801;
+}
+
+[data-theme="light"] .log-info {
+  color: #50a14f;
+}
+
+[data-theme="light"] .log-debug {
+  color: #4078f2;
+}
+
+[data-theme="light"] .log-trace {
+  color: #a0a1a7;
+}
+
+[data-theme="light"] .log-marker {
+  color: #a626a4;
+  font-weight: 600;
+}
+
 /* Highlight.js Theme - Atom One Dark (for Dark Mode) */
 [data-theme="dark"] .hljs {
   color: #abb2bf;

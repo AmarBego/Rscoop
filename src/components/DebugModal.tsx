@@ -1,8 +1,65 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, Show, createEffect } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { info } from "@tauri-apps/plugin-log";
 import settingsStore from "../stores/settings";
 import Modal from "./common/Modal";
+
+function FingerprintDisplay(props: { fingerprint: string | null }) {
+    return (
+        <Show when={props.fingerprint} fallback={<span class="opacity-50">None</span>}>
+            {(fp) => {
+                const raw = fp();
+                const pipeIdx = raw.indexOf("|");
+                const prefix = pipeIdx >= 0 ? raw.slice(0, pipeIdx) : null;
+                const entries = (pipeIdx >= 0 ? raw.slice(pipeIdx + 1) : raw).split(";").filter(Boolean);
+                return (
+                    <div class="mt-1">
+                        <Show when={prefix}>
+                            <span class="text-info font-semibold mr-1">{prefix} apps</span>
+                        </Show>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            {entries.map((entry) => {
+                                const colonIdx = entry.indexOf(":");
+                                const name = colonIdx >= 0 ? entry.slice(0, colonIdx) : entry;
+                                const ts = colonIdx >= 0 ? entry.slice(colonIdx + 1) : "";
+                                return (
+                                    <span class="inline-flex items-baseline gap-0.5 bg-base-300 rounded px-1.5 py-0.5">
+                                        <span class="text-accent font-medium">{name}</span>
+                                        <span class="opacity-40">:</span>
+                                        <span class="opacity-50">{ts}</span>
+                                    </span>
+                                );
+                            })}
+                        </div>
+                    </div>
+                );
+            }}
+        </Show>
+    );
+}
+
+function colorizeLogLines(raw: string): HTMLElement[] {
+    return raw.split("\n").map((line) => {
+        const span = document.createElement("span");
+        span.textContent = line + "\n";
+
+        if (/\bERROR\b/.test(line)) {
+            span.className = "log-error";
+        } else if (/\bWARN\b/.test(line)) {
+            span.className = "log-warn";
+        } else if (/\bINFO\b/.test(line)) {
+            span.className = "log-info";
+        } else if (/\bTRACE\b/.test(line)) {
+            span.className = "log-trace";
+        } else if (/\bDEBUG\b/.test(line)) {
+            span.className = "log-debug";
+        } else if (/^===/.test(line.trim())) {
+            span.className = "log-marker";
+        }
+
+        return span;
+    });
+}
 
 interface DebugInfo {
     timestamp: string;
@@ -173,7 +230,8 @@ const DebugModal = () => {
                                         <div class="ml-4 mt-2">
                                             <div>Cached Apps: {info().cache_info.cached_count}</div>
                                             <div class="text-xs break-all">
-                                                Fingerprint: {info().cache_info.fingerprint || "None"}
+                                                <span class="opacity-70">Fingerprint:</span>
+                                                <FingerprintDisplay fingerprint={info().cache_info.fingerprint} />
                                             </div>
                                         </div>
                                     </div>
@@ -204,9 +262,28 @@ const DebugModal = () => {
 
                     {/* Logs Tab */}
                     <Show when={activeTab() === "logs"}>
-                        <pre class="text-xs overflow-auto max-h-full whitespace-pre-wrap break-words">
-                            {logFileContent() || (appLogs() ? "Loading log file..." : "No logs available")}
-                        </pre>
+                        <Show when={logFileContent()} fallback={
+                            <pre class="text-xs overflow-auto max-h-full whitespace-pre-wrap break-words">
+                                {appLogs() ? "Loading log file..." : "No logs available"}
+                            </pre>
+                        }>
+                            <pre
+                                class="log-viewer text-xs overflow-auto max-h-full whitespace-pre-wrap break-words"
+                                ref={(el) => {
+                                    createEffect(() => {
+                                        const content = logFileContent();
+                                        if (content && el) {
+                                            el.textContent = "";
+                                            const nodes = colorizeLogLines(content);
+                                            for (const node of nodes) {
+                                                el.appendChild(node);
+                                            }
+                                            el.scrollTop = el.scrollHeight;
+                                        }
+                                    });
+                                }}
+                            />
+                        </Show>
                     </Show>
                 </div>
             </Modal>
