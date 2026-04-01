@@ -17,7 +17,7 @@ A desktop GUI for [Scoop](https://scoop.sh), search, install, update and manage 
 
 ## What is Rscoop?
 
-Rscoop is a native Windows app that wraps the [Scoop](https://scoop.sh) CLI. It doesn't replace Scoop — it gives you a proper interface for it. Search across all your buckets at once, install and update packages, manage buckets, clean up disk space, and optionally scan downloads through VirusTotal, all from one window.
+Rscoop is a native Windows app that wraps the [Scoop](https://scoop.sh) CLI. It doesn't replace Scoop rather it gives you a proper interface for it. Search across all your buckets at once, install and update packages, manage buckets, clean up disk space, and optionally scan downloads through VirusTotal, all from one window.
 
 Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Sits in your system tray when you're not using it.
 

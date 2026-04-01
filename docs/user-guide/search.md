@@ -13,12 +13,12 @@ Type a query and get results from every bucket you have added.
 
 ## How it works
 
-The search bar queries a local manifest cache built by the Rust backend. Results come back instantly — no network call needed for installed buckets.
+The search bar queries a local manifest cache built by the Rust backend. Results come back instantly, no network call needed for installed buckets.
 
 Results show the package name, bucket, version, and whether it's already installed. You can switch between two tabs:
 
-- **Packages** — the main apps
-- **Includes** — binaries and executables shipped inside packages
+- **Packages**, the main apps
+- **Includes**, binaries and executables shipped inside packages
 
 ## Installing from search
 

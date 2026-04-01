@@ -45,8 +45,8 @@ Output goes to `src-tauri/target/release/bundle`.
 
 | Folder | What's in it |
 |---|---|
-| `src/` | SolidJS frontend — pages, components, hooks, stores |
-| `src-tauri/` | Rust backend — commands, Tauri config, plugins |
+| `src/` | SolidJS frontend. Pages, components, hooks, stores. |
+| `src-tauri/` | Rust backend. Commands, Tauri config, plugins. |
 | `pics/` | Screenshots for the README |
 | `docs/` | This documentation site (GitHub Pages) |
 
@@ -54,7 +54,7 @@ Output goes to `src-tauri/target/release/bundle`.
 
 - Commands are in `src-tauri/src/commands/`, grouped by domain (search, install, buckets, doctor, etc.).
 - Use `utils.rs` helpers for running PowerShell, probing Scoop state, and filesystem operations.
-- Log progress with `log::info!` / `log::warn!` — the frontend operation modal picks these up through `tauri-plugin-log`.
+- Log progress with `log::info!` / `log::warn!`. The frontend operation modal picks these up through `tauri-plugin-log`.
 
 ## Frontend notes
 

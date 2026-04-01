@@ -21,7 +21,7 @@ Go to **Settings > Management > Scoop Configuration** and check the detected pat
 
 ## An operation failed
 
-- The operation modal shows the last Scoop command that ran — check its output for errors.
+- The operation modal shows the last Scoop command that ran. Check its output for errors.
 - For more detail, open the log file at `%LOCALAPPDATA%\rscoop\logs\rscoop.log`.
 - You can also view logs from **Settings > About**.
 

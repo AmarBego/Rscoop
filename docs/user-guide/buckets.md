@@ -23,7 +23,7 @@ Every bucket you've added shows up in a grid with its manifest count and last-up
 
 The discovery panel lets you search for public Scoop buckets on GitHub. You can filter by stars, forks, and language.
 
-For a wider search, use **Expanded Search** — this downloads an offline index of thousands of community buckets. You pick a minimum star count and whether to include Chinese-hosted repos before Rscoop fetches the data.
+For a wider search, use **Expanded Search**. This downloads an offline index of thousands of community buckets. You pick a minimum star count and whether to include Chinese-hosted repos before Rscoop fetches the data.
 
 Once downloaded, the expanded search works offline. You can clear the cached index from the panel when you want fresh data.
 

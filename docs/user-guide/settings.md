@@ -19,7 +19,7 @@ Settings are split into five tabs.
 ### Bucket Auto Updater
 - Pick an update interval: off, 1h, 6h, 24h, 7d, or a custom interval in seconds
 - Optionally auto-update packages after bucket updates finish
-- The scheduler persists across restarts — if enough time passed while Rscoop was closed, it runs immediately on launch
+- The scheduler persists across restarts. If enough time passed while Rscoop was closed, it runs immediately on launch
 - Debug mode (see Window & UI tab) unlocks rapid test intervals like 10 seconds
 
 ## Management
@@ -37,7 +37,7 @@ Settings are split into five tabs.
 ### VirusTotal Integration
 - Enter your VirusTotal API key to enable pre-install scanning
 - Toggle auto-scan: when enabled, Rscoop scans first and only proceeds if clean
-- Set a threat tolerance (max detection count) — anything above gets blocked
+- Set a threat tolerance (max detection count). Anything above gets blocked
 
 ## Window & UI
 

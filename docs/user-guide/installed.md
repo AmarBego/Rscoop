@@ -30,7 +30,7 @@ All operations show live CLI output in a modal so you can see exactly what Scoop
 
 Click any package to see:
 
-- Manifest metadata — description, homepage, notes, architecture support
+- Manifest metadata: description, homepage, notes, architecture support
 - Cache usage and the option to clear cached installers
 - Shim details and file paths
 

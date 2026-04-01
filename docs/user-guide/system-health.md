@@ -23,8 +23,8 @@ If something's missing, you can install it with one click. The checkup reruns au
 
 ## Cleanup
 
-- **Clean up old app versions** — wraps `scoop cleanup *` to reclaim disk space
-- **Clean outdated cache** — removes stale installer archives
+- **Clean up old app versions** wraps `scoop cleanup *` to reclaim disk space.
+- **Clean outdated cache** removes stale installer archives.
 
 Both operations stream progress into the operation modal.
 
