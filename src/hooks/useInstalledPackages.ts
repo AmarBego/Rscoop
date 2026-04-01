@@ -3,8 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { createStoredSignal } from "./createStoredSignal";
 import heldStore from "../stores/held";
 import installedPackagesStore from "../stores/installedPackagesStore";
-import { usePackageOperations } from "./usePackageOperations";
 import { usePackageInfo } from "./usePackageInfo";
+import operationsStore from "../stores/operations";
+import { ScoopPackage } from "../types/scoop";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
@@ -37,8 +38,6 @@ export function useInstalledPackages() {
   const [statusLoading, setStatusLoading] = createSignal(false);
   const [statusError, setStatusError] = createSignal<string | null>(null);
 
-  // Use shared hooks
-  const packageOperations = usePackageOperations();
   const packageInfo = usePackageInfo();
 
   // State for auto-showing versions in modal
@@ -142,27 +141,35 @@ export function useInstalledPackages() {
     }
   };
 
-  const handleCloseOperationModal = async (wasSuccess: boolean) => {
-    packageOperations.closeOperationModal(wasSuccess);
-    if (wasSuccess) {
-      await refetch();
-
-      // Update selectedPackage if it exists
-      const currentSelected = packageInfo.selectedPackage();
-      if (currentSelected) {
-        // Find the package in the updated list
-        const updatedPackage = packages().find(p => p.name === currentSelected.name);
-
-        if (updatedPackage) {
-          packageInfo.updateSelectedPackage(updatedPackage);
-        } else {
-          // If not found in installed packages, it might have been uninstalled.
-          // We update the modal to reflect that it is no longer installed.
-          const uninstalledPackage = { ...currentSelected, is_installed: false };
-          packageInfo.updateSelectedPackage(uninstalledPackage);
-        }
+  const refreshAfterOperation = async () => {
+    await refetch();
+    const currentSelected = packageInfo.selectedPackage();
+    if (currentSelected) {
+      const updatedPackage = packages().find(p => p.name === currentSelected.name);
+      if (updatedPackage) {
+        packageInfo.updateSelectedPackage(updatedPackage);
+      } else {
+        packageInfo.updateSelectedPackage({ ...currentSelected, is_installed: false });
       }
     }
+  };
+
+  const handleUpdate = (pkg: ScoopPackage) => {
+    operationsStore.queueUpdate(pkg, (wasSuccess) => {
+      if (wasSuccess) refreshAfterOperation();
+    });
+  };
+
+  const handleUpdateAll = () => {
+    operationsStore.queueUpdateAll((wasSuccess) => {
+      if (wasSuccess) refreshAfterOperation();
+    });
+  };
+
+  const handleUninstall = (pkg: ScoopPackage) => {
+    operationsStore.queueUninstall(pkg, (wasSuccess) => {
+      if (wasSuccess) refreshAfterOperation();
+    });
   };
 
   const processedPackages = createMemo(() => {
@@ -224,13 +231,10 @@ export function useInstalledPackages() {
     handleCloseInfoModal: packageInfo.closeModal,
     handleCloseInfoModalWithVersions,
 
-    // From usePackageOperations
-    operationTitle: packageOperations.operationTitle,
-    operationNextStep: packageOperations.operationNextStep,
-    handleUpdate: packageOperations.handleUpdate,
-    handleUpdateAll: packageOperations.handleUpdateAll,
-    handleUninstall: packageOperations.handleUninstall,
-    handleCloseOperationModal,
+    // Operations
+    handleUpdate,
+    handleUpdateAll,
+    handleUninstall,
 
     // Local methods
     handleSort,

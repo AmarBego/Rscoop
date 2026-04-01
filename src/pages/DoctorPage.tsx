@@ -4,19 +4,16 @@ import Checkup, { CheckupItem } from "../components/page/doctor/Checkup";
 import Cleanup from "../components/page/doctor/Cleanup";
 import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
-import OperationModal from "../components/OperationModal";
 import installedPackagesStore from "../stores/installedPackagesStore";
+import operationsStore from "../stores/operations";
 
 function DoctorPage() {
-    const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
     const [installingHelper, setInstallingHelper] = createSignal<string | null>(null);
 
-    // State lifted from Checkup.tsx
     const [checkupResult, setCheckupResult] = createSignal<CheckupItem[]>([]);
     const [isCheckupLoading, setIsCheckupLoading] = createSignal(true);
     const [checkupError, setCheckupError] = createSignal<string | null>(null);
 
-    // Logic for running checkup, now in the parent component
     const runCheckup = async () => {
         setIsCheckupLoading(true);
         setCheckupError(null);
@@ -35,12 +32,10 @@ function DoctorPage() {
 
     onMount(runCheckup);
 
-    // Derived state to determine if checkup requires attention
     const needsAttention = createMemo(() => {
         if (isCheckupLoading() || checkupError() || checkupResult().length === 0) {
             return false;
         }
-        // Needs attention if any item is not OK (status is false)
         return checkupResult().some(item => !item.status);
     });
 
@@ -57,75 +52,56 @@ function DoctorPage() {
         }
     };
 
-    const runOperation = (title: string, command: Promise<any>) => {
-        setOperationTitle(title);
-        command.catch(err => {
-            console.error(`Operation "${title}" failed:`, err);
-        }).finally(() => {
-            // Modal closure is handled by its own event
-        });
-    };
-
     const handleCleanupApps = () => {
-        runOperation(
+        operationsStore.queueGenericOperation(
             "Cleaning up old app versions...",
-            invoke("cleanup_all_apps")
+            () => { invoke("cleanup_all_apps").catch(err => console.error("Cleanup failed:", err)); }
         );
     };
 
     const handleCleanupCache = () => {
-        runOperation(
+        operationsStore.queueGenericOperation(
             "Cleaning up outdated cache...",
-            invoke("cleanup_outdated_cache")
+            () => { invoke("cleanup_outdated_cache").catch(err => console.error("Cleanup failed:", err)); }
         );
     };
 
-    const handleCloseOperationModal = () => {
-        setOperationTitle(null);
-    };
-
     return (
-        <>
-            <div class="p-4">
-                <h1 class="text-3xl font-bold mb-6">System Doctor</h1>
+        <div class="p-4">
+            <h1 class="text-3xl font-bold mb-6">System Doctor</h1>
 
-                <div class="space-y-8">
-                    <Show when={needsAttention()}>
-                        <Checkup
-                            checkupResult={checkupResult()}
-                            isLoading={isCheckupLoading()}
-                            error={checkupError()}
-                            onRerun={runCheckup}
-                            onInstallHelper={handleInstallHelper}
-                            installingHelper={installingHelper()}
-                        />
-                    </Show>
-
-                    <Cleanup
-                        onCleanupApps={handleCleanupApps}
-                        onCleanupCache={handleCleanupCache}
+            <div class="space-y-8">
+                <Show when={needsAttention()}>
+                    <Checkup
+                        checkupResult={checkupResult()}
+                        isLoading={isCheckupLoading()}
+                        error={checkupError()}
+                        onRerun={runCheckup}
+                        onInstallHelper={handleInstallHelper}
+                        installingHelper={installingHelper()}
                     />
-                    <CacheManager />
-                    <ShimManager />
+                </Show>
 
-                    <Show when={!needsAttention()}>
-                        <Checkup
-                            checkupResult={checkupResult()}
-                            isLoading={isCheckupLoading()}
-                            error={checkupError()}
-                            onRerun={runCheckup}
-                            onInstallHelper={handleInstallHelper}
-                            installingHelper={installingHelper()}
-                        />
-                    </Show>
-                </div>
+                <Cleanup
+                    onCleanupApps={handleCleanupApps}
+                    onCleanupCache={handleCleanupCache}
+                />
+                <CacheManager />
+                <ShimManager />
+
+                <Show when={!needsAttention()}>
+                    <Checkup
+                        checkupResult={checkupResult()}
+                        isLoading={isCheckupLoading()}
+                        error={checkupError()}
+                        onRerun={runCheckup}
+                        onInstallHelper={handleInstallHelper}
+                        installingHelper={installingHelper()}
+                    />
+                </Show>
             </div>
-            <OperationModal
-                title={operationTitle()}
-                onClose={handleCloseOperationModal}
-            />
-        </>
+        </div>
     );
 }
 
-export default DoctorPage; 
+export default DoctorPage;

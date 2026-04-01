@@ -1,6 +1,5 @@
 import { Show, createSignal, createMemo } from "solid-js";
 import PackageInfoModal from "../components/PackageInfoModal";
-import OperationModal from "../components/OperationModal";
 import ScoopStatusModal from "../components/ScoopStatusModal";
 import { useInstalledPackages } from "../hooks/useInstalledPackages";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
@@ -24,8 +23,6 @@ function InstalledPage(props: InstalledPageProps) {
     sortKey, sortDirection,
     selectedBucket, setSelectedBucket,
     selectedPackage, info, infoLoading, infoError,
-    operationTitle,
-    operationNextStep,
     operatingOn,
     scoopStatus,
     statusLoading,
@@ -43,7 +40,6 @@ function InstalledPage(props: InstalledPageProps) {
     handleFetchPackageInfoForVersions,
     handleCloseInfoModalWithVersions,
     autoShowVersions,
-    handleCloseOperationModal,
     fetchInstalledPackages,
     checkForUpdates,
   } = useInstalledPackages();
@@ -80,7 +76,6 @@ function InstalledPage(props: InstalledPageProps) {
         setViewMode={setViewMode}
         isCheckingForUpdates={isCheckingForUpdates}
         onCheckForUpdates={checkForUpdates}
-        onRefresh={fetchInstalledPackages}
       />
 
       <Show when={loading()}>
@@ -150,11 +145,6 @@ function InstalledPage(props: InstalledPageProps) {
         autoShowVersions={autoShowVersions()}
         isPackageVersioned={isPackageVersioned}
         onPackageStateChanged={fetchInstalledPackages}
-      />
-      <OperationModal
-        title={operationTitle()}
-        onClose={handleCloseOperationModal}
-        nextStep={operationNextStep() ?? undefined}
       />
       <ScoopStatusModal
         isOpen={showStatusModal()}

@@ -1,19 +1,15 @@
 import { createSignal, createEffect, on } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage } from "../types/scoop";
-import { usePackageOperations } from "./usePackageOperations";
 import { usePackageInfo } from "./usePackageInfo";
+import operationsStore from "../stores/operations";
 
 export function useSearch() {
     const [searchTerm, setSearchTerm] = createSignal("");
     const [results, setResults] = createSignal<ScoopPackage[]>([]);
     const [loading, setLoading] = createSignal(false);
-    const [activeTab, setActiveTab] = createSignal<"packages" | "includes">(
-        "packages"
-    );
+    const [activeTab, setActiveTab] = createSignal<"packages" | "includes">("packages");
 
-    // Use shared hooks
-    const packageOperations = usePackageOperations();
     const packageInfo = usePackageInfo();
 
     let debounceTimer: number;
@@ -37,11 +33,16 @@ export function useSearch() {
         }
     };
 
-    // Function to refresh search results after package operations
-    const refreshSearchResults = async () => {
+    const refreshAfterOperation = async () => {
         if (searchTerm().trim() !== "") {
-            console.log('Refreshing search results after package operation...');
             await handleSearch();
+        }
+        const currentSelected = packageInfo.selectedPackage();
+        if (currentSelected) {
+            const updatedPackage = results().find(p => p.name === currentSelected.name);
+            if (updatedPackage) {
+                packageInfo.updateSelectedPackage(updatedPackage);
+            }
         }
     };
 
@@ -56,22 +57,16 @@ export function useSearch() {
         return activeTab() === "packages" ? packageResults() : binaryResults();
     };
 
-    // Enhanced close operation modal that refreshes search results
-    const closeOperationModal = async (wasSuccess: boolean) => {
-        packageOperations.closeOperationModal(wasSuccess);
-        if (wasSuccess) {
-            // Refresh search results to reflect installation state changes
-            await refreshSearchResults();
+    const handleInstall = (pkg: ScoopPackage, version?: string) => {
+        operationsStore.queueInstall(pkg, version, (wasSuccess) => {
+            if (wasSuccess) refreshAfterOperation();
+        });
+    };
 
-            // Update selectedPackage if it exists
-            const currentSelected = packageInfo.selectedPackage();
-            if (currentSelected) {
-                const updatedPackage = results().find(p => p.name === currentSelected.name);
-                if (updatedPackage) {
-                    packageInfo.updateSelectedPackage(updatedPackage);
-                }
-            }
-        }
+    const handleUninstall = (pkg: ScoopPackage) => {
+        operationsStore.queueUninstall(pkg, (wasSuccess) => {
+            if (wasSuccess) refreshAfterOperation();
+        });
     };
 
     return {
@@ -84,7 +79,6 @@ export function useSearch() {
         packageResults,
         binaryResults,
 
-        // From usePackageInfo
         selectedPackage: packageInfo.selectedPackage,
         info: packageInfo.info,
         infoLoading: packageInfo.loading,
@@ -92,13 +86,8 @@ export function useSearch() {
         fetchPackageInfo: packageInfo.fetchPackageInfo,
         closeModal: packageInfo.closeModal,
 
-        // From usePackageOperations (with enhanced closeOperationModal)
-        operationTitle: packageOperations.operationTitle,
-        operationNextStep: packageOperations.operationNextStep,
-        isScanning: packageOperations.isScanning,
-        handleInstall: packageOperations.handleInstall,
-        handleUninstall: packageOperations.handleUninstall,
-        handleInstallConfirm: packageOperations.handleInstallConfirm,
-        closeOperationModal, // Enhanced version that refreshes search
+        handleInstall,
+        handleUninstall,
+        handleInstallConfirm: operationsStore.handleInstallConfirm,
     };
 }

@@ -1,115 +1,32 @@
-import { createSignal } from "solid-js";
-import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage } from "../types/scoop";
-import { OperationNextStep } from "../types/operations";
-import installedPackagesStore from "../stores/installedPackagesStore";
-import settingsStore from "../stores/settings";
+import operationsStore from "../stores/operations";
 
 export function usePackageOperations() {
-    const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
-    const [operationNextStep, setOperationNextStep] = createSignal<OperationNextStep | null>(null);
-    const [isScanning, setIsScanning] = createSignal(false);
-    const [pendingInstallPackage, setPendingInstallPackage] = createSignal<ScoopPackage | null>(null);
-    const { settings } = settingsStore;
-
-    const performInstall = (pkg: ScoopPackage, version?: string) => {
-        const displayName = version ? `${pkg.name}@${version}` : pkg.name;
-        setOperationTitle(`Installing ${displayName}`);
-        setIsScanning(false);
-        invoke("install_package", {
-            packageName: pkg.name,
-            bucket: pkg.source,
-            version: version || null,
-        }).catch((err) => {
-            console.error("Installation invocation failed:", err);
-        });
-    };
-
-    const [pendingVersion, setPendingVersion] = createSignal<string | undefined>(undefined);
-
     const handleInstall = (pkg: ScoopPackage, version?: string) => {
-        if (settings.virustotal.enabled && settings.virustotal.autoScanOnInstall) {
-            setOperationTitle(`Scanning ${pkg.name} with VirusTotal...`);
-            setIsScanning(true);
-            setPendingInstallPackage(pkg);
-            setPendingVersion(version);
-            invoke("scan_package", {
-                packageName: pkg.name,
-                bucket: pkg.source,
-            }).catch((err) => {
-                console.error("Scan invocation failed:", err);
-            });
-        } else {
-            performInstall(pkg, version);
-        }
+        operationsStore.queueInstall(pkg, version);
     };
 
     const handleInstallConfirm = () => {
-        const pkg = pendingInstallPackage();
-        if (pkg) {
-            performInstall(pkg, pendingVersion());
-            setPendingInstallPackage(null);
-            setPendingVersion(undefined);
-        }
+        operationsStore.handleInstallConfirm();
     };
 
     const handleUninstall = (pkg: ScoopPackage) => {
-        setOperationTitle(`Uninstalling ${pkg.name}`);
-        setOperationNextStep({
-            buttonLabel: "Clear Cache",
-            onNext: () => {
-                setOperationTitle(`Clearing cache for ${pkg.name}`);
-                setOperationNextStep(null);
-                invoke("clear_package_cache", {
-                    packageName: pkg.name,
-                    bucket: pkg.source,
-                }).catch((err) => console.error("Clear cache invocation failed:", err));
-            },
-        });
-
-        invoke("uninstall_package", {
-            packageName: pkg.name,
-            bucket: pkg.source,
-        }).catch((err) => {
-            console.error(`Uninstallation invocation failed for ${pkg.name}:`, err);
-            setOperationNextStep(null);
-        });
+        operationsStore.queueUninstall(pkg);
     };
 
     const handleUpdate = (pkg: ScoopPackage) => {
-        setOperationTitle(`Updating ${pkg.name}`);
-        invoke("update_package", { packageName: pkg.name }).catch(err => {
-            console.error("Update invocation failed:", err);
-        });
+        operationsStore.queueUpdate(pkg);
     };
 
     const handleUpdateAll = () => {
-        setOperationTitle("Updating all packages");
-        invoke("update_all_packages").catch(err => {
-            console.error("Update all invocation failed:", err);
-        });
-    };
-
-    const closeOperationModal = (wasSuccess: boolean) => {
-        setOperationTitle(null);
-        setOperationNextStep(null);
-        setIsScanning(false);
-        setPendingInstallPackage(null);
-        if (wasSuccess) {
-            installedPackagesStore.refetch();
-        }
+        operationsStore.queueUpdateAll();
     };
 
     return {
-        operationTitle,
-        operationNextStep,
-        isScanning,
-        pendingInstallPackage,
         handleInstall,
         handleInstallConfirm,
         handleUninstall,
         handleUpdate,
         handleUpdateAll,
-        closeOperationModal,
     };
-} 
+}

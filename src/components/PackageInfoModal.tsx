@@ -3,7 +3,7 @@ import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
 
 import json from 'highlight.js/lib/languages/json';
-import { Download, Ellipsis, FileText, Trash2, ExternalLink } from "lucide-solid";
+import { Download, Ellipsis, FileText, Trash2, ExternalLink, Check } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
 import ManifestModal from "./ManifestModal";
 import Modal from "./common/Modal";
@@ -146,6 +146,12 @@ function PackageInfoModal(props: PackageInfoModalProps) {
 
   // State for versioned install
   const [installVersion, setInstallVersion] = createSignal("");
+  const [actionFired, setActionFired] = createSignal<"install" | "uninstall" | null>(null);
+
+  const flashAction = (action: "install" | "uninstall") => {
+    setActionFired(action);
+    setTimeout(() => setActionFired(null), 1500);
+  };
 
   // State for manifest modal
   const [manifestContent, setManifestContent] = createSignal<string | null>(null);
@@ -337,17 +343,27 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             <button
               type="button"
               class="btn btn-primary btn-md"
+              classList={{ "btn-success": actionFired() === "install" }}
+              disabled={actionFired() === "install"}
               onClick={() => {
                 if (props.pkg) {
                   const ver = installVersion().trim();
                   props.onInstall!(props.pkg, ver || undefined);
                   props.onPackageStateChanged?.();
                   setInstallVersion("");
+                  flashAction("install");
                 }
               }}
             >
-              <Download class="w-4 h-4 mr-2" />
-              {installVersion().trim() ? `Install @${installVersion().trim()}` : "Install"}
+              <Show when={actionFired() === "install"} fallback={
+                <>
+                  <Download class="w-4 h-4 mr-2" />
+                  {installVersion().trim() ? `Install @${installVersion().trim()}` : "Install"}
+                </>
+              }>
+                <Check class="w-4 h-4 mr-2" />
+                Queued
+              </Show>
             </button>
           </div>
         </Show>
@@ -355,15 +371,25 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           <button
             type="button"
             class="btn btn-error btn-md"
+            classList={{ "btn-success": actionFired() === "uninstall" }}
+            disabled={actionFired() === "uninstall"}
             onClick={() => {
               if (props.pkg) {
                 props.onUninstall?.(props.pkg);
                 props.onPackageStateChanged?.();
+                flashAction("uninstall");
               }
             }}
           >
-            <Trash2 class="w-4 h-4 mr-2" />
-            Uninstall
+            <Show when={actionFired() === "uninstall"} fallback={
+              <>
+                <Trash2 class="w-4 h-4 mr-2" />
+                Uninstall
+              </>
+            }>
+              <Check class="w-4 h-4 mr-2" />
+              Queued
+            </Show>
           </button>
         </Show>
         <button class="btn-close-outline" onClick={props.onClose}>

@@ -88,6 +88,22 @@ function AutoCleanupSettings() {
                             onChange={(e) => setCleanupSettings({ cleanupCache: e.currentTarget.checked })}
                         />
                     </div>
+
+                    <div class="border-t border-base-content/10" />
+
+                    {/* Auto clear cache on uninstall */}
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex-1">
+                            <span class="text-sm font-medium">Clear cache on uninstall</span>
+                            <p class="text-xs text-base-content/50">Automatically remove cached installers when a package is uninstalled.</p>
+                        </div>
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-primary"
+                            checked={settings.cleanup.autoClearCacheOnUninstall}
+                            onChange={(e) => setCleanupSettings({ autoClearCacheOnUninstall: e.currentTarget.checked })}
+                        />
+                    </div>
                 </div>
             </Show>
         </Card>

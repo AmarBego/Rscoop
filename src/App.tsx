@@ -9,6 +9,7 @@ import SettingsPage from "./pages/SettingsPage.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
 import OperationModal from "./components/OperationModal.tsx";
+import OperationBar from "./components/OperationBar.tsx";
 import { listen } from "@tauri-apps/api/event";
 import { info, error as logError } from "@tauri-apps/plugin-log";
 import { check, Update } from "@tauri-apps/plugin-updater";
@@ -35,8 +36,6 @@ function App() {
     const [update, setUpdate] = createSignal<Update | null>(null);
     const [isInstalling, setIsInstalling] = createSignal(false);
 
-    // Auto-update modal state
-    const [autoUpdateTitle, setAutoUpdateTitle] = createSignal<string | null>(null);
 
     const { settings } = settingsStore;
 
@@ -58,13 +57,6 @@ function App() {
         }
     };
 
-    const handleCloseAutoUpdateModal = (wasSuccess: boolean) => {
-        setAutoUpdateTitle(null);
-        if (wasSuccess) {
-            // Refresh installed packages after auto-update
-            installedPackagesStore.refetch();
-        }
-    };
 
     onMount(async () => {
         // Setup event listeners FIRST so early backend emits are captured
@@ -72,16 +64,7 @@ function App() {
             const webview = getCurrentWebviewWindow();
             const unlistenFunctions: (() => void)[] = [];
 
-            // Listen for auto-update start events
-            try {
-                const unlisten = await listen<string>("auto-operation-start", (event) => {
-                    info(`Auto-operation started: ${event.payload}`);
-                    setAutoUpdateTitle(event.payload);
-                });
-                unlistenFunctions.push(unlisten);
-            } catch (e) {
-                logError(`Failed to register auto-operation-start listener: ${e}`);
-            }
+            // Auto-operation-start is now handled by the global operations store
 
             // Listen for window-specific cold-start-finished event
             try {
@@ -290,10 +273,8 @@ function App() {
                 </div>
                 <DebugModal />
             </Show>
-            <OperationModal
-                title={autoUpdateTitle()}
-                onClose={handleCloseAutoUpdateModal}
-            />
+            <OperationModal />
+            <OperationBar />
         </>
     );
 }

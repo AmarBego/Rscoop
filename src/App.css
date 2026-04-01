@@ -145,6 +145,16 @@
   @apply btn btn-outline border-info/40 text-info hover:border-info/70 hover:bg-transparent hover:text-info;
 }
 
+/* Indeterminate progress bar animation */
+@keyframes slide-lr {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.animate-slide-lr {
+  animation: slide-lr 1.5s ease-in-out infinite;
+}
+
 /* Utility: slow fade for overlays */
 .duration-1500 {
   transition-duration: 1500ms;

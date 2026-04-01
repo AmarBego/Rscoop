@@ -1,5 +1,18 @@
 ### Release Notes 1.5.1
 
+#### Background Operations Queue
+
+Install, update, and uninstall packages without waiting. Operations run in the background while you keep browsing.
+
+- **Send to background.** Click "Background" in the operation modal or just click away from it. The operation keeps running behind a progress bar at the bottom of the screen.
+- **Operation queue.** Start multiple installs back to back. They queue up and run one at a time. The progress bar shows what's running and how many are waiting.
+- **Live history.** Hover the progress bar to see completed and queued operations. Click any completed/running operation to view its full terminal output.
+- **Batch summary.** When a queue finishes: "All operations completed. 3 succeeded, 1 failed" with per-operation logs accessible.
+- **Auto clear cache on uninstall.** New toggle in Settings > Automation. When enabled, cache is cleared automatically as part of the uninstall (no extra button click). The progress bar stays active until both finish.
+- **Background by default.** New toggle in Settings > Automation. When enabled, all operations start minimized to the progress bar. VT scans still show the modal since they need your input.
+- **Button feedback.** Install and Uninstall buttons briefly flash green with "Queued" to confirm the action registered, especially useful when running in background mode.
+- **Single global modal.** One operation modal for the whole app instead of one per page. No more race conditions if you navigate during an install.
+
 #### UI Overhaul
 - **Settings pages tightened up across the board.** Inputs are smaller, alert boxes replaced with inline text, save buttons show "Saved" briefly instead of toast notifications. Consistent sizing and spacing everywhere.
 - **VirusTotal settings**: API key input has a show/hide toggle, enters to save, no more label above the input.
@@ -12,19 +25,25 @@
 #### Doctor Page
 - **System Cleanup**: buttons are outlined and smaller, not big colored blocks.
 - **Cache Manager**: "Remove Selected" only appears when something is selected, action buttons are ghost-styled, filter input sized down, empty state is a one-liner.
-- **Shim Manager**: same treatment — Add Shim button is ghost, filter input matches, empty state simplified.
+- **Shim Manager**: same treatment. Add Shim button is ghost, filter input matches, empty state simplified.
 
 #### Buckets Page
 - **Bucket cards**: whole card is clickable (removed separate View button), git URL removed from cards, branch shown as plain text, Update button on the same line as the date.
-- **Bucket updates don't flicker anymore**: refreshes after update are silent — no "Loading buckets..." spinner. The RefreshCw icon spins on the card being updated.
+- **Bucket updates don't flicker anymore**: refreshes after update are silent. The RefreshCw icon spins on the card being updated.
 - **Green flash on new manifests**: after an update, cards that got new packages show a faint green overlay that waits until you scroll to it, then fades out.
-- **Search result cards**: whole card clickable for details, Install/Remove buttons moved to the stats row (small, right-aligned), removed the date, removed the separate Details button.
-- **Community buckets modal**: cut in half — one paragraph, two filter rows, smaller modal. Removed the redundant Note callout and stats box.
-- **Grid header**: "Add Custom Bucket" → "Add Bucket", "Update All Git Buckets" → "Update All", both ghost-styled.
+- **Search result cards**: whole card clickable for details, Install/Remove buttons moved to the stats row, removed the date and Details button.
+- **Community buckets modal**: cut in half. One paragraph, two filter rows, smaller modal.
+- **Grid header**: "Add Custom Bucket" and "Update All Git Buckets" shortened and ghost-styled.
 
 #### Debug Modal
-- **Log viewer syntax coloring**: log lines are now color-coded by level (ERROR=red, WARN=yellow, INFO=green, DEBUG=blue, TRACE=gray, markers=purple). Auto-scrolls to bottom.
-- **Fingerprint display**: the wall of `name:timestamp;` text is now rendered as individual pills with the app name in accent blue and timestamps dimmed.
+- **Log viewer syntax coloring**: log lines are color-coded by level (ERROR red, WARN yellow, INFO green, DEBUG blue, TRACE gray, markers purple). Auto-scrolls to bottom.
+- **Fingerprint display**: rendered as individual pills with app name in accent blue and timestamps dimmed.
+
+#### Operation Modal
+- Output area uses app theme colors instead of hard black background.
+- Status moved to the footer as inline text instead of big colored alert banners.
+- "Install Anyway" on VT warnings is ghost-styled instead of solid orange.
+- Auto-scroll works properly now.
 
 #### Manifest Modal
 - Code block fills the modal without causing double scrollbars.

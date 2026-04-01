@@ -1,5 +1,4 @@
 import PackageInfoModal from "../components/PackageInfoModal";
-import OperationModal from "../components/OperationModal";
 
 import { useSearch } from "../hooks/useSearch";
 import SearchBar from "../components/page/search/SearchBar";
@@ -18,15 +17,10 @@ function SearchPage() {
     info,
     infoLoading,
     infoError,
-    operationTitle,
-    operationNextStep,
-    isScanning,
     handleInstall,
     handleUninstall,
-    handleInstallConfirm,
     fetchPackageInfo,
     closeModal,
-    closeOperationModal,
   } = useSearch();
 
   return (
@@ -48,10 +42,7 @@ function SearchPage() {
           activeTab={activeTab()}
           onViewInfo={fetchPackageInfo}
           onInstall={handleInstall}
-          onPackageStateChanged={() => {
-            // This will be called when install buttons are clicked
-            // The actual refresh will happen in closeOperationModal when the operation completes
-          }}
+          onPackageStateChanged={() => {}}
         />
       </div>
 
@@ -63,17 +54,7 @@ function SearchPage() {
         onClose={closeModal}
         onInstall={handleInstall}
         onUninstall={handleUninstall}
-        onPackageStateChanged={() => {
-          // This will be called when install/uninstall buttons are clicked
-          // The actual refresh will happen in closeOperationModal when the operation completes
-        }}
-      />
-      <OperationModal
-        title={operationTitle()}
-        onClose={closeOperationModal}
-        isScan={isScanning()}
-        onInstallConfirm={handleInstallConfirm}
-        nextStep={operationNextStep() ?? undefined}
+        onPackageStateChanged={() => {}}
       />
     </div>
   );

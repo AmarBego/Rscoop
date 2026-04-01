@@ -1,20 +1,7 @@
-import { createSignal, createEffect, onCleanup, For, Show, Component } from "solid-js";
-import { listen, emit } from "@tauri-apps/api/event";
-import type { UnlistenFn } from "@tauri-apps/api/event";
-import { VirustotalResult } from "../types/scoop";
-import { ShieldAlert, TriangleAlert, ExternalLink, CircleCheck, CircleX } from "lucide-solid";
+import { For, Show, createEffect, Component } from "solid-js";
+import { ExternalLink, CircleCheck, CircleX, ShieldAlert, TriangleAlert } from "lucide-solid";
+import operationsStore from "../stores/operations";
 import Modal from "./common/Modal";
-
-interface OperationOutput {
-  line: string;
-  source: string;
-  message: string;
-}
-
-interface OperationResult {
-  success: boolean;
-  message: string;
-}
 
 const LineWithLinks: Component<{ line: string }> = (props) => {
   const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
@@ -41,69 +28,20 @@ const LineWithLinks: Component<{ line: string }> = (props) => {
   );
 };
 
-interface OperationModalProps {
-  title: string | null;
-  onClose: (wasSuccess: boolean) => void;
-  nextStep?: {
-    buttonLabel: string;
-    onNext: () => void;
-  };
-  isScan?: boolean;
-  onInstallConfirm?: () => void;
-}
-
-function OperationModal(props: OperationModalProps) {
-  const [output, setOutput] = createSignal<OperationOutput[]>([]);
-  const [result, setResult] = createSignal<OperationResult | null>(null);
-  const [showNextStep, setShowNextStep] = createSignal(false);
-  const [scanWarning, setScanWarning] = createSignal<VirustotalResult | null>(null);
+function OperationModal() {
   let scrollRef: HTMLDivElement | undefined;
 
+  const op = () => operationsStore.current();
+  const isOpen = () => !!op() && !operationsStore.isMinimized();
+  const isRunning = () => {
+    const o = op();
+    return o ? !o.result && !o.scanWarning : false;
+  };
+
+  // Auto-scroll on new output
   createEffect(() => {
-    let outputListener: UnlistenFn | undefined;
-    let standardResultListener: UnlistenFn | undefined;
-    let vtResultListener: UnlistenFn | undefined;
-
-    const setupListeners = async () => {
-      outputListener = await listen<OperationOutput>("operation-output", (event) => {
-        setOutput(prev => [...prev, event.payload]);
-      });
-
-      if (props.isScan) {
-        vtResultListener = await listen<VirustotalResult>("virustotal-scan-finished", (event) => {
-          if (event.payload.detections_found || event.payload.is_api_key_missing) {
-            setScanWarning(event.payload);
-          } else {
-            props.onInstallConfirm?.();
-          }
-        });
-      } else {
-        standardResultListener = await listen<OperationResult>("operation-finished", (event) => {
-          setResult(event.payload);
-          if (event.payload.success && props.nextStep) {
-            setShowNextStep(true);
-          }
-        });
-      }
-    };
-
-    if (props.title) {
-      setOutput([]);
-      setResult(null);
-      setShowNextStep(false);
-      setScanWarning(null);
-      setupListeners();
-    }
-
-    onCleanup(() => {
-      outputListener?.();
-      standardResultListener?.();
-      vtResultListener?.();
-    });
-  });
-
-  createEffect(() => {
-    output(); // track output changes
+    const o = op();
+    if (o) o.output.length; // track
     if (scrollRef) {
       requestAnimationFrame(() => {
         scrollRef!.scrollTop = scrollRef!.scrollHeight;
@@ -111,98 +49,111 @@ function OperationModal(props: OperationModalProps) {
     }
   });
 
-  const isRunning = () => !result() && !scanWarning();
+  const handleClose = () => {
+    const o = op();
+    if (!o) return;
 
-  const handleCloseOrCancel = () => {
-    if (scanWarning()) {
-      props.onClose(false);
-      return;
-    }
-    if (result()) {
-      props.onClose(result()?.success ?? false);
+    if (o.result) {
+      operationsStore.close(o.result.success);
+    } else if (o.scanWarning) {
+      operationsStore.close(false);
     } else {
-      emit('cancel-operation');
+      // Running — minimize to background instead of canceling
+      operationsStore.minimize();
     }
   };
 
-  const handleInstallAnyway = () => {
-    props.onInstallConfirm?.();
-  };
-
-  const handleNextStepClick = () => {
-    if (props.nextStep) {
-      props.nextStep.onNext();
+  const handleNextStep = () => {
+    const o = op();
+    if (o?.nextStep) {
+      o.nextStep.onNext();
     }
   };
 
   return (
     <Modal
-      isOpen={!!props.title}
-      onClose={handleCloseOrCancel}
-      title={props.title || ""}
+      isOpen={isOpen()}
+      onClose={handleClose}
+      title={op()?.title || ""}
       size="large"
-      preventBackdropClose={isRunning()}
+      preventBackdropClose={false}
       footer={
         <div class="flex items-center w-full">
-          {/* Left side — status */}
-          <div class="flex-1">
+          {/* Left: status */}
+          <div class="flex-1 min-w-0">
             <Show when={isRunning()}>
               <span class="flex items-center gap-2 text-sm text-base-content/50">
                 <span class="loading loading-spinner loading-xs"></span>
                 Running...
               </span>
             </Show>
-            <Show when={result()?.success}>
+            <Show when={op()?.result?.success}>
               <span class="flex items-center gap-2 text-sm text-success">
-                <CircleCheck class="w-4 h-4" />
-                {result()!.message}
+                <CircleCheck class="w-4 h-4 shrink-0" />
+                <span class="truncate">{op()!.result!.message}</span>
               </span>
             </Show>
-            <Show when={result() && !result()?.success}>
+            <Show when={op()?.result && !op()?.result?.success}>
               <span class="flex items-center gap-2 text-sm text-error">
-                <CircleX class="w-4 h-4" />
-                {result()!.message}
+                <CircleX class="w-4 h-4 shrink-0" />
+                <span class="truncate">{op()!.result!.message}</span>
               </span>
             </Show>
-            <Show when={scanWarning()}>
+            <Show when={op()?.scanWarning}>
               <span class="flex items-center gap-2 text-sm text-warning">
-                <ShieldAlert class="w-4 h-4" />
-                {scanWarning()!.message}
+                <ShieldAlert class="w-4 h-4 shrink-0" />
+                <span class="truncate">{op()!.scanWarning!.message}</span>
               </span>
             </Show>
           </div>
 
-          {/* Right side — actions */}
-          <div class="flex items-center gap-2">
-            <Show when={scanWarning()}>
-              <button class="btn btn-sm btn-ghost text-warning" onClick={handleInstallAnyway}>
+          {/* Right: actions */}
+          <div class="flex items-center gap-2 shrink-0">
+            <Show when={isRunning()}>
+              <button class="btn btn-sm btn-ghost text-base-content/50" onClick={() => operationsStore.minimize()}>
+                Background
+              </button>
+            </Show>
+            <Show when={op()?.scanWarning}>
+              <button class="btn btn-sm btn-ghost text-warning" onClick={() => operationsStore.handleInstallConfirm()}>
                 <TriangleAlert class="w-3.5 h-3.5" />
                 Install Anyway
               </button>
             </Show>
-            <Show when={showNextStep()}>
-              <button class="btn btn-sm btn-primary" onClick={handleNextStepClick}>
-                {props.nextStep?.buttonLabel}
+            <Show when={op()?.result?.success && op()?.nextStep}>
+              <button class="btn btn-sm btn-primary" onClick={handleNextStep}>
+                {op()!.nextStep!.buttonLabel}
               </button>
             </Show>
-            <button class="btn btn-sm" onClick={handleCloseOrCancel}>
-              {isRunning() ? 'Cancel' : 'Close'}
-            </button>
+            <Show when={isRunning()}>
+              <button class="btn btn-sm" onClick={() => operationsStore.cancel()}>
+                Cancel
+              </button>
+            </Show>
+            <Show when={op()?.result}>
+              <button class="btn btn-sm" onClick={() => operationsStore.close(op()!.result!.success)}>
+                Dismiss
+              </button>
+            </Show>
+            <Show when={op()?.scanWarning && !op()?.result}>
+              <button class="btn btn-sm" onClick={() => operationsStore.close(false)}>
+                Close
+              </button>
+            </Show>
           </div>
         </div>
       }
     >
-      {/* Output area */}
       <div
         ref={scrollRef}
         class="bg-base-100 font-mono text-sm p-4 rounded-lg max-h-96 overflow-y-auto border border-base-content/5"
       >
-        <Show when={output().length === 0 && isRunning()}>
+        <Show when={op()?.output.length === 0 && isRunning()}>
           <span class="text-base-content/30">Waiting for output...</span>
         </Show>
-        <For each={output()}>
+        <For each={op()?.output ?? []}>
           {(line) => (
-            <p classList={{ 'text-red-400': line.source === 'stderr' }}>
+            <p classList={{ "text-red-400": line.source === "stderr" }}>
               <LineWithLinks line={line.line} />
             </p>
           )}

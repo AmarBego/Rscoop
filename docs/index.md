@@ -22,6 +22,7 @@ Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Sits in your sys
 - **VirusTotal scanning.** Paste your API key in settings and Rscoop scans packages before install. Configurable threat threshold.
 - **System tray.** Minimize to tray, launch installed Scoop apps from the tray menu.
 - **Auto-updates.** Background bucket and package updates on a schedule you pick (1h, 6h, 24h, 7d, or custom).
+- **Background operations.** Install, update, and uninstall packages without waiting. Operations queue up behind a progress bar while you keep browsing.
 
 ## Requirements
 

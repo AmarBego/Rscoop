@@ -23,6 +23,10 @@ interface Settings {
     cleanupOldVersions: boolean;
     cleanupCache: boolean;
     preserveVersionCount: number;
+    autoClearCacheOnUninstall: boolean;
+  };
+  operations: {
+    backgroundByDefault: boolean;
   };
   buckets: {
     autoUpdateInterval: string; // "off" | "1h" | "6h" | "24h"
@@ -49,6 +53,10 @@ const defaultSettings: Settings = {
     cleanupOldVersions: true,
     cleanupCache: true,
     preserveVersionCount: 3,
+    autoClearCacheOnUninstall: false,
+  },
+  operations: {
+    backgroundByDefault: false,
   },
   buckets: {
     autoUpdateInterval: "off",
@@ -81,6 +89,10 @@ function createSettingsStore() {
         cleanup: {
           ...defaultSettings.cleanup,
           ...storedSettings.cleanup,
+        },
+        operations: {
+          ...defaultSettings.operations,
+          ...storedSettings.operations,
         },
         buckets: {
           ...defaultSettings.buckets,
@@ -161,11 +173,20 @@ function createSettingsStore() {
     });
   };
 
+  const setOperationsSettings = (newOpsSettings: Partial<Settings['operations']>) => {
+    saveSettings({
+      operations: {
+        ...settings.operations,
+        ...newOpsSettings,
+      },
+    });
+  };
+
   const setDefaultLaunchPage = (page: View) => {
     saveSettings({ defaultLaunchPage: page });
   };
 
-  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setTheme, setDefaultLaunchPage };
+  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setOperationsSettings, setTheme, setDefaultLaunchPage };
 }
 
 export default createRoot(createSettingsStore);

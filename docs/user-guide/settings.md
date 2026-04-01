@@ -15,6 +15,12 @@ Settings are split into five tabs.
 - Toggle automatic cleanup after bulk operations
 - Set how many previous versions of each package to keep
 - Toggle removal of outdated caches
+- Clear cache on uninstall: automatically removes cached installers when a package is uninstalled
+
+### Background Operations
+- Toggle to run all installs/updates/uninstalls in the background by default
+- Operations show progress in a bar at the bottom of the screen
+- VT scans still open the modal since they need your input
 
 ### Bucket Auto Updater
 - Pick an update interval: off, 1h, 6h, 24h, 7d, or a custom interval in seconds

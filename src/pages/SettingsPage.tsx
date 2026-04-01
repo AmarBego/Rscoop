@@ -1,6 +1,5 @@
 import { createSignal, onMount, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import OperationModal from "../components/OperationModal";
 import ScoopConfiguration from "../components/page/settings/ScoopConfiguration";
 import VirusTotalSettings from "../components/page/settings/VirusTotalSettings";
 import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSettings";
@@ -9,6 +8,7 @@ import AboutSection, { AboutSectionRef } from "../components/page/settings/About
 import DebugSettings from "../components/page/settings/DebugSettings";
 import AutoCleanupSettings from "../components/page/settings/AutoCleanupSettings";
 import BucketAutoUpdateSettings from "../components/page/settings/BucketAutoUpdateSettings";
+import OperationSettings from "../components/page/settings/OperationSettings";
 import StartupSettings from "../components/page/settings/StartupSettings";
 import ThemeSettings from "../components/page/settings/ThemeSettings";
 import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
@@ -20,7 +20,6 @@ interface SettingsPageProps {
 
 function SettingsPage(props: SettingsPageProps) {
     const { refetch: refetchHeldPackages } = heldStore;
-    const [operationTitle, setOperationTitle] = createSignal<string | null>(null);
     const [isUnholding, setIsUnholding] = createSignal(false);
     let aboutSectionRef: AboutSectionRef | undefined;
 
@@ -46,13 +45,8 @@ function SettingsPage(props: SettingsPageProps) {
         });
     };
 
-    const handleCloseOperationModal = () => {
-        setOperationTitle(null);
-    };
-
     return (
-        <>
-            <div class="p-2">
+        <div class="p-2">
                 <h1 class="text-3xl font-bold mb-4">Settings</h1>
                 {/* Tab Navigation */}
                 <div role="tablist" aria-label="Settings Sections" class="tabs tabs-border mb-6">
@@ -76,6 +70,7 @@ function SettingsPage(props: SettingsPageProps) {
                     <Show when={activeTab() === 'automation'}>
                         <div class="space-y-8">
                             <AutoCleanupSettings />
+                            <OperationSettings />
                             <BucketAutoUpdateSettings />
                         </div>
                     </Show>
@@ -86,7 +81,7 @@ function SettingsPage(props: SettingsPageProps) {
                             <ScoopConfiguration />
                             <HeldPackagesManagement
                                 onUnhold={handleUnhold}
-                                operationInProgress={!!operationTitle() || isUnholding()}
+                                operationInProgress={isUnholding()}
                             />
                         </div>
                     </Show>
@@ -117,12 +112,7 @@ function SettingsPage(props: SettingsPageProps) {
                         />
                     </Show>
                 </div>
-            </div>
-            <OperationModal
-                title={operationTitle()}
-                onClose={handleCloseOperationModal}
-            />
-        </>
+        </div>
     );
 }
 

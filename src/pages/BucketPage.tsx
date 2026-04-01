@@ -2,11 +2,10 @@ import { createSignal, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { useBuckets, type BucketInfo } from "../hooks/useBuckets";
 import { usePackageInfo } from "../hooks/usePackageInfo";
-import { usePackageOperations } from "../hooks/usePackageOperations";
+import operationsStore from "../stores/operations";
 import { ScoopPackage } from "../types/scoop";
 import BucketInfoModal from "../components/BucketInfoModal";
 import PackageInfoModal from "../components/PackageInfoModal";
-import OperationModal from "../components/OperationModal";
 import BucketSearch from "../components/page/buckets/BucketSearch";
 import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
@@ -24,7 +23,6 @@ interface BucketUpdateResult {
 function BucketPage() {
   const { buckets, loading, error, fetchBuckets, getBucketManifests } = useBuckets();
   const packageInfo = usePackageInfo();
-  const packageOperations = usePackageOperations();
 
   const [selectedBucket, setSelectedBucket] = createSignal<BucketInfo | null>(null);
   const [selectedBucketDescription, setSelectedBucketDescription] = createSignal<string | undefined>(undefined);
@@ -157,10 +155,6 @@ function BucketPage() {
 
   // Handle updating a single bucket
   const handleUpdateBucket = async (bucketName: string) => {
-    // Snapshot manifest count before update
-    const before = buckets().find(b => b.name === bucketName)?.manifest_count ?? 0;
-
-    // Add to updating set
     setUpdatingBuckets(prev => new Set([...prev, bucketName]));
 
     try {
@@ -169,16 +163,13 @@ function BucketPage() {
       });
 
       if (result.success) {
-        // Silent refresh — update data without showing the loading spinner
         await fetchBuckets(true);
 
-        // Flash only if manifest count changed
-        const after = buckets().find(b => b.name === bucketName)?.manifest_count ?? 0;
-        if (after !== before) {
+        // Flash green only if new commits were actually pulled
+        if (!result.message.includes("already up to date")) {
           setUpdateResults(prev => ({ ...prev, [bucketName]: "changed" }));
         }
 
-        // If this bucket is currently selected, refresh its manifests
         const currentBucket = selectedBucket();
         if (currentBucket && currentBucket.name === bucketName) {
           await handleFetchManifests(bucketName);
@@ -187,7 +178,6 @@ function BucketPage() {
     } catch (error) {
       console.error('Failed to update bucket:', bucketName, error);
     } finally {
-      // Remove from updating set
       setUpdatingBuckets(prev => {
         const newSet = new Set(prev);
         newSet.delete(bucketName);
@@ -207,27 +197,41 @@ function BucketPage() {
     );
   };
 
-  // Handle closing operation modal and updating package state
-  const handleCloseOperationModal = async (wasSuccess: boolean) => {
-    packageOperations.closeOperationModal(wasSuccess);
-    if (wasSuccess) {
-      const currentSelected = packageInfo.selectedPackage();
-      if (currentSelected) {
-        try {
-          // Check if installed by searching
-          const response = await invoke<{ packages: ScoopPackage[], is_cold: boolean }>("search_scoop", {
-            term: currentSelected.name,
-          });
-          // Find exact match
-          const match = response.packages.find(p => p.name === currentSelected.name);
-          if (match) {
-            packageInfo.updateSelectedPackage(match);
-          }
-        } catch (e) {
-          console.error("Failed to check package status", e);
+  const refreshPackageStateAfterOperation = async () => {
+    const currentSelected = packageInfo.selectedPackage();
+    if (currentSelected) {
+      try {
+        const response = await invoke<{ packages: ScoopPackage[], is_cold: boolean }>("search_scoop", {
+          term: currentSelected.name,
+        });
+        const match = response.packages.find(p => p.name === currentSelected.name);
+        if (match) {
+          packageInfo.updateSelectedPackage(match);
         }
+      } catch (e) {
+        console.error("Failed to check package status", e);
       }
     }
+  };
+
+  const handleInstallFromBucket = (pkg: ScoopPackage, version?: string) => {
+    operationsStore.queueInstall(pkg, version, (wasSuccess) => {
+      if (wasSuccess) {
+        refreshPackageStateAfterOperation();
+        const currentBucket = selectedBucket();
+        if (currentBucket) handleFetchManifests(currentBucket.name);
+      }
+    });
+  };
+
+  const handleUninstallFromBucket = (pkg: ScoopPackage) => {
+    operationsStore.queueUninstall(pkg, (wasSuccess) => {
+      if (wasSuccess) {
+        refreshPackageStateAfterOperation();
+        const currentBucket = selectedBucket();
+        if (currentBucket) handleFetchManifests(currentBucket.name);
+      }
+    });
   };
 
   return (
@@ -325,8 +329,8 @@ function BucketPage() {
         loading={packageInfo.loading()}
         error={packageInfo.error()}
         onClose={packageInfo.closeModal}
-        onInstall={packageOperations.handleInstall}
-        onUninstall={packageOperations.handleUninstall}
+        onInstall={handleInstallFromBucket}
+        onUninstall={handleUninstallFromBucket}
         showBackButton={true}
         onPackageStateChanged={() => {
           // Refresh bucket manifests to reflect installation changes
@@ -335,14 +339,6 @@ function BucketPage() {
             handleFetchManifests(currentBucket.name);
           }
         }}
-      />
-
-      <OperationModal
-        title={packageOperations.operationTitle()}
-        onClose={handleCloseOperationModal}
-        isScan={packageOperations.isScanning()}
-        onInstallConfirm={packageOperations.handleInstallConfirm}
-        nextStep={packageOperations.operationNextStep() ?? undefined}
       />
 
       <AddBucketModal

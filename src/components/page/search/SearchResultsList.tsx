@@ -1,6 +1,6 @@
-import { For, Show } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import { ScoopPackage } from "../../../types/scoop";
-import { Download } from "lucide-solid";
+import { Download, Check } from "lucide-solid";
 import Card from "../../common/Card";
 
 interface SearchResultsListProps {
@@ -14,6 +14,17 @@ interface SearchResultsListProps {
 }
 
 function SearchResultsList(props: SearchResultsListProps) {
+    const [queued, setQueued] = createSignal<Set<string>>(new Set());
+
+    const flashQueued = (name: string) => {
+        setQueued(prev => new Set([...prev, name]));
+        setTimeout(() => setQueued(prev => {
+            const next = new Set(prev);
+            next.delete(name);
+            return next;
+        }), 1500);
+    };
+
     return (
         <>
             <Show when={props.loading}>
@@ -57,13 +68,18 @@ function SearchResultsList(props: SearchResultsListProps) {
                                         ) : (
                                             <button
                                                 class="btn btn-sm btn-ghost"
+                                                classList={{ "text-success": queued().has(pkg.name) }}
+                                                disabled={queued().has(pkg.name)}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     props.onInstall(pkg);
                                                     props.onPackageStateChanged?.();
+                                                    flashQueued(pkg.name);
                                                 }}
                                             >
-                                                <Download />
+                                                <Show when={queued().has(pkg.name)} fallback={<Download />}>
+                                                    <Check />
+                                                </Show>
                                             </button>
                                         )}
                                     </div>
