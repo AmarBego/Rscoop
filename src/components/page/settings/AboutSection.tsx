@@ -1,4 +1,4 @@
-import { Download, RefreshCw, Star, BookOpen } from "lucide-solid";
+import { RefreshCw, Star, BookOpen } from "lucide-solid";
 
 const GithubIcon = (props: { class?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class={props.class}>
@@ -146,130 +146,110 @@ export default function AboutSection(props: AboutSectionProps) {
       {/* Hero Section */}
       <div class="bg-base-300 p-8 flex flex-col items-center text-center space-y-4">
         <div>
-          <h2 class="text-3xl font-bold tracking-tight">Rscoop</h2>
+          <h2 class="text-3xl font-bold tracking-tight">rScoop</h2>
           <p class="text-base-content/60 font-medium">v{pkgJson.version}</p>
         </div>
-        <p class="max-w-md  leading-relaxed">
-          A modern, powerful, and fast GUI for Scoop package manager on Windows.
+        <p class="max-w-md leading-relaxed text-base-content/60">
+          A desktop GUI for the Scoop package manager.
         </p>
       </div>
 
       <div class="card-body p-6 space-y-8">
 
         {/* Update Section */}
-        <div class="bg-base-100 rounded-xl p-5 border border-base-content/5 shadow-sm">
-          <div class="flex items-center justify-between mb-4">
-            <div class="font-semibold flex items-center gap-2">
-              <RefreshCw class="w-4 h-4 text-base-content/70" />
-              Update Status
-            </div>
-            {props.isScoopInstalled && (
-              <span class="badge badge-sm badge-info badge-outline">Managed by Scoop</span>
+        {props.isScoopInstalled ? (
+          <div class="flex items-center justify-center gap-2 text-sm text-base-content/50">
+            <span>Updates managed by Scoop</span>
+          </div>
+        ) : (
+          <div>
+            {updateStatus() === 'idle' && (
+              <div class="flex items-center justify-center">
+                <button
+                  class="btn btn-sm btn-ghost text-base-content/60"
+                  onClick={() => checkForUpdates(true)}
+                >
+                  <RefreshCw class="w-3.5 h-3.5" />
+                  Check for updates
+                </button>
+              </div>
+            )}
+
+            {updateStatus() === 'checking' && (
+              <div class="flex items-center justify-center gap-2 text-sm text-base-content/50">
+                <span class="loading loading-spinner loading-xs"></span>
+                Checking...
+              </div>
+            )}
+
+            {updateStatus() === 'available' && (
+              <div class="space-y-2">
+                <div class="flex items-center justify-center gap-3">
+                  <span class="text-sm text-success">v{updateInfo()?.version} available</span>
+                  <button class="btn btn-xs btn-primary" onClick={installAvailableUpdate}>Install</button>
+                </div>
+                <Show when={updateInfo()?.body}>
+                  <div class="bg-base-100 rounded-lg p-3 text-xs max-h-24 overflow-y-auto">
+                    <div class="whitespace-pre-wrap text-base-content/60">{updateInfo()?.body}</div>
+                  </div>
+                </Show>
+              </div>
+            )}
+
+            {updateStatus() === 'downloading' && (
+              <div class="space-y-1 max-w-xs mx-auto">
+                <div class="flex justify-between text-xs text-base-content/50">
+                  <span>Downloading...</span>
+                  <span>{downloadProgress().total
+                    ? `${Math.round((downloadProgress().downloaded / (downloadProgress().total || 1)) * 100)}%`
+                    : '...'}</span>
+                </div>
+                <progress
+                  class="progress progress-primary w-full h-1"
+                  value={downloadProgress().downloaded}
+                  max={downloadProgress().total || 100}
+                />
+              </div>
+            )}
+
+            {updateStatus() === 'installing' && (
+              <div class="flex items-center justify-center gap-2 text-sm text-success">
+                <span class="loading loading-spinner loading-xs"></span>
+                Installing...
+              </div>
+            )}
+
+            {updateStatus() === 'error' && (
+              <div class="flex items-center justify-center gap-2 text-sm">
+                <span class="text-error">{updateError()}</span>
+                <button class="btn btn-xs btn-ghost" onClick={() => checkForUpdates(true)}>Retry</button>
+              </div>
             )}
           </div>
-
-          {props.isScoopInstalled ? (
-            <div class="alert alert-info text-sm shadow-sm">
-              <span>Use <code>scoop update rscoop</code> in your terminal to update.</span>
-            </div>
-          ) : (
-            <div class="space-y-4">
-              {updateStatus() === 'idle' && (
-                <div class="flex items-center justify-between">
-                  <span class="text-sm text-base-content/70">Check for the latest version</span>
-                  <button
-                    class="btn btn-sm btn-primary"
-                    onClick={() => checkForUpdates(true)}
-                  >
-                    Check Now
-                  </button>
-                </div>
-              )}
-
-              {updateStatus() === 'checking' && (
-                <div class="flex items-center justify-center py-2 text-base-content/70">
-                  <span class="loading loading-spinner loading-sm mr-3"></span>
-                  Checking for updates...
-                </div>
-              )}
-
-              {updateStatus() === 'available' && (
-                <div class="space-y-3 animate-in fade-in slide-in-from-top-2">
-                  <div class="alert alert-success shadow-sm">
-                    <Download class="w-5 h-5" />
-                    <div>
-                      <h3 class="font-bold">Update Available!</h3>
-                      <div class="text-xs">Version {updateInfo()?.version} is ready to install.</div>
-                    </div>
-                    <button class="btn btn-sm" onClick={installAvailableUpdate}>Install</button>
-                  </div>
-                  <Show when={updateInfo()?.body}>
-                    <div class="bg-base-200 rounded-lg p-3 text-xs max-h-32 overflow-y-auto border border-base-content/5">
-                      <div class="font-bold mb-1 opacity-70">Release Notes:</div>
-                      <div class="whitespace-pre-wrap opacity-80">{updateInfo()?.body}</div>
-                    </div>
-                  </Show>
-                </div>
-              )}
-
-              {updateStatus() === 'downloading' && (
-                <div class="space-y-2">
-                  <div class="flex justify-between text-xs font-medium">
-                    <span>Downloading update...</span>
-                    <span>{downloadProgress().total
-                      ? `${Math.round((downloadProgress().downloaded / (downloadProgress().total || 1)) * 100)}%`
-                      : '...'}</span>
-                  </div>
-                  <progress
-                    class="progress progress-primary w-full"
-                    value={downloadProgress().downloaded}
-                    max={downloadProgress().total || 100}
-                  />
-                </div>
-              )}
-
-              {updateStatus() === 'installing' && (
-                <div class="flex items-center justify-center py-2 text-success font-medium">
-                  <span class="loading loading-spinner loading-sm mr-3"></span>
-                  Installing update...
-                </div>
-              )}
-
-              {updateStatus() === 'error' && (
-                <div class="alert alert-error shadow-sm">
-                  <div class="flex-1">
-                    <div class="font-bold text-xs">Update Failed</div>
-                    <div class="text-xs opacity-80">{updateError()}</div>
-                  </div>
-                  <button class="btn btn-xs btn-outline" onClick={() => checkForUpdates(true)}>Retry</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Links */}
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="flex items-center justify-center gap-3">
           <button
-            class="btn btn-outline hover:bg-base-content hover:text-base-100 transition-all"
+            class="btn btn-sm btn-ghost"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
-            <GithubIcon class="w-5 h-5" />
+            <GithubIcon class="w-4 h-4" />
             GitHub
           </button>
           <button
-            class="btn btn-outline btn-info hover:text-info-content transition-all"
+            class="btn btn-sm btn-ghost"
             onClick={() => openUrl('https://amarbego.github.io/Rscoop/').catch(console.error)}
           >
-            <BookOpen class="w-5 h-5" />
+            <BookOpen class="w-4 h-4" />
             Docs
           </button>
           <button
-            class="btn btn-outline btn-warning hover:text-warning-content transition-all"
+            class="btn btn-sm btn-ghost"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
-            <Star class="w-5 h-5" />
-            Star Project
+            <Star class="w-4 h-4" />
+            Star
           </button>
         </div>
 
