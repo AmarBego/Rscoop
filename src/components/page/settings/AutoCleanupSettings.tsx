@@ -1,5 +1,5 @@
 import { createSignal, Show } from "solid-js";
-import { Recycle, Sparkles } from "lucide-solid";
+import { Recycle } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
@@ -8,19 +8,17 @@ function AutoCleanupSettings() {
     const { settings, setCleanupSettings } = settingsStore;
     const [localVersionCount, setLocalVersionCount] = createSignal(settings.cleanup.preserveVersionCount);
 
-    const handleVersionCountChange = (e: Event) => {
-        const value = parseInt((e.target as HTMLInputElement).value);
-        setLocalVersionCount(value);
-        if (value >= 1 && value <= 10) {
-            setCleanupSettings({ preserveVersionCount: value });
-        }
+    const handleVersionCountChange = (value: number) => {
+        const clamped = Math.max(1, Math.min(10, value));
+        setLocalVersionCount(clamped);
+        setCleanupSettings({ preserveVersionCount: clamped });
     };
 
     return (
         <Card
             title="Auto Cleanup"
             icon={Recycle}
-            description="Automatically tidy up old package versions and outdated cache assets after install, update, or uninstall operations."
+            description="Tidy up old package versions and stale cache after install, update, or uninstall."
             headerAction={
                 <SettingsToggle
                     checked={settings.cleanup.autoCleanupEnabled}
@@ -30,62 +28,65 @@ function AutoCleanupSettings() {
                 />
             }
         >
-            <Show when={settings.cleanup.autoCleanupEnabled}>
-                <div class="space-y-6">
-                    {/* Old Versions Section */}
-                    <div class="bg-base-300/60 rounded-lg p-4 border border-base-content/50">
-                        <div class="flex items-start justify-between">
-                            <div class="flex-1">
-                                <h3 class="font-medium flex items-center text-sm">
-                                    <Sparkles class="w-4 h-4 mr-2 text-primary" />
-                                    Clean Old Versions
-                                </h3>
-                                <p class="text-xs mt-1 text-base-content/60">
-                                    Keep only the most recent versions of packages. Versioned installs (using <code>@version</code>) are always preserved.
-                                </p>
-                            </div>
-                            <input
-                                type="checkbox"
-                                class="toggle toggle-primary"
-                                checked={settings.cleanup.cleanupOldVersions}
-                                onChange={(e) => setCleanupSettings({ cleanupOldVersions: e.currentTarget.checked })}
-                            />
-                        </div>
 
-                        <Show when={settings.cleanup.cleanupOldVersions}>
-                            <div class="mt-4">
-                                <label for="preserveVersionCount" class="block text-xs font-semibold mb-2">
-                                    Versions to Keep: <span class="text-primary">{localVersionCount()}</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    id="preserveVersionCount"
-                                    min="1"
-                                    max="10"
-                                    value={localVersionCount()}
-                                    onInput={handleVersionCountChange}
-                                    class="range range-primary"
-                                />
-                            </div>
-                        </Show>
+            <Show when={settings.cleanup.autoCleanupEnabled}>
+                <div class="border-t border-base-content/10" />
+                <div class="space-y-3">
+                    {/* Clean old versions */}
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex-1">
+                            <span class="text-sm font-medium">Clean old versions</span>
+                            <p class="text-xs text-base-content/50">
+                                Versioned installs (<code class="text-xs">@version</code>) are always kept.
+                            </p>
+                        </div>
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-primary"
+                            checked={settings.cleanup.cleanupOldVersions}
+                            onChange={(e) => setCleanupSettings({ cleanupOldVersions: e.currentTarget.checked })}
+                        />
                     </div>
 
-                    {/* Cache Section */}
-                    <div class="bg-base-300/60 rounded-lg p-4 border border-base-content/50">
-                        <div class="flex items-start justify-between">
-                            <div class="flex-1">
-                                <h3 class="font-medium text-sm">Clean Outdated Cache</h3>
-                                <p class="text-xs mt-1 text-base-content/60">
-                                    Remove stale downloaded artifacts that are no longer needed, freeing disk space.
-                                </p>
+                    <Show when={settings.cleanup.cleanupOldVersions}>
+                        <div class="flex items-center gap-3 pl-1">
+                            <span class="text-xs text-base-content/60">Versions to keep</span>
+                            <div class="flex items-center gap-1">
+                                <button
+                                    class="btn btn-xs btn-ghost font-mono"
+                                    onClick={() => handleVersionCountChange(localVersionCount() - 1)}
+                                    disabled={localVersionCount() <= 1}
+                                >
+                                    -
+                                </button>
+                                <span class="text-sm font-mono w-6 text-center font-semibold text-primary">
+                                    {localVersionCount()}
+                                </span>
+                                <button
+                                    class="btn btn-xs btn-ghost font-mono"
+                                    onClick={() => handleVersionCountChange(localVersionCount() + 1)}
+                                    disabled={localVersionCount() >= 10}
+                                >
+                                    +
+                                </button>
                             </div>
-                            <input
-                                type="checkbox"
-                                class="toggle toggle-primary"
-                                checked={settings.cleanup.cleanupCache}
-                                onChange={(e) => setCleanupSettings({ cleanupCache: e.currentTarget.checked })}
-                            />
                         </div>
+                    </Show>
+
+                    <div class="border-t border-base-content/10" />
+
+                    {/* Clean outdated cache */}
+                    <div class="flex items-center justify-between py-2">
+                        <div class="flex-1">
+                            <span class="text-sm font-medium">Clean outdated cache</span>
+                            <p class="text-xs text-base-content/50">Remove stale downloads that are no longer needed.</p>
+                        </div>
+                        <input
+                            type="checkbox"
+                            class="toggle toggle-primary"
+                            checked={settings.cleanup.cleanupCache}
+                            onChange={(e) => setCleanupSettings({ cleanupCache: e.currentTarget.checked })}
+                        />
                     </div>
                 </div>
             </Show>
