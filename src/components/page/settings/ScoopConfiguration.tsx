@@ -1,41 +1,45 @@
 import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { FolderCog, Save } from "lucide-solid";
+import { FolderCog } from "lucide-solid";
 import Card from "../../common/Card";
 
 export default function ScoopConfiguration() {
     const [scoopPath, setScoopPath] = createSignal("");
     const [pathIsLoading, setPathIsLoading] = createSignal(true);
-    const [pathError, setPathError] = createSignal<string | null>(null);
-    const [pathSuccessMessage, setPathSuccessMessage] = createSignal<string | null>(null);
+    const [error, setError] = createSignal<string | null>(null);
+    const [saved, setSaved] = createSignal(false);
 
     const fetchScoopPath = async () => {
         setPathIsLoading(true);
-        setPathError(null);
+        setError(null);
         try {
             const path = await invoke<string | null>("get_scoop_path", {});
             setScoopPath(path ?? "");
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to fetch scoop path:", errorMsg);
-            setPathError("Could not load Scoop path setting.");
+            setError("Could not load Scoop path.");
         } finally {
             setPathIsLoading(false);
         }
     };
 
-    const handleSavePath = async () => {
-        setPathError(null);
-        setPathSuccessMessage(null);
+    const handleSave = async () => {
+        setError(null);
+        setSaved(false);
         try {
             await invoke("set_scoop_path", { path: scoopPath() });
-            setPathSuccessMessage("Scoop path saved! Restart the app for it to take effect everywhere.");
-            setTimeout(() => setPathSuccessMessage(null), 5000);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to save scoop path:", errorMsg);
-            setPathError("Failed to save Scoop path.");
+            setError("Failed to save path.");
         }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Enter") handleSave();
     };
 
     onMount(() => {
@@ -46,31 +50,27 @@ export default function ScoopConfiguration() {
         <Card
             title="Scoop Configuration"
             icon={FolderCog}
-            description="Set the installation path for your Scoop directory. The application may need to be restarted for this to take full effect."
+            description="Set the path to your Scoop directory. Restart the app after changing this."
         >
-            <div class="form-control w-full max-w-lg">
-                <label class="label">
-                    <span class="label-text font-semibold flex items-center">
-                        Scoop Installation Path
-                    </span>
-                </label>
-                <div class="join">
-                    <input
-                        type="text"
-                        placeholder={pathIsLoading() ? "Loading..." : "Enter Scoop path (e.g. C:\\scoop)"}
-                        class="input input-bordered join-item w-full"
-                        value={scoopPath()}
-                        onInput={(e) => setScoopPath(e.currentTarget.value)}
-                        disabled={pathIsLoading()}
-                    />
-                    <button class="btn btn-primary join-item" onClick={handleSavePath} disabled={pathIsLoading()}>
-                        <Save class="w-4 h-4 mr-1" />
-                        Save
-                    </button>
-                </div>
+            <div class="flex items-center gap-2 max-w-lg">
+                <input
+                    type="text"
+                    placeholder={pathIsLoading() ? "Loading..." : "C:\\Users\\you\\scoop"}
+                    class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-xs"
+                    value={scoopPath()}
+                    onInput={(e) => setScoopPath(e.currentTarget.value)}
+                    onKeyDown={handleKeyDown}
+                    disabled={pathIsLoading()}
+                />
+                <button
+                    class="btn btn-primary btn-sm"
+                    onClick={handleSave}
+                    disabled={pathIsLoading()}
+                >
+                    {saved() ? "Saved" : "Save"}
+                </button>
             </div>
-            {pathError() && <div class="alert alert-error mt-4 text-sm">{pathError()}</div>}
-            {pathSuccessMessage() && <div class="alert alert-success mt-4 text-sm">{pathSuccessMessage()}</div>}
+            {error() && <p class="text-error text-xs mt-1">{error()}</p>}
         </Card>
     );
 }

@@ -13,31 +13,31 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
 
   return (
     <Card
-      title="Held Packages Management"
+      title="Held Packages"
       icon={CirclePause}
-      description="Packages on hold are prevented from being updated via Rscoop or Scoop."
+      description="These packages won't be updated by Rscoop or Scoop."
     >
       <Show
         when={!heldPackagesStore.isLoading}
-        fallback={<div class="flex justify-center p-4"><span class="loading loading-dots loading-md"></span></div>}
+        fallback={<div class="flex justify-center p-4"><span class="loading loading-dots loading-sm"></span></div>}
       >
         <Show
           when={heldPackagesStore.packages.length > 0}
-          fallback={<p class="text-base-content/60 p-4 text-center">No packages are currently on hold.</p>}
+          fallback={<p class="text-base-content/50 text-sm">No packages on hold.</p>}
         >
-          <div class="max-h-60 overflow-y-auto pr-2">
-            <ul class="space-y-2">
+          <div class="max-h-60 overflow-y-auto">
+            <ul class="space-y-1">
               <For each={heldPackagesStore.packages}>
                 {(pkgName) => (
-                  <li class="flex justify-between items-center bg-base-100 p-2 rounded-lg transition-colors hover:bg-base-300">
+                  <li class="flex justify-between items-center bg-base-100 px-3 py-1.5 rounded-lg">
                     <span class="font-mono text-sm">{pkgName}</span>
                     <button
                       class="btn btn-xs btn-ghost text-info"
                       onClick={() => props.onUnhold(pkgName)}
-                      aria-label={`Remove hold from ${pkgName} `}
+                      aria-label={`Remove hold from ${pkgName}`}
                       disabled={props.operationInProgress}
                     >
-                      <LockOpen class="w-4 h-4 mr-1" />
+                      <LockOpen class="w-3.5 h-3.5 mr-1" />
                       Unhold
                     </button>
                   </li>
