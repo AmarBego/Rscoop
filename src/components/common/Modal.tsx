@@ -10,6 +10,7 @@ interface ModalProps {
     footer?: JSX.Element;
     headerAction?: JSX.Element;
     class?: string;
+    contentClass?: string;
     preventBackdropClose?: boolean;
 }
 
@@ -78,7 +79,7 @@ export default function Modal(props: ModalProps) {
                     </div>
 
                     {/* Content */}
-                    <div class="p-6 overflow-y-auto flex-1">
+                    <div class={`p-6 overflow-y-auto flex-1 ${props.contentClass ?? ""}`}>
                         {props.children}
                     </div>
 

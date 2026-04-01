@@ -56,6 +56,7 @@ function ManifestModal(props: ManifestModalProps) {
       }
       size="large"
       class="bg-base-100"
+      contentClass="!overflow-hidden"
       footer={
         <button class="btn-close-outline" onClick={props.onClose}>Close</button>
       }
@@ -76,7 +77,7 @@ function ManifestModal(props: ManifestModalProps) {
 
       <Show when={props.manifestContent}>
         <div
-          class="relative rounded-xl overflow-hidden border border-base-content/10 shadow-inner group"
+          class="relative rounded-xl border border-base-content/10 shadow-inner group"
           style={{ "background-color": codeBgColor() }}
         >
           <div class="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -90,7 +91,7 @@ function ManifestModal(props: ManifestModalProps) {
               </Show>
             </button>
           </div>
-          <div class="max-h-[65vh] overflow-y-auto custom-scrollbar">
+          <div class="overflow-y-auto max-h-[calc(90vh-10rem)] custom-scrollbar">
             <pre class="p-4 m-0"><code ref={codeRef} class="language-json font-mono text-sm leading-relaxed !bg-transparent"></code></pre>
           </div>
         </div>

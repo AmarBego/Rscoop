@@ -1,6 +1,6 @@
 import { createSignal, onMount, For, Show, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { Trash2, Archive, RefreshCw, TriangleAlert, Inbox } from "lucide-solid";
+import { Trash2, RefreshCw, TriangleAlert } from "lucide-solid";
 import { formatBytes } from "../../../utils/format";
 import ConfirmationModal from "../../ConfirmationModal";
 import Card from "../../common/Card";
@@ -165,7 +165,7 @@ function CacheManager() {
                         <Show when={cacheContents().length > 0}>
                             <Show when={selectedItems().size > 0}>
                                 <button
-                                    class="btn btn-ghost btn-xs text-warning"
+                                    class="btn btn-ghost btn-xs text-sm text-warning"
                                     onClick={handleClearSelected}
                                     disabled={isLoading()}
                                 >
@@ -174,7 +174,7 @@ function CacheManager() {
                                 </button>
                             </Show>
                             <button
-                                class="btn btn-ghost btn-xs text-error"
+                                class="btn btn-ghost btn-xs text-sm text-error"
                                 onClick={handleClearAll}
                                 disabled={isLoading()}
                             >

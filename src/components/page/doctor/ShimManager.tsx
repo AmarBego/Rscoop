@@ -103,14 +103,14 @@ function ShimManager() {
             headerAction={
                 <div class="flex items-center gap-2">
                     <button
-                        class="btn btn-ghost btn-xs"
+                        class="btn btn-ghost btn-xs text-sm"
                         onClick={() => setIsAddModalOpen(true)}
                         disabled={isLoading() || isProcessing()}
                     >
                         <Plus class="w-3.5 h-3.5" /> Add Shim
                     </button>
                     <button
-                        class="btn btn-ghost btn-xs"
+                        class="btn btn-ghost btn-xs text-sm"
                         onClick={fetchShims}
                         disabled={isLoading() || isProcessing()}
                     >
