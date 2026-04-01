@@ -6,37 +6,32 @@ nav_order: 2
 
 # Getting Started
 
-Follow the steps below to install Rscoop and take care of the basic first-run tasks.
+## 1. Install Scoop first
 
-## 1. Install Scoop (if you have not already)
-
-Rscoop wraps the official Scoop CLI. Make sure Scoop is installed and initialized before launching Rscoop. Visit [scoop.sh](https://scoop.sh) for the installation command and run it from an elevated PowerShell prompt.
+Rscoop wraps the Scoop CLI, so you need Scoop installed before anything else. Head to [scoop.sh](https://scoop.sh) and run the install command from PowerShell.
 
 ## 2. Download Rscoop
 
-1. Go to the [GitHub Releases page](https://github.com/AmarBego/rscoop/releases).
-2. Pick the latest release and download either the signed .msi installer or the portable .exe build.
-3. Run the installer. Windows SmartScreen might warn about the download. select **More info > Run anyway** to continue.
+1. Go to [Releases](https://github.com/AmarBego/rscoop/releases) and grab the latest `.msi` installer or portable `.exe`.
+2. Run it. Windows SmartScreen might warn you — click **More info** then **Run anyway**.
 
-## 3. First Launch Checklist
+## 3. First launch
 
-1. Start Rscoop from the Start Menu or the portable executable.
-2. The app detects whether it was installed via Scoop. If not, Rscoop will check for updates using the built-in updater plugin.
-3. On the very first launch a welcome banner appears while Scoop buckets and package metadata are cached locally. Let the cold-start process finish before closing the app.
-4. When the tray icon appears you can safely close the window; Rscoop will minimize to the tray unless you disable that behavior in settings.
+1. Open Rscoop from the Start Menu or run the portable exe.
+2. On the first run, Rscoop caches your bucket metadata and package info. Let this finish before closing the app — you'll see a loading state while it works.
+3. Once the tray icon shows up, you can close the window. Rscoop stays in the tray unless you turn that off in Settings.
+4. If you didn't install through Scoop, the built-in updater checks for new versions automatically.
 
-## 4. Optional: Configure VirusTotal
+## 4. Optional: set up VirusTotal
 
-If you have a VirusTotal API key, open **Settings ? Security** and paste the key. Rscoop will automatically scan packages before installation and block downloads that score above your configured threat threshold.
+If you have a VirusTotal API key, go to **Settings > Security** and paste it in. Rscoop will scan packages before installing them and block anything above your configured threat threshold.
 
-## 5. Updating Rscoop
+## 5. Updating
 
-- **Installed via Scoop:** updates are managed through Scoop itself. Use scoop update rscoop from PowerShell.
-- **Standalone installer:** when a new version is available Rscoop displays an in-app banner. Click **Install Now** to apply the update.
+- **Installed via Scoop?** Run `scoop update rscoop` from PowerShell.
+- **Standalone installer?** Rscoop shows a banner when a new version is available. Click it to update.
 
-Ready to explore the UI? Head over to the **User Guide** for a tour of the major pages and workflows.
+## Next
 
-## Next Steps
-
-- [User Guide](user-guide/index.md) - Learn how to use Rscoop's features.
-- [Settings](user-guide/settings.md) - Configure VirusTotal and other options.
+- [User Guide](user-guide/index.md) — tour of every page
+- [Settings](user-guide/settings.md) — configure VirusTotal, themes, auto-updates, and more

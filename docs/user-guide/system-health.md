@@ -7,35 +7,35 @@ nav_order: 4
 
 # System Health
 
-The **System Doctor** consolidates every Scoop maintenance task into a single dashboard.
+The Doctor page is where you maintain your Scoop installation.
 
 ![Doctor page](/assets/images/doctor.png)
 
 ## Checkup
 
-- Runs the sfsu diagnostics through the native 
-un_scoop_checkup command.
-- Highlights missing requirements such as Git, 7-Zip, or broken shims and lets you install helpers with one click.
-- Updates automatically after each helper install so you can confirm the fix without reopening the modal.
+Runs diagnostics through the `run_scoop_checkup` command. Checks for:
+
+- Missing Git or 7-Zip
+- Broken shims
+- Other common Scoop problems
+
+If something's missing, you can install it with one click. The checkup reruns automatically after each fix so you can confirm it worked.
 
 ## Cleanup
 
-- **Clean up old app versions** runs scoop cleanup * in a safe wrapper to reclaim disk space.
-- **Clean outdated cache** deletes stale installer archives without touching versioned installs.
-- Long-running operations stream their progress into the shared operation modal.
+- **Clean up old app versions** — wraps `scoop cleanup *` to reclaim disk space
+- **Clean outdated cache** — removes stale installer archives
+
+Both operations stream progress into the operation modal.
 
 ## Cache Manager
 
-- Lists every cached installer file with size information so you can target the files that matter.
-- Remove entries individually or clear the entire cache using clear_cache.
+Lists every cached installer file with its size. You can remove files individually or clear the entire cache at once.
 
 ## Shim Manager
 
-- Surfaces every Scoop shim along with the file path it points to.
-- Alter or remove shims directly, or add new shims that point to arbitrary executables.
-- Backed by the Rust shim commands to avoid corrupting your Scoop installation.
+Shows every Scoop shim and the executable it points to. From here you can:
 
-## Related Pages
-
-- [Installed](../installed.md) - View packages that may need maintenance.
-- [Settings](../settings.md) - Adjust system health preferences.
+- Remove shims you don't need
+- Modify where a shim points
+- Add new shims for arbitrary executables

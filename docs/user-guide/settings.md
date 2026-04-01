@@ -7,69 +7,59 @@ nav_order: 5
 
 # Settings
 
-The Settings page is organized into tabbed categories for clarity. Each tab groups related controls you can tune to customize Rscoop's behavior.
+Settings are split into five tabs.
 
-## 1. Automation
-
-Tools that keep Scoop and packages clean & current without manual intervention.
+## Automation
 
 ### Auto Cleanup
-Manages disk usage and stale artifacts:
-- Set how many previous versions of each package to retain.
-- Toggle removal of outdated caches and stale downloads.
-- Runs automatically after bulk updates or can be triggered manually.
+- Toggle automatic cleanup after bulk operations
+- Set how many previous versions of each package to keep
+- Toggle removal of outdated caches
 
 ### Bucket Auto Updater
-Ensures bucket manifests stay current:
-- Choose an interval (e.g. 24h, 7d, or custom). Debug mode allows very short test intervals.
-- Scheduler persists across restarts: if Rscoop was closed and enough wall‑clock time passed, it will run immediately on launch.
-- When enabled packages can auto-update right after buckets finish (toggle: "Auto update packages after bucket refresh").
-- Background runs stream status to a modal so you can see progress if Rscoop is open; otherwise they log quietly.
+- Pick an update interval: off, 1h, 6h, 24h, 7d, or a custom interval in seconds
+- Optionally auto-update packages after bucket updates finish
+- The scheduler persists across restarts — if enough time passed while Rscoop was closed, it runs immediately on launch
+- Debug mode (see Window & UI tab) unlocks rapid test intervals like 10 seconds
 
-## 2. Management
-
-Configuration of Scoop’s location and version locks.
+## Management
 
 ### Scoop Configuration
-- Shows detected Scoop root; override if you use a non‑standard path.
-- Save the new path and restart Rscoop so all commands use it.
+- Shows the detected Scoop root path
+- Override it if you use a non-standard install location
 
 ### Held Packages
-- Displays packages locked ("held") to specific versions.
-- Remove a hold directly, or navigate to Installed view for deeper actions.
+- Lists packages you've locked to a specific version
+- Remove holds directly from here
 
-## 3. Security
-
-Integrity and threat scanning integrations.
+## Security
 
 ### VirusTotal Integration
-- Enter your VirusTotal API key to enable pre‑install scanning.
-- Optional auto‑scan on install: if enabled, Rscoop scans first and only proceeds automatically if clean; otherwise prompts you when detections or missing key states occur.
-- Configure threat tolerance (maximum detection count or score) and behavior on pending scans.
+- Enter your VirusTotal API key to enable pre-install scanning
+- Toggle auto-scan: when enabled, Rscoop scans first and only proceeds if clean
+- Set a threat tolerance (max detection count) — anything above gets blocked
 
-## 4. Window & UI
+## Window & UI
 
-Application behavior and developer tools.
+### Theme
+- Switch between light and dark themes (uses daisyUI themes under the hood)
 
 ### Window Behavior
-- Close to tray vs. exit (toggle).
+- Toggle close-to-tray vs. actually exiting when you close the window
 
-### Startup Settings
-- Enable or disable starting Rscoop automatically on Windows boot.
+### Startup
+- Enable or disable starting Rscoop automatically on Windows boot
+
+### Default Launch Page
+- Pick which page Rscoop opens to (Search, Installed, Buckets, Doctor, or Settings)
 
 ### Debug Mode
-- When enabled, shows a Debug button with system info & logs.
-- Unlocks rapid test intervals (e.g. 10s) for the bucket/package auto‑update scheduler.
+- Shows a debug button with cache state and system info
+- Unlocks rapid test intervals for the auto-update scheduler
 
-## 5. About
+## About
 
-Informational metadata and update controls.
-
-### Application Info
-- Current Rscoop version and links (GitHub repository, issues, etc.).
-- Manual update check button (skipped if installed via Scoop and external updates are disabled).
-
-## Related Pages
-
-- [Getting Started](../../getting-started.md) – Initial setup and configuration.
-- [User Guide](index.md) – Overview of all user guide sections.
+- Current Rscoop version and links to GitHub
+- Manual update check (skipped if you installed via Scoop)
+- Release notes for available updates
+- Log viewer

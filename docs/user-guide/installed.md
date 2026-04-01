@@ -7,32 +7,35 @@ nav_order: 2
 
 # Installed
 
-The **Installed** view gives you control over everything Scoop is currently managing on your system.
+Everything Scoop has installed on your machine, in one view.
 
-![Installed List](../assets/images/installed.png)
+![Installed packages](../assets/images/installed.png)
 
-## Overview
+## Filtering and layout
 
-- **Dynamic filters:** narrow the list by bucket, switch between grid and list layouts, and filter by name with the search box.
-- **Update awareness:** the header shows how many packages have updates available. Use **Update All** or update packages individually.
-- **Version control:** if a package is versioned, you can switch releases or lock a package by holding it at the current version.
-- **Operation tracking:** installing, updating, holding, and uninstalling all surface the operation modal with streaming CLI output.
+- Filter by bucket or search by name
+- Switch between grid and list views
+- The header shows how many packages have updates available
 
-## Scoop Status Modal
+## Package operations
 
-Select **Check Scoop Status** to run the built-in diagnostics. Results include Git and 7-Zip availability, bucket health, and other common Scoop issues. You can trigger helper installs directly from the modal.
+- **Update** individual packages or hit **Update All**
+- **Hold** a package to lock it at the current version (prevents updates)
+- **Uninstall** packages
+- **Switch versions** if a package has multiple versions installed
 
-## Package Details
+All operations show live CLI output in a modal so you can see exactly what Scoop is doing.
 
-Open any package to see:
+## Package details
 
-- Metadata from the Scoop manifest, including description, homepage, notes, and architecture support.
-- Cache usage stats and the option to clear cached installers.
-- Shim details and file locations exposed through the Rust backend.
+Click any package to see:
 
-When you close the details modal, Rscoop refreshes the package list so the UI always matches Scoop's state.
+- Manifest metadata — description, homepage, notes, architecture support
+- Cache usage and the option to clear cached installers
+- Shim details and file paths
 
-## Related Pages
+The package list refreshes automatically after you close the details modal.
 
-- [Buckets](buckets.md) - Add more packages by installing additional buckets.
-- [System Health](system-health.md) - Run diagnostics to ensure Scoop is healthy.
+## Scoop status check
+
+Hit **Check Scoop Status** to run diagnostics. This checks Git and 7-Zip availability, bucket health, and other common issues. You can install missing helpers directly from the results.

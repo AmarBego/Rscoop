@@ -7,23 +7,30 @@ nav_order: 1
 
 # Search
 
-The **Search** view is the quickest way to find applications across every bucket you have installed.
+Type a query and get results from every bucket you have added.
 
 ![Search results](/assets/images/search.png)
 
-## Key Actions
+## How it works
 
-- **Instant results:** typing in the search bar queries the native Rust search engine, returning matches from all buckets via the local cache.
-- **Packages vs includes:** use the tabs above the results to switch between primary packages and binaries shipped inside those packages.
-- **Package metadata:** select any result to open the package details modal with manifest data, release notes, install size, and Scoop commands ready to copy.
-- **One-click install:** press **Install** on a result to queue the package installer. Progress and output stream into the operation modal so you can follow along.
+The search bar queries a local manifest cache built by the Rust backend. Results come back instantly — no network call needed for installed buckets.
+
+Results show the package name, bucket, version, and whether it's already installed. You can switch between two tabs:
+
+- **Packages** — the main apps
+- **Includes** — binaries and executables shipped inside packages
+
+## Installing from search
+
+Click any result to open the package details modal. From there you can:
+
+- Read the full Scoop manifest (description, homepage, notes, architecture)
+- View shim details and cache usage
+- Hit **Install** to kick off the install with live progress output
+
+If VirusTotal scanning is enabled, the scan result shows up before the install starts.
 
 ## Tips
 
-- Click the help icon next to the search input to see advanced tips like using quotes for exact matches.
-- Toggle the manifest view in the modal to read the full Scoop manifest without leaving Rscoop.
-- When VirusTotal scanning is enabled, packages display the scan result before the install begins.
-
-## Next Steps
-
-After installing packages, head to the **[Installed](installed.md)** page to manage them.
+- Click the help icon next to the search bar for advanced search syntax (quotes for exact matches, etc.).
+- Toggle the manifest view in the modal to see the raw JSON without leaving Rscoop.

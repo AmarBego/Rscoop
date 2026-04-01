@@ -8,12 +8,12 @@ nav_order: 6
 
 ## Prerequisites
 
-- Node.js 18 or newer
+- Node.js 18+
 - Rust (stable channel)
 - Scoop installed locally
-- Visual Studio Build Tools or the Tauri prerequisites for Windows
+- Visual Studio Build Tools (or the full [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/))
 
-## Project Setup
+## Setup
 
 ```bash
 git clone https://github.com/AmarBego/rscoop.git
@@ -21,53 +21,50 @@ cd rscoop
 npm install
 ```
 
-Run the desktop app in development mode with hot reload:
+Run in dev mode with hot reload:
 
 ```bash
 npm run tauri dev
 ```
 
-Need just the frontend for quick UI iteration? Launch Vite directly:
+Frontend only (just Vite, no Rust rebuild):
 
 ```bash
 npm run dev
 ```
 
-Build signed installers and portable binaries:
+Build production installers:
 
 ```bash
 npm run tauri build
 ```
 
-Artifacts land in src-tauri/target/release/bundle.
+Output goes to `src-tauri/target/release/bundle`.
 
-## Directory Layout
+## Directory layout
 
-- src/ = SolidJS frontend, organised by feature pages and shared components.
-- src-tauri/ = Rust backend, commands, and Tauri configuration.
-- pics/ = UI screenshots used in documentation and the landing page.
-- docs/ = GitHub Pages documentation (this site).
+| Folder | What's in it |
+|---|---|
+| `src/` | SolidJS frontend — pages, components, hooks, stores |
+| `src-tauri/` | Rust backend — commands, Tauri config, plugins |
+| `pics/` | Screenshots for the README |
+| `docs/` | This documentation site (GitHub Pages) |
 
-## Rust Backend Notes
+## Backend notes
 
-- Commands live under src-tauri/src/commands. Group related logic in modules to keep the invoke handler readable.
-- Use the helpers in utils.rs for running PowerShell, probing Scoop state, and interacting with the filesystem.
-- Long-running tasks should log progress with log::info! / log::warn! so the frontend operation modal can display updates via tauri-plugin-log.
+- Commands are in `src-tauri/src/commands/`, grouped by domain (search, install, buckets, doctor, etc.).
+- Use `utils.rs` helpers for running PowerShell, probing Scoop state, and filesystem operations.
+- Log progress with `log::info!` / `log::warn!` — the frontend operation modal picks these up through `tauri-plugin-log`.
 
-## Frontend Notes
+## Frontend notes
 
-- Hooks in src/hooks encapsulate backend calls and state. Prefer extending a hook rather than duplicating invoke logic inside components.
-- The installedPackagesStore keeps the canonical list of installed apps. Use its 
-efetch() helper after operations that modify Scoop.
-- Tailwind + daisyUI components define the design system. Shared styles live in App.css.
+- Hooks in `src/hooks/` wrap backend calls and manage state. Extend existing hooks instead of duplicating `invoke` calls in components.
+- `installedPackagesStore` holds the canonical package list. Call its `refetch()` after any operation that changes Scoop state.
+- UI is built with Tailwind + daisyUI. Shared styles are in `App.css`.
 
-## Diagnostics
+## Debugging
 
-- Enable verbose logging from **Settings ? About & Logs** or set the RUST_LOG environment variable when launching in development.
-- The system tray exposes a **Refresh Apps** entry that reloads Scoop application shortcuts without restarting the app.
-
-## Related Documentation
-
-- [Architecture](architecture.md) - Dive deeper into the technical design of Rscoop.
-- [Troubleshooting](troubleshooting.md) - Common issues and how to resolve them.
-- [User Guide](../user-guide/index.md) - Understand the user-facing features.
+- Open **Settings > About** to see version info, check for updates, and read logs.
+- Set the `RUST_LOG` environment variable for verbose output during development.
+- The system tray has a **Refresh Apps** entry that reloads Scoop app shortcuts without restarting.
+- Enable **Debug Mode** in **Settings > Window & UI** to unlock rapid test intervals for the auto-update scheduler and access a debug info panel.

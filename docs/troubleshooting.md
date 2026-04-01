@@ -6,33 +6,25 @@ nav_order: 7
 
 # Troubleshooting
 
-Having issues? Start with the checks below.
+## Missing Scoop dependencies
 
-## Known Issues
+Open the **Doctor** page and run the checkup. It detects missing Git, 7-Zip, and other helpers and lets you install them with one click.
 
-- **Missing Scoop dependencies** run the System Doctor checkup to install Git, 7-Zip, or other helpers automatically.
+## Scoop path not found
 
-## Scoop Path Problems
+Go to **Settings > Management > Scoop Configuration** and check the detected path. If you installed Scoop somewhere non-standard, set the correct path there and restart Rscoop.
 
-1. Open **Settings ? Scoop Configuration** and confirm the path matches your environment.
-2. If the path is empty, Rscoop will default to C:\scoop. Update the value and restart the app if you use a custom location.
-
-## Bucket Search Fails
+## Bucket search not working
 
 - Clear the cached bucket index from the discovery panel and try again.
-- Verify your network access to GitHub if the expanded search download stalls.
+- If the expanded search download stalls, check your network access to GitHub.
 
-## Operation Failures
+## An operation failed
 
-- Check the operation modal for the last Scoop command issued.
-- View the log file from **Settings ? Enable Logs** for additional output. Logs live under %APPDATA%\rscoop\logs.
+- The operation modal shows the last Scoop command that ran — check its output for errors.
+- For more detail, open the log file at `%LOCALAPPDATA%\rscoop\logs\rscoop.log`.
+- You can also view logs from **Settings > About**.
 
-## Still Stuck?
+## Still stuck?
 
-Open an issue on [GitHub](https://github.com/AmarBego/rscoop/issues) with the log excerpts and the Scoop command that fails. Mention whether the app was installed through Scoop or the standalone installer.
-
-## Related Documentation
-
-- [Developer Guide](developer-guide.md) - For developers troubleshooting build or runtime issues.
-- [Getting Started](getting-started.md) - Revisit installation steps if problems persist.
-- [User Guide](../user-guide/index.md) - Check specific feature guides for common workflows.
+Open an issue on [GitHub](https://github.com/AmarBego/rscoop/issues) with the relevant log output and mention whether you installed Rscoop through Scoop or the standalone installer.

@@ -1,0 +1,85 @@
+/* Rscoop docs — custom overrides for just-the-docs */
+
+:root {
+  --rscoop-accent: #f59e0b;
+  --rscoop-accent-dim: #d97706;
+}
+
+/* Tighten up the main content */
+.main-content {
+  max-width: 52rem;
+}
+
+/* Accent color on links */
+.main-content a,
+.nav-list .nav-list-link.active {
+  color: var(--rscoop-accent);
+}
+
+.main-content a:hover {
+  color: var(--rscoop-accent-dim);
+}
+
+/* Side nav active indicator */
+.nav-list .nav-list-link.active {
+  border-left-color: var(--rscoop-accent);
+}
+
+/* Inline code styling */
+.main-content code {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-size: 0.88em;
+}
+
+/* Table styling */
+.main-content table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.main-content table th {
+  background-color: rgba(255, 255, 255, 0.04);
+  font-weight: 600;
+  text-align: left;
+}
+
+.main-content table td,
+.main-content table th {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Blockquote as callout */
+.main-content blockquote {
+  border-left: 3px solid var(--rscoop-accent);
+  background-color: rgba(245, 158, 11, 0.06);
+  padding: 0.75rem 1rem;
+  margin: 1.5rem 0;
+}
+
+/* Hero image on landing */
+.main-content img {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin: 1rem 0;
+}
+
+/* Headings */
+.main-content h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.main-content h2 {
+  margin-top: 2.5rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Footer */
+.site-footer {
+  opacity: 0.6;
+  font-size: 0.8rem;
+}

@@ -7,31 +7,26 @@ nav_order: 3
 
 # Buckets
 
-Use the **Buckets** view to manage the repositories that feed Scoop packages into your environment and to discover new sources.
+Manage your Scoop buckets and find new ones.
 
-![bucket page](../assets/images/bucket.png)
+![Bucket page](../assets/images/bucket.png)
 
-## Installed Buckets
+## Your buckets
 
-- Every bucket you have added appears in the grid with its manifest count and last updated timestamp.
-- Select a bucket to browse its manifests. Rscoop loads the manifest list via native commands so even large buckets stay responsive.
-- Click a manifest name to preview the package in the details modal or install it directly.
-- Use the **Update** button on a bucket tile to pull the latest commits without leaving the UI.
+Every bucket you've added shows up in a grid with its manifest count and last-updated timestamp. From here you can:
 
-## Discover New Buckets
+- Browse a bucket's manifests and preview or install packages from the details modal
+- Update a bucket to pull the latest commits
+- Remove buckets you don't need
 
-Activate the discovery panel to:
+## Discovering new buckets
 
-- Search GitHub for public Scoop buckets with live filtering based on stars, forks, and language preferences.
-- Trigger an **expanded search** that downloads an offline index of thousands of community buckets. You choose the star minimum and whether to include Chinese-hosted repositories before Rscoop fetches the data.
-- Inspect buckets you have not installed yet with full descriptions, star counts, and manifest totals.
-- Install, validate, or remove buckets using the install wizard backed by the Rust commands in bucket_install.rs.
+The discovery panel lets you search for public Scoop buckets on GitHub. You can filter by stars, forks, and language.
 
-## Cache Controls
+For a wider search, use **Expanded Search** — this downloads an offline index of thousands of community buckets. You pick a minimum star count and whether to include Chinese-hosted repos before Rscoop fetches the data.
 
-The search panel lets you clear the cached bucket index when you want to refresh remote data. Offline searches remain fast because Rscoop stores the expanded list locally and keeps it in sync when you install new buckets.
+Once downloaded, the expanded search works offline. You can clear the cached index from the panel when you want fresh data.
 
-## Related Pages
+## Adding buckets
 
-- [Search](../search.md) - Search for packages within installed buckets.
-- [Settings](../settings.md) - Configure bucket-related preferences.
+Found one you like? The install wizard validates the bucket URL and adds it via the Rust backend. Rscoop handles Git clone, validation, and error reporting.

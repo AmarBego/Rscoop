@@ -6,39 +6,38 @@ nav_order: 5
 
 # Architecture
 
-Rscoop is built as a Tauri desktop application that combines a Rust backend with a SolidJS frontend. The diagram below outlines the major layers.
+Rscoop is a Tauri 2 app — Rust backend, SolidJS frontend, talking to each other over Tauri's IPC bridge.
 
-## Rust Backend
+## Rust backend
 
-- **Entrypoint (src-tauri/src/lib.rs)** wires plugins, resolves the Scoop root path, and creates the shared AppState containing cached installed packages and the resolved Scoop directory.
-- **Commands (src-tauri/src/commands)** expose Scoop operations to the UI through tauri::invoke_handler. Functionality is grouped by domain: search, installed packages, bucket management, VirusTotal, system doctor, and more.
-- **Cold start (cold_start.rs)** preloads Scoop metadata on launch and emits cold-start-finished / scoop-ready events consumed by the frontend before the main UI renders.
-- **Utils (utils.rs)** handles PowerShell execution, manifest parsing, caching bucket metadata, and working with Scoop shims and shortcuts. Many commands reuse these helpers to keep logic centralised.
-- **System tray (tray.rs)** builds a dynamic tray menu populated with installed Scoop app shortcuts and listens for menu actions to show/hide the main window or launch apps.
+The backend lives in `src-tauri/src/`. Here's how it's organized:
 
-## SolidJS Frontend
+- **`lib.rs`** — entry point. Wires up all Tauri plugins, resolves the Scoop root path, and creates the shared `AppState` (cached packages, Scoop directory).
+- **`commands/`** — 30+ Tauri commands grouped by domain: search, install, update, uninstall, buckets, doctor, VirusTotal, settings, shims, cache, version switching, and more. These are what the frontend calls.
+- **`cold_start.rs`** — runs on first launch to preload Scoop metadata. Emits `cold-start-finished` and `scoop-ready` events that the frontend waits for before rendering.
+- **`utils.rs`** — shared helpers for running PowerShell, parsing manifests, caching bucket metadata, and working with shims/shortcuts.
+- **`tray.rs`** — builds the system tray menu from installed Scoop apps. Handles show/hide and app launching.
+- **`scheduler.rs`** — background loop for auto-updating buckets and packages on a configurable interval.
 
-- The root component (src/App.tsx) listens for backend lifecycle events, manages update banners, and routes between feature pages.
-- Dedicated hooks (src/hooks) wrap command invocations. Examples include useInstalledPackages for periodic refreshes, useBucketSearch for paginated discovery, and usePackageOperations for install/update orchestration.
-- Shared stores (src/stores) keep frequently accessed data reactive across the app, such as the installed packages cache and persisted view preferences.
-- Component folders under src/components/page mirror the page structure, making it easy to locate UI logic for Search, Installed, Buckets, System Doctor, and Settings.
+## SolidJS frontend
 
-## Data Flow
+The frontend lives in `src/`. Five pages, each with its own components:
 
-1. UI triggers an action (for example, **Install package**) through a hook.
-2. The hook calls the matching Rust command using @tauri-apps/api/core.invoke.
-3. The command wraps the Scoop CLI or native helper, streams logs via tauri-plugin-log, and returns structured results.
-4. Hooks update Solid signals/stores, which causes the UI to re-render. Completion events trigger follow-up refreshes (for example, reloading the installed package list).
+- **`App.tsx`** — root component. Listens for backend lifecycle events, manages the update banner, handles routing.
+- **`pages/`** — SearchPage, InstalledPage, BucketPage, DoctorPage, SettingsPage.
+- **`hooks/`** — wraps Tauri command calls. `useInstalledPackages` handles refreshes, `useBucketSearch` does paginated discovery, `usePackageOperations` orchestrates install/update flows.
+- **`stores/`** — reactive state shared across components. Installed packages cache, held packages, view preferences.
+- **`components/page/`** — mirrors the page structure. Each page has its own subfolder of components.
 
-## Caching Strategy
+## How data flows
 
-- Installed packages and bucket metadata are stored in memory inside AppState to avoid redundant Scoop calls.
-- Bucket search can persist an expanded index to disk, allowing offline discovery while giving the user explicit control over when to refresh the cache.
-- Frontend createStoredSignal persists view preferences (such as the selected tab) to localStorage so the experience survives restarts.
+1. User clicks something (e.g. "Install").
+2. A hook calls the matching Rust command via `@tauri-apps/api/core.invoke`.
+3. The Rust command runs the Scoop CLI (or a native helper like git2), streams logs through `tauri-plugin-log`, and returns results.
+4. The hook updates SolidJS signals/stores, which re-renders the UI. Completion triggers follow-up refreshes (e.g. reloading the package list).
 
-This layered approach keeps Scoop interactions safe in Rust while giving the UI the responsiveness of a modern web app.
+## Caching
 
-## Related Documentation
-
-- [Developer Guide](developer-guide.md) - Learn how to set up the development environment and contribute to Rscoop.
-- [User Guide](../user-guide/index.md) - Explore the features and workflows of Rscoop.
+- **In-memory**: installed packages and bucket metadata are cached in `AppState` to avoid hammering Scoop on every render. Invalidated by a fingerprint check (did the apps directory change?).
+- **On-disk**: the expanded bucket search index is saved locally so discovery works offline. You control when to refresh it.
+- **localStorage**: view preferences (selected tab, layout mode) persist across restarts via `createStoredSignal`.
