@@ -97,7 +97,7 @@ export default function VirusTotalSettings() {
                 <input
                     type={showKey() ? "text" : "password"}
                     placeholder={isLoading() ? "Loading..." : "Paste your API key"}
-                    class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-xs"
+                    class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-sm"
                     value={apiKey()}
                     onInput={(e) => setApiKey(e.currentTarget.value)}
                     onKeyDown={handleKeyDown}

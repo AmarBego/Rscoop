@@ -235,90 +235,51 @@ function BucketSearch(props: BucketSearchProps) {
       {/* Expanded Search Confirmation Dialog */}
       <Show when={showExpandedDialog()}>
         <div class="modal modal-open backdrop-blur-sm">
-          <div class="modal-box bg-base-200 w-11/12 max-w-2xl max-h-[80vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="font-bold text-lg">Expand Search to All Buckets</h3>
-              <Show when={expandedInfo()}>
-                <div class="flex items-center gap-2 text-warning">
-                  <TriangleAlert class="h-5 w-5" />
-                  <span class="font-medium text-sm">Large Dataset Warning</span>
-                </div>
-              </Show>
-            </div>
+          <div class="modal-box bg-base-200 max-w-md">
+            <h3 class="font-bold text-lg mb-3">Community Buckets</h3>
 
-            <Show when={expandedInfo()}>
-              <div class="space-y-4">
+            <p class="text-sm text-base-content/70 mb-4">
+              Downloads an index of ~{expandedInfo()?.total_buckets?.toLocaleString()} community buckets ({expandedInfo()?.estimated_size_mb} MB).
+              After the first download, searches are instant and work offline.
+            </p>
 
-                <div class="bg-base-400 p-4 rounded-lg space-y-2">
-                  <div class="flex justify-between">
-                    <span>Estimated download size:</span>
-                    <span class="font-bold">{expandedInfo()?.estimated_size_mb} MB</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span>Total buckets:</span>
-                    <span class="font-bold">~{expandedInfo()?.total_buckets}</span>
-                  </div>
-                </div>
-
-                <p class="text-sm text-base-content/70 break-words">
-                  {expandedInfo()?.description}
-                </p>
-
-
-                <div class="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg">
-                  <p class="text-sm text-yellow-800 dark:text-yellow-200">
-                    <strong>Note:</strong> This will download ~14MB initially, but only ~0.3-4MB (depending on filters)will be stored as optimized cache.
-                    The search will include community buckets of varying quality and maintenance levels.
-                    After the initial download, all searches will be instant and offline-capable.
-                  </p>
-                </div>
-
-                {/* Filter Options */}
-                <div class="bg-base-200 p-4 rounded-lg space-y-2">
-                  <div class="flex justify-between items-center">
-                    <span class="font-bold">Filter Options</span>
-                  </div>
-
-                  {/* Disable Chinese Buckets */}
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm">Disable Chinese Buckets</span>
-                    <input
-                      type="checkbox"
-                      class="checkbox checkbox-primary"
-                      checked={tempDisableChineseBuckets()}
-                      onChange={(e) => setTempDisableChineseBuckets(e.currentTarget.checked)}
-                    />
-                  </div>
-
-                  {/* Minimum Star Limit */}
-                  <div class="flex justify-between items-center">
-                    <span class="text-sm">Minimum Github Stars</span>
-                    <input
-                      type="number"
-                      class="input input-bordered input-sm w-20"
-                      min="0"
-                      max="1000"
-                      value={tempMinimumStars()}
-                      onInput={(e) => setTempMinimumStars(parseInt(e.currentTarget.value) || 0)}
-                    />
-                  </div>
-                </div>
+            {/* Filters */}
+            <div class="space-y-3 mb-6">
+              <div class="flex items-center justify-between">
+                <span class="text-sm">Exclude Chinese buckets</span>
+                <input
+                  type="checkbox"
+                  class="toggle toggle-primary"
+                  checked={tempDisableChineseBuckets()}
+                  onChange={(e) => setTempDisableChineseBuckets(e.currentTarget.checked)}
+                />
               </div>
-            </Show>
+              <div class="flex items-center justify-between">
+                <span class="text-sm">Minimum stars</span>
+                <input
+                  type="number"
+                  class="input input-bordered input-sm w-20"
+                  min="0"
+                  max="1000"
+                  value={tempMinimumStars()}
+                  onInput={(e) => setTempMinimumStars(parseInt(e.currentTarget.value) || 0)}
+                />
+              </div>
+            </div>
 
             <div class="modal-action">
               <button
-                class="btn btn-outline"
+                class="btn btn-sm btn-ghost"
                 onClick={() => setShowExpandedDialog(false)}
               >
                 Cancel
               </button>
               <button
-                class="btn btn-secondary"
+                class="btn btn-sm btn-primary"
                 onClick={confirmExpandedSearch}
                 disabled={bucketSearch.isSearching()}
               >
-                Enable Expanded Search
+                Enable
               </button>
             </div>
           </div>

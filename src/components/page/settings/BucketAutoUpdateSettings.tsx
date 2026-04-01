@@ -209,13 +209,13 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
             <input
                 type="number"
                 min={1}
-                class="input input-sm input-bordered w-20 bg-base-100 font-mono text-xs"
+                class="input input-sm input-bordered w-20 bg-base-100 font-mono text-sm"
                 value={quantity()}
                 disabled={props.disabled}
                 onInput={(e) => { setQuantity(parseInt(e.currentTarget.value || "1", 10)); setError(null); }}
             />
             <select
-                class="select select-sm select-bordered bg-base-100 text-xs"
+                class="select select-sm select-bordered bg-base-100 text-sm"
                 value={unit()}
                 disabled={props.disabled}
                 onChange={(e) => { setUnit(e.currentTarget.value); setError(null); }}

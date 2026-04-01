@@ -157,7 +157,8 @@ function BucketPage() {
 
   // Handle updating a single bucket
   const handleUpdateBucket = async (bucketName: string) => {
-    console.log('Updating bucket:', bucketName);
+    // Snapshot manifest count before update
+    const before = buckets().find(b => b.name === bucketName)?.manifest_count ?? 0;
 
     // Add to updating set
     setUpdatingBuckets(prev => new Set([...prev, bucketName]));
@@ -167,15 +168,15 @@ function BucketPage() {
         bucketName: bucketName
       });
 
-      // Store result message
-      setUpdateResults(prev => ({
-        ...prev,
-        [bucketName]: result.message
-      }));
-
       if (result.success) {
-        // Refresh bucket list to reflect any changes
-        await fetchBuckets();
+        // Silent refresh — update data without showing the loading spinner
+        await fetchBuckets(true);
+
+        // Flash only if manifest count changed
+        const after = buckets().find(b => b.name === bucketName)?.manifest_count ?? 0;
+        if (after !== before) {
+          setUpdateResults(prev => ({ ...prev, [bucketName]: "changed" }));
+        }
 
         // If this bucket is currently selected, refresh its manifests
         const currentBucket = selectedBucket();
@@ -183,14 +184,8 @@ function BucketPage() {
           await handleFetchManifests(bucketName);
         }
       }
-
-      console.log('Bucket update result:', result);
     } catch (error) {
       console.error('Failed to update bucket:', bucketName, error);
-      setUpdateResults(prev => ({
-        ...prev,
-        [bucketName]: `Failed to update: ${error}`
-      }));
     } finally {
       // Remove from updating set
       setUpdatingBuckets(prev => {

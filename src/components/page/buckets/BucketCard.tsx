@@ -1,7 +1,6 @@
-import { Show } from "solid-js";
-import { RefreshCw, Eye } from "lucide-solid";
+import { Show, createSignal, createEffect, onCleanup } from "solid-js";
+import { RefreshCw } from "lucide-solid";
 import { BucketInfo } from "../../../hooks/useBuckets";
-import Card from "../../common/Card";
 
 interface BucketCardProps {
   bucket: BucketInfo;
@@ -12,80 +11,90 @@ interface BucketCardProps {
 }
 
 function BucketCard(props: BucketCardProps) {
+  const [showOverlay, setShowOverlay] = createSignal(false);
+  const [fading, setFading] = createSignal(false);
+  let cardRef: HTMLDivElement | undefined;
+  let observerRef: IntersectionObserver | undefined;
+
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return "Unknown";
     return new Date(dateString).toLocaleDateString();
   };
 
-  return (
-    <Card
-      title={props.bucket.name}
-      class="bg-base-200 shadow-sm hover:shadow-md transition-all duration-200 border border-base-300"
-    >
-      <div class="flex items-center justify-between mb-2">
-        <div class="text-sm text-base-content/70">
-          <div class="flex items-center gap-1 mb-1">
-            <span class="font-bold text-primary text-xl">
-              {props.bucket.manifest_count}
-            </span>
-            <span class="text-sm">packages</span>
-          </div>
-          <Show when={props.bucket.last_updated}>
-            <div class="text-xs text-base-content/50">
-              Updated {formatDate(props.bucket.last_updated)}
-            </div>
-          </Show>
-        </div>
+  // Flash overlay only when new manifests arrived
+  createEffect(() => {
+    if (props.updateResult && !props.isUpdating) {
+      setShowOverlay(true);
+      setFading(false);
 
-        <Show when={props.bucket.git_branch}>
-          <div class="badge badge-outline badge-sm">
-            {props.bucket.git_branch}
+      // Wait until card is visible before fading
+      if (cardRef) {
+        observerRef?.disconnect();
+        observerRef = new IntersectionObserver(
+          ([entry]) => {
+            if (entry.isIntersecting && showOverlay()) {
+              setTimeout(() => {
+                setFading(true);
+                setTimeout(() => setShowOverlay(false), 1500);
+              }, 800);
+              observerRef?.disconnect();
+            }
+          },
+          { threshold: 0.5 }
+        );
+        observerRef.observe(cardRef);
+      }
+    }
+  });
+
+  onCleanup(() => observerRef?.disconnect());
+
+  return (
+    <div
+      ref={cardRef}
+      class="bg-base-300 rounded-lg p-4 cursor-pointer hover:bg-base-300/80 transition-colors relative overflow-hidden"
+      onClick={() => props.onViewBucket(props.bucket)}
+    >
+      {/* Success overlay */}
+      <Show when={showOverlay()}>
+        <div
+          class="absolute inset-0 rounded-lg pointer-events-none bg-success/8 transition-opacity duration-1500"
+          classList={{ "opacity-0": fading() }}
+        />
+      </Show>
+
+      <div class="flex items-start justify-between mb-2">
+        <div>
+          <h3 class="font-semibold">{props.bucket.name}</h3>
+          <div class="flex items-baseline gap-1.5 mt-0.5">
+            <span class="text-primary font-bold">{props.bucket.manifest_count}</span>
+            <span class="text-xs text-base-content/50">packages</span>
           </div>
+        </div>
+        <Show when={props.bucket.git_branch}>
+          <span class="text-xs text-base-content/40 font-mono">{props.bucket.git_branch}</span>
         </Show>
       </div>
 
-      <Show when={props.bucket.git_url}>
-        <div class="text-xs text-base-content/40 mt-2 truncate font-mono bg-base-100 px-2 py-1 rounded">
-          {props.bucket.git_url}
-        </div>
-      </Show>
-
-      {/* Update result message */}
-      <Show when={props.updateResult}>
-        <div class="mt-2 text-xs p-2 rounded bg-base-100 border">
-          {props.updateResult}
-        </div>
-      </Show>
-
-      {/* Action buttons */}
-      <div class="flex gap-2 mt-3">
-        <button
-          class="btn btn-primary btn-sm flex-1 gap-2"
-          onClick={() => props.onViewBucket(props.bucket)}
-        >
-          <Eye class="w-4 h-4" />
-          View
-        </button>
-
+      <div class="flex items-center justify-between mt-1">
+        <Show when={props.bucket.last_updated}>
+          <span class="text-xs text-base-content/40">Updated {formatDate(props.bucket.last_updated)}</span>
+        </Show>
         <Show when={props.bucket.is_git_repo && props.onUpdateBucket}>
           <button
-            class="btn btn-secondary btn-sm gap-2"
+            class="btn btn-ghost btn-xs text-sm ml-auto"
             onClick={(e) => {
               e.stopPropagation();
               props.onUpdateBucket!(props.bucket.name);
             }}
             disabled={props.isUpdating}
           >
-            <Show when={props.isUpdating}
-              fallback={<RefreshCw class="w-4 h-4" />}
-            >
-              <span class="loading loading-spinner loading-xs"></span>
-            </Show>
-            {props.isUpdating ? "Updating..." : "Update"}
+            <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": props.isUpdating }} />
+            Update
           </button>
         </Show>
       </div>
-    </Card>
+    </div>
   );
 }
 

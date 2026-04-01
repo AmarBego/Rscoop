@@ -194,7 +194,7 @@ function CacheManager() {
                 <input
                     type="text"
                     placeholder="Filter by name or version..."
-                    class="input input-bordered input-sm w-full mb-3 bg-base-100 text-xs"
+                    class="input input-bordered input-sm w-full mb-3 bg-base-100"
                     value={filter()}
                     onInput={(e) => setFilter(e.currentTarget.value)}
                     disabled={isLoading() || !!error() || cacheContents().length === 0}

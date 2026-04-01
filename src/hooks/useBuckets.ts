@@ -16,10 +16,10 @@ export function useBuckets() {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  const fetchBuckets = async () => {
-    setLoading(true);
+  const fetchBuckets = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
-    
+
     try {
       const result = await invoke<BucketInfo[]>("get_buckets");
       setBuckets(result);
@@ -27,7 +27,7 @@ export function useBuckets() {
       console.error("Failed to fetch buckets:", err);
       setError(err as string);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 

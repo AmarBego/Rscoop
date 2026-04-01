@@ -56,7 +56,7 @@ export default function ScoopConfiguration() {
                 <input
                     type="text"
                     placeholder={pathIsLoading() ? "Loading..." : "C:\\Users\\you\\scoop"}
-                    class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-xs"
+                    class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-sm"
                     value={scoopPath()}
                     onInput={(e) => setScoopPath(e.currentTarget.value)}
                     onKeyDown={handleKeyDown}
