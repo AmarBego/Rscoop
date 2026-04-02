@@ -74,17 +74,6 @@ The Rust backend exposes 25+ [commands](src-tauri/src/commands/), search, instal
 - [Architecture](https://amarbego.github.io/Rscoop/architecture.html): how the Rust commands and SolidJS pages fit together
 - [Developer Guide](https://amarbego.github.io/Rscoop/developer-guide.html): local dev setup and contributing
 
-## Roadmap
-
-**Next major release (1.7.0):** The operation queue scheduling and log history will move from the frontend into the Rust backend (where all package operations already run). This unlocks operations that continue while the window is minimized to tray, persist across restarts, and trigger desktop notifications on completion or failure.
-
-Other things being considered:
-
-- Package pinning and favorites
-- Export/import of bucket and package configurations
-- Release channel support (stable/nightly)
-
-No promises on timelines. If something here matters to you, open an issue.
 
 ## Contributing
 
