@@ -3,8 +3,10 @@ import { Recycle } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 function AutoCleanupSettings() {
+    const { t } = useI18n();
     const { settings, setCleanupSettings } = settingsStore;
     const [localVersionCount, setLocalVersionCount] = createSignal(settings.cleanup.preserveVersionCount);
 
@@ -16,9 +18,9 @@ function AutoCleanupSettings() {
 
     return (
         <Card
-            title="Auto Cleanup"
+            title={t("settings.cleanup.title")}
             icon={Recycle}
-            description="Tidy up old package versions and stale cache after install, update, or uninstall."
+            description={t("settings.cleanup.description")}
             headerAction={
                 <SettingsToggle
                     checked={settings.cleanup.autoCleanupEnabled}
@@ -35,9 +37,9 @@ function AutoCleanupSettings() {
                     {/* Clean old versions */}
                     <div class="flex items-center justify-between py-2">
                         <div class="flex-1">
-                            <span class="text-sm font-medium">Clean old versions</span>
+                            <span class="text-sm font-medium">{t("settings.cleanup.cleanOldVersions")}</span>
                             <p class="text-xs text-base-content/50">
-                                Versioned installs (<code class="text-xs">@version</code>) are always kept.
+                                {t("settings.cleanup.cleanOldVersionsDescription")}
                             </p>
                         </div>
                         <input
@@ -50,7 +52,7 @@ function AutoCleanupSettings() {
 
                     <Show when={settings.cleanup.cleanupOldVersions}>
                         <div class="flex items-center gap-3 pl-1">
-                            <span class="text-xs text-base-content/60">Versions to keep</span>
+                            <span class="text-xs text-base-content/60">{t("settings.cleanup.versionsToKeep")}</span>
                             <div class="flex items-center gap-1">
                                 <button
                                     class="btn btn-xs btn-ghost font-mono"
@@ -78,8 +80,8 @@ function AutoCleanupSettings() {
                     {/* Clean outdated cache */}
                     <div class="flex items-center justify-between py-2">
                         <div class="flex-1">
-                            <span class="text-sm font-medium">Clean outdated cache</span>
-                            <p class="text-xs text-base-content/50">Remove stale downloads that are no longer needed.</p>
+                            <span class="text-sm font-medium">{t("settings.cleanup.cleanOutdatedCache")}</span>
+                            <p class="text-xs text-base-content/50">{t("settings.cleanup.cleanOutdatedCacheDescription")}</p>
                         </div>
                         <input
                             type="checkbox"
@@ -94,8 +96,8 @@ function AutoCleanupSettings() {
                     {/* Auto clear cache on uninstall */}
                     <div class="flex items-center justify-between py-2">
                         <div class="flex-1">
-                            <span class="text-sm font-medium">Clear cache on uninstall</span>
-                            <p class="text-xs text-base-content/50">Automatically remove cached installers when a package is uninstalled.</p>
+                            <span class="text-sm font-medium">{t("settings.cleanup.clearCacheOnUninstall")}</span>
+                            <p class="text-xs text-base-content/50">{t("settings.cleanup.clearCacheOnUninstallDescription")}</p>
                         </div>
                         <input
                             type="checkbox"

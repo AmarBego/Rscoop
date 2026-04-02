@@ -1,6 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
 import Modal from "../../common/Modal";
+import { useI18n } from "../../../i18n";
 
 interface AddBucketModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface AddBucketModalProps {
 }
 
 function AddBucketModal(props: AddBucketModalProps) {
+  const { t } = useI18n();
   const [url, setUrl] = createSignal("");
   const [name, setName] = createSignal("");
   const [error, setError] = createSignal<string | null>(null);
@@ -19,7 +21,7 @@ function AddBucketModal(props: AddBucketModalProps) {
   const handleSubmit = async () => {
     const urlValue = url().trim();
     if (!urlValue) {
-      setError("Please enter a bucket URL");
+      setError(t("buckets.addModalUrlRequired"));
       return;
     }
 
@@ -61,21 +63,21 @@ function AddBucketModal(props: AddBucketModalProps) {
     <Modal
       isOpen={props.isOpen}
       onClose={resetAndClose}
-      title="Add Custom Bucket"
+      title={t("buckets.addModalTitle")}
       size="small"
       footer={
         <div class="flex justify-end gap-2 w-full">
           <button class="btn" onClick={resetAndClose} disabled={isInstalling()}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             class="btn btn-primary"
             onClick={handleSubmit}
             disabled={isInstalling() || !url().trim()}
           >
-            <Show when={isInstalling()} fallback="Add Bucket">
+            <Show when={isInstalling()} fallback={t("buckets.addModalSubmit")}>
               <span class="loading loading-spinner loading-sm"></span>
-              Installing...
+              {t("common.installing")}
             </Show>
           </button>
         </div>
@@ -83,11 +85,11 @@ function AddBucketModal(props: AddBucketModalProps) {
     >
       <div class="form-control w-full mb-3">
         <label class="label">
-          <span class="label-text">Repository URL <span class="text-error">*</span></span>
+          <span class="label-text">{t("buckets.addModalUrlLabel")} <span class="text-error">*</span></span>
         </label>
         <input
           type="text"
-          placeholder="https://github.com/user/scoop-bucket"
+          placeholder={t("buckets.addModalUrlPlaceholder")}
           class="input input-bordered w-full"
           value={url()}
           onInput={(e) => setUrl(e.currentTarget.value)}
@@ -100,11 +102,11 @@ function AddBucketModal(props: AddBucketModalProps) {
 
       <div class="form-control w-full">
         <label class="label">
-          <span class="label-text">Bucket Name <span class="text-base-content/50">(optional)</span></span>
+          <span class="label-text">{t("buckets.addModalNameLabel")} <span class="text-base-content/50">{t("buckets.addModalNameOptional")}</span></span>
         </label>
         <input
           type="text"
-          placeholder="Auto-detected from URL"
+          placeholder={t("buckets.addModalNamePlaceholder")}
           class="input input-bordered w-full"
           value={name()}
           onInput={(e) => setName(e.currentTarget.value)}

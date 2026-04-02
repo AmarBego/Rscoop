@@ -32,6 +32,7 @@ interface Settings {
     autoUpdateInterval: string; // "off" | "1h" | "6h" | "24h"
     autoUpdatePackagesEnabled: boolean;
   };
+  language: string;
   defaultLaunchPage: View;
 }
 
@@ -62,6 +63,7 @@ const defaultSettings: Settings = {
     autoUpdateInterval: "off",
     autoUpdatePackagesEnabled: false,
   },
+  language: "en",
   defaultLaunchPage: "installed",
 };
 
@@ -98,6 +100,7 @@ function createSettingsStore() {
           ...defaultSettings.buckets,
           ...storedSettings.buckets,
         },
+        language: storedSettings.language || defaultSettings.language,
         defaultLaunchPage: storedSettings.defaultLaunchPage || defaultSettings.defaultLaunchPage,
       };
     }
@@ -182,11 +185,15 @@ function createSettingsStore() {
     });
   };
 
+  const setLanguage = (lang: string) => {
+    saveSettings({ language: lang });
+  };
+
   const setDefaultLaunchPage = (page: View) => {
     saveSettings({ defaultLaunchPage: page });
   };
 
-  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setOperationsSettings, setTheme, setDefaultLaunchPage };
+  return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setOperationsSettings, setTheme, setLanguage, setDefaultLaunchPage };
 }
 
 export default createRoot(createSettingsStore);

@@ -2,6 +2,7 @@ import { For, Show } from "solid-js";
 import { CirclePause, LockOpen } from "lucide-solid";
 import heldStore from "../../../stores/held";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 interface HeldPackagesManagementProps {
   onUnhold: (packageName: string) => void;
@@ -9,13 +10,14 @@ interface HeldPackagesManagementProps {
 }
 
 export default function HeldPackagesManagement(props: HeldPackagesManagementProps) {
+  const { t } = useI18n();
   const { store: heldPackagesStore } = heldStore;
 
   return (
     <Card
-      title="Held Packages"
+      title={t("settings.heldPackages.title")}
       icon={CirclePause}
-      description="These packages won't be updated by Rscoop or Scoop."
+      description={t("settings.heldPackages.description")}
     >
       <Show
         when={!heldPackagesStore.isLoading}
@@ -23,7 +25,7 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
       >
         <Show
           when={heldPackagesStore.packages.length > 0}
-          fallback={<p class="text-base-content/50 text-sm">No packages on hold.</p>}
+          fallback={<p class="text-base-content/50 text-sm">{t("settings.heldPackages.empty")}</p>}
         >
           <div class="max-h-60 overflow-y-auto">
             <ul class="space-y-1">
@@ -34,11 +36,11 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
                     <button
                       class="btn btn-xs btn-ghost text-info"
                       onClick={() => props.onUnhold(pkgName)}
-                      aria-label={`Remove hold from ${pkgName}`}
+                      aria-label={t("settings.heldPackages.unholdAriaLabel", { name: pkgName })}
                       disabled={props.operationInProgress}
                     >
                       <LockOpen class="w-3.5 h-3.5 mr-1" />
-                      Unhold
+                      {t("settings.heldPackages.unhold")}
                     </button>
                   </li>
                 )}

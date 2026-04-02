@@ -2,6 +2,7 @@ import { For, Show, createEffect, Component } from "solid-js";
 import { ExternalLink, CircleCheck, CircleX, ShieldAlert, TriangleAlert } from "lucide-solid";
 import operationsStore from "../stores/operations";
 import Modal from "./common/Modal";
+import { useI18n } from "../i18n";
 
 const LineWithLinks: Component<{ line: string }> = (props) => {
   const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
@@ -29,6 +30,7 @@ const LineWithLinks: Component<{ line: string }> = (props) => {
 };
 
 function OperationModal() {
+  const { t } = useI18n();
   let scrollRef: HTMLDivElement | undefined;
 
   const op = () => operationsStore.current();
@@ -84,7 +86,7 @@ function OperationModal() {
             <Show when={isRunning()}>
               <span class="flex items-center gap-2 text-sm text-base-content/50">
                 <span class="loading loading-spinner loading-xs"></span>
-                Running...
+                {t("operation.running")}
               </span>
             </Show>
             <Show when={op()?.result?.success}>
@@ -111,13 +113,13 @@ function OperationModal() {
           <div class="flex items-center gap-2 shrink-0">
             <Show when={isRunning()}>
               <button class="btn btn-sm btn-ghost text-base-content/50" onClick={() => operationsStore.minimize()}>
-                Background
+                {t("operation.background")}
               </button>
             </Show>
             <Show when={op()?.scanWarning}>
               <button class="btn btn-sm btn-ghost text-warning" onClick={() => operationsStore.handleInstallConfirm()}>
                 <TriangleAlert class="w-3.5 h-3.5" />
-                Install Anyway
+                {t("operation.installAnyway")}
               </button>
             </Show>
             <Show when={op()?.result?.success && op()?.nextStep}>
@@ -127,17 +129,17 @@ function OperationModal() {
             </Show>
             <Show when={isRunning()}>
               <button class="btn btn-sm" onClick={() => operationsStore.cancel()}>
-                Cancel
+                {t("common.cancel")}
               </button>
             </Show>
             <Show when={op()?.result}>
               <button class="btn btn-sm" onClick={() => operationsStore.close(op()!.result!.success)}>
-                Dismiss
+                {t("common.dismiss")}
               </button>
             </Show>
             <Show when={op()?.scanWarning && !op()?.result}>
               <button class="btn btn-sm" onClick={() => operationsStore.close(false)}>
-                Close
+                {t("common.close")}
               </button>
             </Show>
           </div>
@@ -149,7 +151,7 @@ function OperationModal() {
         class="bg-base-100 font-mono text-sm p-4 rounded-lg max-h-96 overflow-y-auto border border-base-content/5"
       >
         <Show when={op()?.output.length === 0 && isRunning()}>
-          <span class="text-base-content/30">Waiting for output...</span>
+          <span class="text-base-content/30">{t("operation.waitingForOutput")}</span>
         </Show>
         <For each={op()?.output ?? []}>
           {(line) => (

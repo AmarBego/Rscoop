@@ -4,8 +4,10 @@ import { ShieldCheck } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 export default function VirusTotalSettings() {
+    const { t } = useI18n();
     const { settings, setVirusTotalSettings } = settingsStore;
     const [apiKey, setApiKey] = createSignal("");
     const [isLoading, setIsLoading] = createSignal(true);
@@ -27,7 +29,7 @@ export default function VirusTotalSettings() {
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to fetch API key:", errorMsg);
-            setError("Could not load API key. Scoop may not be configured correctly.");
+            setError(t("settings.virustotal.errorLoad"));
         } finally {
             setIsLoading(false);
         }
@@ -43,7 +45,7 @@ export default function VirusTotalSettings() {
         setSaved(false);
 
         if (!validateApiKey(apiKey())) {
-            setError("Invalid key. Must be 64 lowercase hex characters.");
+            setError(t("settings.virustotal.errorInvalid"));
             return;
         }
 
@@ -58,7 +60,7 @@ export default function VirusTotalSettings() {
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to save API key:", errorMsg);
-            setError("Failed to save key.");
+            setError(t("settings.virustotal.errorSave"));
         }
     };
 
@@ -72,14 +74,14 @@ export default function VirusTotalSettings() {
 
     return (
         <Card
-            title="VirusTotal Integration"
+            title={t("settings.virustotal.title")}
             icon={ShieldCheck}
             description={
                 <span>
-                    Scan packages against VirusTotal before installing.
-                    Get a free API key from the{" "}
+                    {t("settings.virustotal.description")}{" "}
+                    {t("settings.virustotal.getApiKey")}{" "}
                     <a href="https://www.virustotal.com/gui/my-apikey" target="_blank" class="link link-primary">
-                        VirusTotal website
+                        {t("settings.virustotal.websiteLink")}
                     </a>.
                 </span>
             }
@@ -96,7 +98,7 @@ export default function VirusTotalSettings() {
             <div class="flex items-center gap-2 max-w-lg">
                 <input
                     type={showKey() ? "text" : "password"}
-                    placeholder={isLoading() ? "Loading..." : "Paste your API key"}
+                    placeholder={isLoading() ? t("common.loading") : t("settings.virustotal.placeholder")}
                     class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-sm"
                     value={apiKey()}
                     onInput={(e) => setApiKey(e.currentTarget.value)}
@@ -110,14 +112,14 @@ export default function VirusTotalSettings() {
                     onClick={() => setShowKey(!showKey())}
                     tabIndex={-1}
                 >
-                    {showKey() ? "Hide" : "Show"}
+                    {showKey() ? t("common.hide") : t("common.show")}
                 </button>
                 <button
                     class="btn btn-primary btn-sm"
                     onClick={handleSave}
                     disabled={isLoading()}
                 >
-                    {saved() ? "Saved" : "Save"}
+                    {saved() ? t("common.saved") : t("common.save")}
                 </button>
             </div>
 
@@ -131,7 +133,7 @@ export default function VirusTotalSettings() {
                     <SettingsToggle
                         checked={settings.virustotal.autoScanOnInstall}
                         onChange={(checked) => setVirusTotalSettings({ autoScanOnInstall: checked })}
-                        label="Auto-scan packages on install"
+                        label={t("settings.virustotal.autoScan")}
                     />
                 </div>
             </Show>

@@ -11,6 +11,7 @@ import DebugModal from "./components/DebugModal.tsx";
 import OperationModal from "./components/OperationModal.tsx";
 import OperationBar from "./components/OperationBar.tsx";
 import { listen } from "@tauri-apps/api/event";
+import i18n from "./i18n";
 import { info, error as logError } from "@tauri-apps/plugin-log";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
@@ -41,6 +42,11 @@ function App() {
 
     createEffect(() => {
         document.documentElement.setAttribute('data-theme', settings.theme);
+    });
+
+    // Sync language from settings on startup
+    createEffect(() => {
+        i18n.setLanguage(settings.language);
     });
 
 

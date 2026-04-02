@@ -2,8 +2,10 @@ import { createSignal, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { FolderCog } from "lucide-solid";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 export default function ScoopConfiguration() {
+    const { t } = useI18n();
     const [scoopPath, setScoopPath] = createSignal("");
     const [pathIsLoading, setPathIsLoading] = createSignal(true);
     const [error, setError] = createSignal<string | null>(null);
@@ -18,7 +20,7 @@ export default function ScoopConfiguration() {
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to fetch scoop path:", errorMsg);
-            setError("Could not load Scoop path.");
+            setError(t("settings.scoop.errorLoad"));
         } finally {
             setPathIsLoading(false);
         }
@@ -34,7 +36,7 @@ export default function ScoopConfiguration() {
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to save scoop path:", errorMsg);
-            setError("Failed to save path.");
+            setError(t("settings.scoop.errorSave"));
         }
     };
 
@@ -48,14 +50,14 @@ export default function ScoopConfiguration() {
 
     return (
         <Card
-            title="Scoop Configuration"
+            title={t("settings.scoop.title")}
             icon={FolderCog}
-            description="Set the path to your Scoop directory. Restart the app after changing this."
+            description={t("settings.scoop.description")}
         >
             <div class="flex items-center gap-2 max-w-lg">
                 <input
                     type="text"
-                    placeholder={pathIsLoading() ? "Loading..." : "C:\\Users\\you\\scoop"}
+                    placeholder={pathIsLoading() ? t("common.loading") : t("settings.scoop.placeholder")}
                     class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-sm"
                     value={scoopPath()}
                     onInput={(e) => setScoopPath(e.currentTarget.value)}
@@ -67,7 +69,7 @@ export default function ScoopConfiguration() {
                     onClick={handleSave}
                     disabled={pathIsLoading()}
                 >
-                    {saved() ? "Saved" : "Save"}
+                    {saved() ? t("common.saved") : t("common.save")}
                 </button>
             </div>
             {error() && <p class="text-error text-xs mt-1">{error()}</p>}

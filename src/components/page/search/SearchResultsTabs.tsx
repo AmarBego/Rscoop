@@ -1,4 +1,5 @@
 import { Accessor, Setter } from "solid-js";
+import { useI18n } from "../../../i18n";
 
 interface SearchResultsTabsProps {
     activeTab: Accessor<"packages" | "includes">;
@@ -8,6 +9,7 @@ interface SearchResultsTabsProps {
 }
 
 function SearchResultsTabs(props: SearchResultsTabsProps) {
+    const { t } = useI18n();
     return (
         <div class="tabs tabs-border my-6">
             <a
@@ -15,14 +17,14 @@ function SearchResultsTabs(props: SearchResultsTabsProps) {
                 classList={{ "tab-active": props.activeTab() === "packages" }}
                 onClick={() => props.setActiveTab("packages")}
             >
-                Packages ({props.packageCount})
+                {t("search.packagesTab", { count: props.packageCount })}
             </a>
             <a
                 class="tab"
                 classList={{ "tab-active": props.activeTab() === "includes" }}
                 onClick={() => props.setActiveTab("includes")}
             >
-                Includes ({props.includesCount})
+                {t("search.includesTab", { count: props.includesCount })}
             </a>
         </div>
     );

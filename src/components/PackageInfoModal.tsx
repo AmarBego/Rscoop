@@ -9,6 +9,7 @@ import ManifestModal from "./ManifestModal";
 import Modal from "./common/Modal";
 import { openPath } from '@tauri-apps/plugin-opener';
 import settingsStore from "../stores/settings";
+import { useI18n } from "../i18n";
 
 hljs.registerLanguage('json', json);
 
@@ -109,6 +110,7 @@ function LicenseValue(props: { value: string }) {
 }
 
 function PackageInfoModal(props: PackageInfoModalProps) {
+  const { t } = useI18n();
   let codeRef: HTMLElement | undefined;
   const { settings } = settingsStore;
 
@@ -294,7 +296,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               }
             }}>
               <ExternalLink class="w-4 h-4 mr-2" />
-              Open in Explorer
+              {t("modal.package.openInExplorer")}
             </button>
           </li>
           <li>
@@ -313,7 +315,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               }
             }}>
               <FileText class="w-4 h-4 mr-2" />
-              Debug Structure
+              {t("modal.package.debugStructure")}
             </a>
           </li>
         </ul>
@@ -328,7 +330,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         onClick={() => props.pkg && fetchManifest(props.pkg)}
       >
         <FileText class="w-4 h-4 mr-2" />
-        View Manifest
+        {t("modal.package.viewManifest")}
       </button>
       <div class="flex gap-2">
         <Show when={!props.pkg?.is_installed && props.onInstall}>
@@ -358,11 +360,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               <Show when={actionFired() === "install"} fallback={
                 <>
                   <Download class="w-4 h-4 mr-2" />
-                  {installVersion().trim() ? `Install @${installVersion().trim()}` : "Install"}
+                  {installVersion().trim() ? t("modal.package.installVersion", { version: installVersion().trim() }) : t("common.install")}
                 </>
               }>
                 <Check class="w-4 h-4 mr-2" />
-                Queued
+                {t("common.queued")}
               </Show>
             </button>
           </div>
@@ -384,16 +386,16 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             <Show when={actionFired() === "uninstall"} fallback={
               <>
                 <Trash2 class="w-4 h-4 mr-2" />
-                Uninstall
+                {t("common.uninstall")}
               </>
             }>
               <Check class="w-4 h-4 mr-2" />
-              Queued
+              {t("common.queued")}
             </Show>
           </button>
         </Show>
         <button class="btn-close-outline" onClick={props.onClose}>
-          {props.showBackButton ? "Back to Bucket" : "Close"}
+          {props.showBackButton ? t("modal.package.backToBucket") : t("common.close")}
         </button>
       </div>
     </>
@@ -406,7 +408,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         onClose={props.onClose}
         title={
           <span class="flex items-center gap-2">
-            Package: <span class="text-info font-mono">{props.pkg?.name}</span>
+            {t("modal.package.title", { name: "" })}<span class="text-info font-mono">{props.pkg?.name}</span>
           </span>
         }
         size="large"
@@ -428,7 +430,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         <Show when={props.info}>
           <div class="flex flex-col md:flex-row gap-6">
             <div class="flex-1">
-              <h4 class="text-lg font-medium mb-3 pb-2 border-b">Details</h4>
+              <h4 class="text-lg font-medium mb-3 pb-2 border-b">{t("modal.package.details")}</h4>
               <div class="grid grid-cols-1 gap-x-4 gap-y-2 text-sm">
                 <For each={orderedDetails()}>
                   {([key, value]) => (
@@ -457,7 +459,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             </div>
             <Show when={props.info?.notes}>
               <div class="flex-1">
-                <h4 class="text-lg font-medium mb-3 border-b pb-2">Notes</h4>
+                <h4 class="text-lg font-medium mb-3 border-b pb-2">{t("modal.package.notes")}</h4>
                 <div
                   class="rounded-xl overflow-hidden border border-base-content/10 shadow-inner"
                   style={{ "background-color": codeBgColor() }}
@@ -473,9 +475,9 @@ function PackageInfoModal(props: PackageInfoModalProps) {
 
         {/* Version Switcher Section */}
         <Show when={versionInfo()}>
-          <div class="divider">Version Manager</div>
+          <div class="divider">{t("modal.package.versionManager")}</div>
           <div class="bg-base-300 rounded-lg p-4">
-            <h4 class="text-lg font-medium mb-3">Available Versions</h4>
+            <h4 class="text-lg font-medium mb-3">{t("modal.package.availableVersions")}</h4>
             <Show when={versionError()}>
               <div role="alert" class="alert alert-error mb-3">
                 <span>{versionError()}</span>
@@ -494,7 +496,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                       <div>
                         <div class="font-semibold text-sm">{version.version}</div>
                         <Show when={version.is_current}>
-                          <div class="text-xs text-primary font-medium">Current</div>
+                          <div class="text-xs text-primary font-medium">{t("modal.package.currentVersion")}</div>
                         </Show>
                       </div>
                       <Show when={!version.is_current}>
@@ -504,7 +506,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                           onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
                         >
                           <Show when={switchingVersion() === version.version}
-                            fallback="Switch"
+                            fallback={t("modal.package.switchVersion")}
                           >
                             <span class="loading loading-spinner loading-xs"></span>
                           </Show>
@@ -519,7 +521,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         </Show>
 
         <Show when={versionLoading()}>
-          <div class="divider">Version Manager</div>
+          <div class="divider">{t("modal.package.versionManager")}</div>
           <div class="bg-base-300 rounded-lg p-4">
             <div class="flex justify-center items-center h-20">
               <span class="loading loading-spinner loading-lg"></span>

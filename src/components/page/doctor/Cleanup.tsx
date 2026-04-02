@@ -1,5 +1,6 @@
 import { Trash2, Archive } from "lucide-solid";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 interface CleanupProps {
     onCleanupApps: () => void;
@@ -7,19 +8,20 @@ interface CleanupProps {
 }
 
 function Cleanup(props: CleanupProps) {
+    const { t } = useI18n();
     return (
         <Card
-            title="System Cleanup"
-            description="Remove old package versions and outdated caches to free disk space. Ignores auto-cleanup constraints."
+            title={t("doctor.cleanupTitle")}
+            description={t("doctor.cleanupDescription")}
         >
             <div class="flex gap-2">
                 <button class="btn btn-sm btn-outline" onClick={props.onCleanupApps}>
                     <Trash2 class="w-3.5 h-3.5" />
-                    Old Versions
+                    {t("doctor.cleanupOldVersions")}
                 </button>
                 <button class="btn btn-sm btn-outline" onClick={props.onCleanupCache}>
                     <Archive class="w-3.5 h-3.5" />
-                    Outdated Cache
+                    {t("doctor.cleanupOutdatedCache")}
                 </button>
             </div>
         </Card>

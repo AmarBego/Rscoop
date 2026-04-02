@@ -12,6 +12,7 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import pkgJson from "../../../../package.json";
+import { useI18n } from "../../../i18n";
 
 // Define the types we need
 interface UpdateEvent {
@@ -32,6 +33,7 @@ export interface AboutSectionProps {
 }
 
 export default function AboutSection(props: AboutSectionProps) {
+  const { t } = useI18n();
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
   const [updateInfo, setUpdateInfo] = createSignal<any>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
@@ -42,8 +44,8 @@ export default function AboutSection(props: AboutSectionProps) {
       // Don't check for updates if installed via Scoop
       if (props.isScoopInstalled) {
         if (manual) {
-          await message("This app was installed via Scoop. Please use Scoop to update this application instead.", {
-            title: "Updates via Scoop",
+          await message(t("about.scoopUpdateMessage"), {
+            title: t("about.scoopUpdateTitle"),
             kind: "info"
           });
         }
@@ -62,12 +64,12 @@ export default function AboutSection(props: AboutSectionProps) {
         // Only show dialog if user manually clicked "Check for updates"
         if (manual) {
           const shouldInstall = await ask(
-            `Update to ${update.version} is available!\n\nRelease notes: ${update.body || 'No release notes provided'}`,
+            t("about.updateDialogText", { version: update.version, notes: update.body || 'No release notes provided' }),
             {
-              title: "Update Available",
+              title: t("about.updateDialogTitle"),
               kind: "info",
-              okLabel: "Install Now",
-              cancelLabel: "Later"
+              okLabel: t("about.installNow"),
+              cancelLabel: t("about.later")
             }
           );
 
@@ -78,8 +80,8 @@ export default function AboutSection(props: AboutSectionProps) {
       } else {
         setUpdateStatus('idle');
         if (manual) {
-          await message("You're already using the latest version!", {
-            title: "No Updates Available",
+          await message(t("about.noUpdates"), {
+            title: t("about.noUpdatesTitle"),
             kind: "info"
           });
         }
@@ -123,11 +125,11 @@ export default function AboutSection(props: AboutSectionProps) {
 
       // Restart the app after successful installation
       await ask(
-        "Update has been installed successfully. The application needs to restart to apply the changes.",
+        t("about.updateComplete"),
         {
-          title: "Update Complete",
+          title: t("about.updateCompleteTitle"),
           kind: "info",
-          okLabel: "Restart Now"
+          okLabel: t("about.restartNow")
         }
       );
 
@@ -146,11 +148,11 @@ export default function AboutSection(props: AboutSectionProps) {
       {/* Hero Section */}
       <div class="bg-base-300 p-8 flex flex-col items-center text-center space-y-4">
         <div>
-          <h2 class="text-3xl font-bold tracking-tight">rScoop</h2>
-          <p class="text-base-content/60 font-medium">v{pkgJson.version}</p>
+          <h2 class="text-3xl font-bold tracking-tight">{t("app.name")}</h2>
+          <p class="text-base-content/60 font-medium">{t("about.version", { version: pkgJson.version })}</p>
         </div>
         <p class="max-w-md leading-relaxed text-base-content/60">
-          A desktop GUI for the Scoop package manager.
+          {t("app.description")}
         </p>
       </div>
 
@@ -159,7 +161,7 @@ export default function AboutSection(props: AboutSectionProps) {
         {/* Update Section */}
         {props.isScoopInstalled ? (
           <div class="flex items-center justify-center gap-2 text-sm text-base-content/50">
-            <span>Updates managed by Scoop</span>
+            <span>{t("about.managedByScoop")}</span>
           </div>
         ) : (
           <div>
@@ -170,7 +172,7 @@ export default function AboutSection(props: AboutSectionProps) {
                   onClick={() => checkForUpdates(true)}
                 >
                   <RefreshCw class="w-3.5 h-3.5" />
-                  Check for updates
+                  {t("about.checkForUpdates")}
                 </button>
               </div>
             )}
@@ -178,15 +180,15 @@ export default function AboutSection(props: AboutSectionProps) {
             {updateStatus() === 'checking' && (
               <div class="flex items-center justify-center gap-2 text-sm text-base-content/50">
                 <span class="loading loading-spinner loading-xs"></span>
-                Checking...
+                {t("about.checking")}
               </div>
             )}
 
             {updateStatus() === 'available' && (
               <div class="space-y-2">
                 <div class="flex items-center justify-center gap-3">
-                  <span class="text-sm text-success">v{updateInfo()?.version} available</span>
-                  <button class="btn btn-xs btn-primary" onClick={installAvailableUpdate}>Install</button>
+                  <span class="text-sm text-success">{t("about.versionAvailable", { version: updateInfo()?.version })}</span>
+                  <button class="btn btn-xs btn-primary" onClick={installAvailableUpdate}>{t("common.install")}</button>
                 </div>
                 <Show when={updateInfo()?.body}>
                   <div class="bg-base-100 rounded-lg p-3 text-xs max-h-24 overflow-y-auto">
@@ -199,7 +201,7 @@ export default function AboutSection(props: AboutSectionProps) {
             {updateStatus() === 'downloading' && (
               <div class="space-y-1 max-w-xs mx-auto">
                 <div class="flex justify-between text-xs text-base-content/50">
-                  <span>Downloading...</span>
+                  <span>{t("about.downloading")}</span>
                   <span>{downloadProgress().total
                     ? `${Math.round((downloadProgress().downloaded / (downloadProgress().total || 1)) * 100)}%`
                     : '...'}</span>
@@ -215,14 +217,14 @@ export default function AboutSection(props: AboutSectionProps) {
             {updateStatus() === 'installing' && (
               <div class="flex items-center justify-center gap-2 text-sm text-success">
                 <span class="loading loading-spinner loading-xs"></span>
-                Installing...
+                {t("about.updateInstalling")}
               </div>
             )}
 
             {updateStatus() === 'error' && (
               <div class="flex items-center justify-center gap-2 text-sm">
                 <span class="text-error">{updateError()}</span>
-                <button class="btn btn-xs btn-ghost" onClick={() => checkForUpdates(true)}>Retry</button>
+                <button class="btn btn-xs btn-ghost" onClick={() => checkForUpdates(true)}>{t("common.retry")}</button>
               </div>
             )}
           </div>
@@ -235,27 +237,27 @@ export default function AboutSection(props: AboutSectionProps) {
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
             <GithubIcon class="w-4 h-4" />
-            GitHub
+            {t("about.github")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
             onClick={() => openUrl('https://amarbego.github.io/Rscoop/').catch(console.error)}
           >
             <BookOpen class="w-4 h-4" />
-            Docs
+            {t("about.docs")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
           >
             <Star class="w-4 h-4" />
-            Star
+            {t("about.star")}
           </button>
         </div>
 
         {/* Footer */}
         <div class="text-center text-xs text-base-content/30 pt-4">
-          <p>Copyright © {new Date().getFullYear()} AmarBego. MIT License.</p>
+          <p>{t("about.copyright", { year: new Date().getFullYear().toString() })}</p>
         </div>
       </div>
     </div>

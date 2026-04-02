@@ -3,14 +3,16 @@ import { invoke } from "@tauri-apps/api/core";
 import { RefreshCcw } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
-const PRESETS = [
-    { label: "Off", value: "off" },
-    { label: "24h", value: "24h" },
-    { label: "7d", value: "7d" },
+const PRESET_VALUES = [
+    { value: "off" },
+    { value: "24h" },
+    { value: "7d" },
 ];
 
 export default function BucketAutoUpdateSettings() {
+    const { t } = useI18n();
     const { settings, setBucketSettings } = settingsStore;
     const [loading, setLoading] = createSignal(false);
     const [saving, setSaving] = createSignal(false);
@@ -42,13 +44,13 @@ export default function BucketAutoUpdateSettings() {
             setBucketSettings({ autoUpdateInterval: newValue });
             await invoke("set_config_value", { key: "buckets.autoUpdateInterval", value: newValue });
         } catch {
-            setError("Failed to save interval.");
+            setError(t("settings.bucketUpdate.errorSave"));
         } finally {
             setSaving(false);
         }
     };
 
-    const isPreset = () => PRESETS.some(p => p.value === settings.buckets.autoUpdateInterval);
+    const isPreset = () => PRESET_VALUES.some(p => p.value === settings.buckets.autoUpdateInterval);
     const isCustom = () => !isPreset() && settings.buckets.autoUpdateInterval !== "off";
 
     onMount(() => {
@@ -62,9 +64,9 @@ export default function BucketAutoUpdateSettings() {
 
     return (
         <Card
-            title="Bucket Auto Update"
+            title={t("settings.bucketUpdate.title")}
             icon={RefreshCcw}
-            description="Keep bucket manifests fresh by updating on a schedule."
+            description={t("settings.bucketUpdate.description")}
             headerAction={
                 <div class="flex items-center gap-2">
                     <ActiveBadge value={settings.buckets.autoUpdateInterval} />
@@ -75,7 +77,7 @@ export default function BucketAutoUpdateSettings() {
             {/* Interval selector */}
             <div class="flex items-center gap-2">
                 <div class="flex bg-base-100 rounded-lg p-0.5 gap-0.5">
-                    {PRESETS.map(opt => (
+                    {PRESET_VALUES.map(opt => (
                         <button
                             class="btn btn-xs rounded-md"
                             classList={{
@@ -88,7 +90,7 @@ export default function BucketAutoUpdateSettings() {
                                 setShowCustom(false);
                             }}
                         >
-                            {opt.label}
+                            {opt.value === "off" ? t("settings.bucketUpdate.off") : opt.value}
                         </button>
                     ))}
                     <button
@@ -100,7 +102,7 @@ export default function BucketAutoUpdateSettings() {
                         disabled={loading() || saving()}
                         onClick={() => setShowCustom(true)}
                     >
-                        Custom
+                        {t("settings.bucketUpdate.custom")}
                     </button>
                 </div>
             </div>
@@ -120,8 +122,8 @@ export default function BucketAutoUpdateSettings() {
                 <div class="border-t border-base-content/10 mt-4 pt-3">
                     <div class="flex items-center justify-between">
                         <div>
-                            <span class="text-sm font-medium">Auto-update packages</span>
-                            <p class="text-xs text-base-content/50">Update all packages after each bucket refresh.</p>
+                            <span class="text-sm font-medium">{t("settings.bucketUpdate.autoUpdatePackages")}</span>
+                            <p class="text-xs text-base-content/50">{t("settings.bucketUpdate.autoUpdatePackagesDescription")}</p>
                         </div>
                         <input
                             type="checkbox"
@@ -143,7 +145,7 @@ export default function BucketAutoUpdateSettings() {
                         disabled={saving() || loading()}
                         onClick={() => persistInterval("custom:10")}
                     >
-                        Debug: 10s interval
+                        {t("settings.bucketUpdate.debug10s")}
                     </button>
                 </div>
             </Show>
@@ -172,6 +174,7 @@ function parseSeconds(value: string): number | null {
 }
 
 function CustomIntervalEditor(props: CustomIntervalEditorProps) {
+    const { t } = useI18n();
     const [quantity, setQuantity] = createSignal(1);
     const [unit, setUnit] = createSignal("days");
     const [error, setError] = createSignal<string | null>(null);
@@ -195,7 +198,7 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
         const secs = totalSeconds();
         const minSecs = props.debug ? 10 : 300;
         if (secs < minSecs) {
-            setError(`Minimum is ${minSecs} seconds.`);
+            setError(t("settings.bucketUpdate.errorMinimum", { minSecs: minSecs.toString() }));
             return;
         }
         setError(null);
@@ -220,17 +223,17 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
                 disabled={props.disabled}
                 onChange={(e) => { setUnit(e.currentTarget.value); setError(null); }}
             >
-                <option value="minutes">min</option>
-                <option value="hours">hr</option>
-                <option value="days">days</option>
-                <option value="weeks">wk</option>
+                <option value="minutes">{t("settings.bucketUpdate.unitMin")}</option>
+                <option value="hours">{t("settings.bucketUpdate.unitHr")}</option>
+                <option value="days">{t("settings.bucketUpdate.unitDays")}</option>
+                <option value="weeks">{t("settings.bucketUpdate.unitWk")}</option>
             </select>
             <button
                 class="btn btn-sm btn-primary"
                 disabled={props.disabled || !!error()}
                 onClick={handleSave}
             >
-                {saved() ? "Saved" : "Set"}
+                {saved() ? t("common.saved") : t("settings.bucketUpdate.set")}
             </button>
             {error() && <span class="text-error text-xs">{error()}</span>}
         </div>

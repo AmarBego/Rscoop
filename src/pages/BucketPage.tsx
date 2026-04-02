@@ -11,6 +11,7 @@ import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
 import AddBucketModal from "../components/page/buckets/AddBucketModal";
 import { SearchableBucket } from "../hooks/useBucketSearch";
+import { useI18n } from "../i18n";
 
 interface BucketUpdateResult {
   success: boolean;
@@ -21,6 +22,7 @@ interface BucketUpdateResult {
 }
 
 function BucketPage() {
+  const { t } = useI18n();
   const { buckets, loading, error, fetchBuckets, getBucketManifests } = useBuckets();
   const packageInfo = usePackageInfo();
 
@@ -241,7 +243,7 @@ function BucketPage() {
         <div class={`mb-6 relative transition-all duration-300 ${isSearchActive() ? 'mb-32' : 'mb-6'}`}>
           <div class="flex items-center justify-between">
             <div class={`transition-all duration-300 ${isSearchActive() ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-              <h1 class="text-3xl font-bold mb-2">Buckets</h1>
+              <h1 class="text-3xl font-bold mb-2">{t("buckets.title")}</h1>
             </div>
 
             <BucketSearch
@@ -256,7 +258,7 @@ function BucketPage() {
         <Show when={loading() && !isSearchActive()}>
           <div class="flex justify-center items-center py-8">
             <span class="loading loading-spinner loading-lg"></span>
-            <span class="ml-2">Loading buckets...</span>
+            <span class="ml-2">{t("buckets.loading")}</span>
           </div>
         </Show>
 

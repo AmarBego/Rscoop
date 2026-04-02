@@ -12,23 +12,26 @@ import OperationSettings from "../components/page/settings/OperationSettings";
 import StartupSettings from "../components/page/settings/StartupSettings";
 import ThemeSettings from "../components/page/settings/ThemeSettings";
 import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
+import LanguageSettings from "../components/page/settings/LanguageSettings";
 import heldStore from "../stores/held";
+import { useI18n } from "../i18n";
 
 interface SettingsPageProps {
     isScoopInstalled?: boolean;
 }
 
 function SettingsPage(props: SettingsPageProps) {
+    const { t } = useI18n();
     const { refetch: refetchHeldPackages } = heldStore;
     const [isUnholding, setIsUnholding] = createSignal(false);
     let aboutSectionRef: AboutSectionRef | undefined;
 
     const TABS = [
-        { key: 'automation', label: 'Automation' },
-        { key: 'management', label: 'Management' },
-        { key: 'security', label: 'Security' },
-        { key: 'window', label: 'Window & UI' },
-        { key: 'about', label: 'About' },
+        { key: 'automation', label: t("settings.tabAutomation") },
+        { key: 'management', label: t("settings.tabManagement") },
+        { key: 'security', label: t("settings.tabSecurity") },
+        { key: 'window', label: t("settings.tabWindow") },
+        { key: 'about', label: t("settings.tabAbout") },
     ];
     const [activeTab, setActiveTab] = createSignal<string>('automation');
 
@@ -47,7 +50,7 @@ function SettingsPage(props: SettingsPageProps) {
 
     return (
         <div class="p-2">
-                <h1 class="text-3xl font-bold mb-4">Settings</h1>
+                <h1 class="text-3xl font-bold mb-4">{t("settings.title")}</h1>
                 {/* Tab Navigation */}
                 <div role="tablist" aria-label="Settings Sections" class="tabs tabs-border mb-6">
                     <For each={TABS}>
@@ -97,6 +100,7 @@ function SettingsPage(props: SettingsPageProps) {
                     <Show when={activeTab() === 'window'}>
                         <div class="space-y-8">
                             <ThemeSettings />
+                            <LanguageSettings />
                             <WindowBehaviorSettings />
                             <StartupSettings />
                             <DefaultLaunchPageSettings />

@@ -4,6 +4,7 @@ import { Trash2, RefreshCw, TriangleAlert } from "lucide-solid";
 import { formatBytes } from "../../../utils/format";
 import ConfirmationModal from "../../ConfirmationModal";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 interface CacheEntry {
     name: string;
@@ -21,6 +22,7 @@ function getCacheIdentifier(entry: CacheEntry): CacheIdentifier {
 }
 
 function CacheManager() {
+    const { t } = useI18n();
     const [cacheContents, setCacheContents] = createSignal<CacheEntry[]>([]);
     const [selectedItems, setSelectedItems] = createSignal<Set<CacheIdentifier>>(new Set());
     const [filter, setFilter] = createSignal("");
@@ -109,14 +111,14 @@ function CacheManager() {
         )).sort();
 
         setConfirmationDetails({
-            title: "Confirm Deletion",
+            title: t("doctor.cacheConfirmTitle"),
             content: (
                 <>
-                    <p>You are about to delete {selectedFiles.length} cached file(s) for the following {packageNames.length} package(s):</p>
+                    <p>{t("doctor.cacheConfirmSelected", { count: String(selectedFiles.length), packageCount: String(packageNames.length) })}</p>
                     <ul class="list-disc list-inside bg-base-100 p-2 rounded-md max-h-40 overflow-y-auto">
                         <For each={packageNames}>{(name) => <li>{name}</li>}</For>
                     </ul>
-                    <p>This action cannot be undone.</p>
+                    <p>{t("doctor.cacheCannotUndo")}</p>
                 </>
             ),
             onConfirm: async () => {
@@ -137,8 +139,8 @@ function CacheManager() {
 
     const handleClearAll = () => {
         setConfirmationDetails({
-            title: "Confirm Deletion",
-            content: <p>Are you sure you want to delete all {cacheContents().length} cached files? This action cannot be undone.</p>,
+            title: t("doctor.cacheConfirmTitle"),
+            content: <p>{t("doctor.cacheConfirmAll", { count: String(cacheContents().length) })}</p>,
             onConfirm: async () => {
                 setIsLoading(true);
                 try {
@@ -159,7 +161,7 @@ function CacheManager() {
     return (
         <>
             <Card
-                title="Cache Manager"
+                title={t("doctor.cacheTitle")}
                 headerAction={
                     <div class="flex items-center gap-2">
                         <Show when={cacheContents().length > 0}>
@@ -170,7 +172,7 @@ function CacheManager() {
                                     disabled={isLoading()}
                                 >
                                     <Trash2 class="w-3.5 h-3.5" />
-                                    Remove {selectedItems().size}
+                                    {t("doctor.cacheRemoveSelected", { count: String(selectedItems().size) })}
                                 </button>
                             </Show>
                             <button
@@ -178,7 +180,7 @@ function CacheManager() {
                                 onClick={handleClearAll}
                                 disabled={isLoading()}
                             >
-                                Remove All
+                                {t("doctor.cacheRemoveAll")}
                             </button>
                         </Show>
                         <button
@@ -193,7 +195,7 @@ function CacheManager() {
             >
                 <input
                     type="text"
-                    placeholder="Filter by name or version..."
+                    placeholder={t("doctor.cacheFilterPlaceholder")}
                     class="input input-bordered input-sm w-full mb-3 bg-base-100"
                     value={filter()}
                     onInput={(e) => setFilter(e.currentTarget.value)}
@@ -209,7 +211,7 @@ function CacheManager() {
                     </Show>
 
                     <Show when={!isLoading() && cacheContents().length === 0 && !error()}>
-                        <p class="text-sm text-base-content/50 py-4 text-center">No cached files.</p>
+                        <p class="text-sm text-base-content/50 py-4 text-center">{t("doctor.cacheNone")}</p>
                     </Show>
 
                     <Show when={cacheContents().length > 0}>
@@ -227,9 +229,9 @@ function CacheManager() {
                                                 />
                                             </label>
                                         </th>
-                                        <th>Name</th>
-                                        <th>Version</th>
-                                        <th>Size</th>
+                                        <th>{t("doctor.cacheTableName")}</th>
+                                        <th>{t("doctor.cacheTableVersion")}</th>
+                                        <th>{t("doctor.cacheTableSize")}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -265,7 +267,7 @@ function CacheManager() {
             <ConfirmationModal
                 isOpen={isConfirmModalOpen()}
                 title={confirmationDetails().title}
-                confirmText="Delete"
+                confirmText={t("common.delete")}
                 onConfirm={() => {
                     confirmationDetails().onConfirm();
                     setIsConfirmModalOpen(false);

@@ -2,6 +2,7 @@ import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } fr
 import {
   Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert
 } from 'lucide-solid';
+import { useI18n } from "../../../i18n";
 
 interface InstalledPageHeaderProps {
   updatableCount: Accessor<number>;
@@ -25,6 +26,7 @@ interface InstalledPageHeaderProps {
 }
 
 function InstalledPageHeader(props: InstalledPageHeaderProps) {
+  const { t } = useI18n();
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
   let searchContainerRef: HTMLDivElement | undefined;
   let searchInputRef: HTMLInputElement | undefined;
@@ -69,7 +71,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search by name..."
+                placeholder={t("installed.searchPlaceholder")}
                 class="input input-bordered w-full join-item bg-base-200"
                 value={props.searchQuery()}
                 onInput={(e) => props.setSearchQuery(e.currentTarget.value)}
@@ -84,11 +86,11 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           </div>
         }
       >
-        <h2 class="text-3xl font-bold tracking-tight">Installed Packages</h2>
+        <h2 class="text-3xl font-bold tracking-tight">{t("installed.title")}</h2>
         <div class="flex items-center gap-2">
 
           {/* Search Button */}
-          <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip="Search" onClick={() => setIsSearchOpen(true)}>
+          <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip={t("installed.searchTooltip")} onClick={() => setIsSearchOpen(true)}>
             <Search class="w-5 h-5" />
           </button>
 
@@ -97,7 +99,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
             fallback={
               <button
                 class="btn btn-ghost btn-circle tooltip tooltip-bottom"
-                data-tip="Check Status"
+                data-tip={t("installed.checkStatusTooltip")}
                 onClick={props.onCheckStatus}
                 disabled={props.statusLoading?.()}
               >
@@ -117,14 +119,13 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           >
             <button class="btn btn-secondary gap-2" onClick={props.onUpdateAll}>
               <CircleArrowUp class="w-4 h-4" />
-              <span class="hidden md:inline">Update All&nbsp;</span>
-              <span>({props.updatableCount()})</span>
+              <span>{t("installed.updateAll", { count: props.updatableCount() })}</span>
             </button>
           </Show>
 
           {/* Filters Dropdown */}
           <div class="dropdown dropdown-end">
-            <label tabindex="0" class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" data-tip="Filter">
+            <label tabindex="0" class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" data-tip={t("installed.filterTooltip")}>
               <Funnel class="w-4 h-4" />
             </label>
             <div tabindex="0" class="dropdown-content menu p-4 shadow bg-base-300 rounded-box w-64 z-[1]">
@@ -139,7 +140,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
                 >
                   <For each={props.uniqueBuckets()}>
                     {(bucket) => (
-                      <option value={bucket}>{bucket === 'all' ? 'All Buckets' : bucket}</option>
+                      <option value={bucket}>{bucket === 'all' ? t("installed.allBuckets") : bucket}</option>
                     )}
                   </For>
                 </select>
@@ -150,7 +151,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           {/* View Toggle Button */}
           <button
             class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50"
-            data-tip={props.viewMode() === 'grid' ? 'Switch to List View' : 'Switch to Grid View'}
+            data-tip={props.viewMode() === 'grid' ? t("installed.switchToList") : t("installed.switchToGrid")}
             onClick={toggleViewMode}
           >
             <Show when={props.viewMode() === 'grid'}>

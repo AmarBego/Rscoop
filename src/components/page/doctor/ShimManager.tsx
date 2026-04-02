@@ -4,6 +4,7 @@ import { RefreshCw, TriangleAlert, Link, EyeOff, Plus, BookText } from "lucide-s
 import ShimDetailsModal from "./ShimDetailsModal";
 import AddShimModal from "./AddShimModal";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 export interface Shim {
     name: string;
@@ -15,6 +16,7 @@ export interface Shim {
 }
 
 function ShimManager() {
+    const { t } = useI18n();
     const [allShims, setAllShims] = createSignal<Shim[]>([]);
     const [filter, setFilter] = createSignal("");
     const [isLoading, setIsLoading] = createSignal(true);
@@ -99,7 +101,7 @@ function ShimManager() {
 
     return (
         <Card
-            title="Shim Manager"
+            title={t("doctor.shimTitle")}
             headerAction={
                 <div class="flex items-center gap-2">
                     <button
@@ -107,7 +109,7 @@ function ShimManager() {
                         onClick={() => setIsAddModalOpen(true)}
                         disabled={isLoading() || isProcessing()}
                     >
-                        <Plus class="w-3.5 h-3.5" /> Add Shim
+                        <Plus class="w-3.5 h-3.5" /> {t("doctor.shimAdd")}
                     </button>
                     <button
                         class="btn btn-ghost btn-xs text-sm"
@@ -121,7 +123,7 @@ function ShimManager() {
         >
             <input
                 type="text"
-                placeholder="Filter by name or source..."
+                placeholder={t("doctor.shimFilterPlaceholder")}
                 class="input input-bordered input-sm w-full mb-3 bg-base-100"
                 value={filter()}
                 onInput={(e) => setFilter(e.currentTarget.value)}
@@ -136,7 +138,7 @@ function ShimManager() {
                 </Show>
 
                 <Show when={!isLoading() && allShims().length === 0 && !error()}>
-                    <p class="text-sm text-base-content/50 py-4 text-center">No shims found.</p>
+                    <p class="text-sm text-base-content/50 py-4 text-center">{t("doctor.shimNone")}</p>
                 </Show>
 
                 <Show when={filteredShims().length > 0}>
@@ -145,9 +147,9 @@ function ShimManager() {
                         <table class="table table-sm">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Source Package</th>
-                                    <th>Attributes</th>
+                                    <th>{t("doctor.shimTableName")}</th>
+                                    <th>{t("doctor.shimTableSource")}</th>
+                                    <th>{t("doctor.shimTableAttributes")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -164,10 +166,10 @@ function ShimManager() {
                                             <td>
                                                 <div class="flex gap-2">
                                                     <Show when={item.isHidden}>
-                                                        <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3" />Hidden</div>
+                                                        <div class="badge badge-ghost gap-1"><EyeOff class="w-3 h-3" />{t("doctor.shimHidden")}</div>
                                                     </Show>
                                                     <Show when={item.args}>
-                                                        <div class="badge badge-accent gap-1"><BookText class="w-3 h-3" />Args</div>
+                                                        <div class="badge badge-accent gap-1"><BookText class="w-3 h-3" />{t("doctor.shimArgs")}</div>
                                                     </Show>
                                                 </div>
                                             </td>

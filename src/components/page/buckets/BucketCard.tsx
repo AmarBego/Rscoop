@@ -1,6 +1,7 @@
 import { Show, createSignal, createEffect, onCleanup } from "solid-js";
 import { RefreshCw } from "lucide-solid";
 import { BucketInfo } from "../../../hooks/useBuckets";
+import { useI18n } from "../../../i18n";
 
 interface BucketCardProps {
   bucket: BucketInfo;
@@ -11,6 +12,7 @@ interface BucketCardProps {
 }
 
 function BucketCard(props: BucketCardProps) {
+  const { t } = useI18n();
   const [showOverlay, setShowOverlay] = createSignal(false);
   const [fading, setFading] = createSignal(false);
   let cardRef: HTMLDivElement | undefined;
@@ -68,7 +70,7 @@ function BucketCard(props: BucketCardProps) {
           <h3 class="font-semibold">{props.bucket.name}</h3>
           <div class="flex items-baseline gap-1.5 mt-0.5">
             <span class="text-primary font-bold">{props.bucket.manifest_count}</span>
-            <span class="text-xs text-base-content/50">packages</span>
+            <span class="text-xs text-base-content/50">{t("buckets.packages")}</span>
           </div>
         </div>
         <Show when={props.bucket.git_branch}>
@@ -78,7 +80,7 @@ function BucketCard(props: BucketCardProps) {
 
       <div class="flex items-center justify-between mt-1">
         <Show when={props.bucket.last_updated}>
-          <span class="text-xs text-base-content/40">Updated {formatDate(props.bucket.last_updated)}</span>
+          <span class="text-xs text-base-content/40">{t("buckets.updated", { date: formatDate(props.bucket.last_updated) })}</span>
         </Show>
         <Show when={props.bucket.is_git_repo && props.onUpdateBucket}>
           <button
@@ -90,7 +92,7 @@ function BucketCard(props: BucketCardProps) {
             disabled={props.isUpdating}
           >
             <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": props.isUpdating }} />
-            Update
+            {t("common.update")}
           </button>
         </Show>
       </div>

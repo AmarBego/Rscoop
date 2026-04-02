@@ -2,6 +2,7 @@ import { Show, For, createSignal } from "solid-js";
 import { Maximize2, ShieldAlert, CircleCheck, CircleX } from "lucide-solid";
 import operationsStore, { CompletedOperation } from "../stores/operations";
 import Modal from "./common/Modal";
+import { useI18n } from "../i18n";
 
 // Reuse the line renderer from OperationModal
 const LineWithLinks = (props: { line: string }) => {
@@ -22,6 +23,7 @@ const LineWithLinks = (props: { line: string }) => {
 };
 
 function OperationBar() {
+  const { t } = useI18n();
   const op = () => operationsStore.current();
   const hasCompleted = () => operationsStore.completed().length > 0;
   const isVisible = () => (!!op() && operationsStore.isMinimized()) || hasCompleted();
@@ -36,13 +38,13 @@ function OperationBar() {
   const [viewingLog, setViewingLog] = createSignal<CompletedOperation | null>(null);
 
   const formatTitle = (title: string, success: boolean) => {
-    if (!success) return `${title} failed`;
+    if (!success) return t("operationbar.failed", { title });
     return title
-      .replace(/^Installing /, "Installed ")
-      .replace(/^Uninstalling /, "Uninstalled ")
-      .replace(/^Updating /, "Updated ")
-      .replace(/^Clearing cache for /, "Cleared cache for ")
-      .replace(/^Cleaning up /, "Cleaned up ");
+      .replace(/^Installing (.+)/, (_, name) => t("operationbar.installed", { name }))
+      .replace(/^Uninstalling (.+)/, (_, name) => t("operationbar.uninstalled", { name }))
+      .replace(/^Updating (.+)/, (_, name) => t("operationbar.updated", { name }))
+      .replace(/^Clearing cache for (.+)/, (_, name) => t("operationbar.clearedCache", { name }))
+      .replace(/^Cleaning up (.+)/, (_, name) => t("operationbar.cleanedUp", { name }));
   };
 
   const successCount = () => operationsStore.completed().filter(c => c.success).length;
@@ -51,7 +53,7 @@ function OperationBar() {
   const barText = () => {
     const c = operationsStore.completed();
 
-    if (needsAttention()) return "Action required";
+    if (needsAttention()) return t("operationbar.actionRequired");
     if (isRunning()) return op()?.title;
 
     // Single completed op still in current (no batch history)
@@ -62,7 +64,9 @@ function OperationBar() {
       const s = successCount();
       const f = failCount();
       if (c.length === 1) return formatTitle(c[0].title, c[0].success);
-      return `All operations completed. ${s} succeeded${f > 0 ? `, ${f} failed` : ""}`;
+      return f > 0
+        ? t("operationbar.allCompletedWithFails", { success: String(s), failed: String(f) })
+        : t("operationbar.allCompleted", { success: String(s) });
     }
 
     return "";
@@ -109,7 +113,7 @@ function OperationBar() {
               </Show>
               <span class="text-sm truncate">{barText()}</span>
               <Show when={operationsStore.queue().length > 0}>
-                <span class="text-xs text-base-content/40">+{operationsStore.queue().length} queued</span>
+                <span class="text-xs text-base-content/40">{t("operationbar.queued", { count: String(operationsStore.queue().length) })}</span>
               </Show>
             </div>
 
@@ -123,7 +127,7 @@ function OperationBar() {
                     operationsStore.dismissAll();
                   }}
                 >
-                  Dismiss
+                  {t("common.dismiss")}
                 </button>
               </Show>
               <Show when={op()}>
@@ -140,7 +144,7 @@ function OperationBar() {
             >
               <Show when={hasCompleted()}>
                 <div>
-                  <p class="text-xs text-base-content/40 mb-1">Completed:</p>
+                  <p class="text-xs text-base-content/40 mb-1">{t("operationbar.completed")}</p>
                   <For each={operationsStore.completed()}>
                     {(item) => (
                       <div
@@ -161,14 +165,14 @@ function OperationBar() {
               </Show>
               <Show when={operationsStore.queue().length > 0}>
                 <div>
-                  <p class="text-xs text-base-content/40 mb-1">Up next:</p>
+                  <p class="text-xs text-base-content/40 mb-1">{t("operationbar.upNext")}</p>
                   <For each={operationsStore.queue().slice(0, 3)}>
                     {(item) => (
                       <p class="text-xs text-base-content/60 truncate">{item.title}</p>
                     )}
                   </For>
                   <Show when={operationsStore.queue().length > 3}>
-                    <p class="text-xs text-base-content/40">...and {operationsStore.queue().length - 3} more</p>
+                    <p class="text-xs text-base-content/40">{t("operationbar.andMore", { count: String(operationsStore.queue().length - 3) })}</p>
                   </Show>
                 </div>
               </Show>
@@ -188,7 +192,7 @@ function OperationBar() {
             <span class="flex-1 text-sm" classList={{ "text-success": viewingLog()?.success, "text-error": !viewingLog()?.success }}>
               {viewingLog()?.message}
             </span>
-            <button class="btn btn-sm" onClick={() => setViewingLog(null)}>Close</button>
+            <button class="btn btn-sm" onClick={() => setViewingLog(null)}>{t("common.close")}</button>
           </div>
         }
       >
@@ -201,7 +205,7 @@ function OperationBar() {
             )}
           </For>
           <Show when={(viewingLog()?.output?.length ?? 0) === 0}>
-            <span class="text-base-content/30">No output recorded.</span>
+            <span class="text-base-content/30">{t("operationbar.noOutput")}</span>
           </Show>
         </div>
       </Modal>

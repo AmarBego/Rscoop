@@ -6,6 +6,7 @@ import type { DisplayPackage } from "../../../stores/installedPackagesStore";
 import type { ScoopPackage } from "../../../types/scoop";
 import heldStore from "../../../stores/held";
 import { formatIsoDate } from "../../../utils/date";
+import { useI18n } from "../../../i18n";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
@@ -45,16 +46,17 @@ const SortableHeader = (props: {
 );
 
 function PackageListView(props: PackageListViewProps) {
+  const { t } = useI18n();
   return (
     <div class="overflow-x-auto bg-base-300 rounded-xl shadow-xl">
       <table class="table">
         <thead>
           <tr>
-            <SortableHeader key="name" title="Name" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <SortableHeader key="version" title="Version" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <SortableHeader key="source" title="Bucket" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <SortableHeader key="updated" title="Updated" onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
-            <th class="text-center">Actions</th>
+            <SortableHeader key="name" title={t("installed.tableName")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="version" title={t("installed.tableVersion")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="source" title={t("installed.tableBucket")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <SortableHeader key="updated" title={t("installed.tableUpdated")} onSort={props.onSort} sortKey={props.sortKey} sortDirection={props.sortDirection} />
+            <th class="text-center">{t("installed.tableActions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,17 +69,17 @@ function PackageListView(props: PackageListViewProps) {
                       {pkg.name}
                     </button>
                     <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                      <div class="tooltip" data-tip={`Update available: ${pkg.available_version}`}>
+                      <div class="tooltip" data-tip={t("installed.updateAvailable", { version: pkg.available_version ?? "" })}>
                         <CircleArrowUp class="w-4 h-4 text-primary" />
                       </div>
                     </Show>
                     <Show when={pkg.is_versioned_install}>
-                      <div class="tooltip" data-tip="Versioned install - cannot be updated">
+                      <div class="tooltip" data-tip={t("installed.versionedInstallTooltip")}>
                         <Lock class="w-4 h-4 text-cyan-400" />
                       </div>
                     </Show>
                     <Show when={heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                      <div class="tooltip" data-tip="This package is on hold.">
+                      <div class="tooltip" data-tip={t("installed.onHoldTooltip")}>
                         <Lock class="w-4 h-4 text-warning" />
                       </div>
                     </Show>
@@ -101,7 +103,7 @@ function PackageListView(props: PackageListViewProps) {
                         <li>
                           <a onClick={() => props.onUpdate(pkg)}>
                             <CircleArrowUp class="w-4 h-4 mr-2" />
-                            Update to {pkg.available_version}
+                            {t("installed.updateTo", { version: pkg.available_version ?? "" })}
                           </a>
                         </li>
                       </Show>
@@ -114,20 +116,20 @@ function PackageListView(props: PackageListViewProps) {
                                   fallback={
                                     <a onClick={() => props.onHold(pkg.name)}>
                                       <Lock class="w-4 h-4 mr-2" />
-                                      <span>Hold Package</span>
+                                      <span>{t("installed.holdPackage")}</span>
                                     </a>
                                   }
                                 >
                                   <a onClick={() => props.onUnhold(pkg.name)}>
                                     <LockOpen class="w-4 h-4 mr-2" />
-                                    <span>Unhold Package</span>
+                                    <span>{t("installed.unholdPackage")}</span>
                                   </a>
                                 </Show>
                               }
                             >
                               <a class="btn-disabled cursor-not-allowed">
                                 <Lock class="w-4 h-4 mr-2 text-cyan-400" />
-                                <span>Cannot Unhold (Versioned)</span>
+                                <span>{t("installed.cannotUnholdVersioned")}</span>
                               </a>
                             </Show>
                           }
@@ -143,14 +145,14 @@ function PackageListView(props: PackageListViewProps) {
                             props.onViewInfoForVersions(pkg);
                           }}>
                             <RefreshCw class="w-4 h-4 mr-2" />
-                            Switch Version
+                            {t("installed.switchVersion")}
                           </a>
                         </li>
                       </Show>
                       <li>
                         <a class="text-error" onClick={() => props.onUninstall(pkg)}>
                           <Trash2 class="w-4 h-4 mr-2" />
-                          Uninstall
+                          {t("common.uninstall")}
                         </a>
                       </li>
                     </ul>

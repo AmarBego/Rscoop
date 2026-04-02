@@ -6,8 +6,10 @@ import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import operationsStore from "../stores/operations";
+import { useI18n } from "../i18n";
 
 function DoctorPage() {
+    const { t } = useI18n();
     const [installingHelper, setInstallingHelper] = createSignal<string | null>(null);
 
     const [checkupResult, setCheckupResult] = createSignal<CheckupItem[]>([]);
@@ -68,7 +70,7 @@ function DoctorPage() {
 
     return (
         <div class="p-4">
-            <h1 class="text-3xl font-bold mb-6">System Doctor</h1>
+            <h1 class="text-3xl font-bold mb-6">{t("doctor.title")}</h1>
 
             <div class="space-y-8">
                 <Show when={needsAttention()}>

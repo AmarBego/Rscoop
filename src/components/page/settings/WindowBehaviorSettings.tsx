@@ -4,8 +4,10 @@ import { Monitor } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 function WindowBehaviorSettings() {
+    const { t } = useI18n();
     const { settings, setWindowSettings } = settingsStore;
     const [isSaving, setIsSaving] = createSignal(false);
 
@@ -47,9 +49,9 @@ function WindowBehaviorSettings() {
 
     return (
         <Card
-            title="Tray Support"
+            title={t("settings.window.title")}
             icon={Monitor}
-            description="Enable tray support to allow Rscoop to run in the system tray when closed."
+            description={t("settings.window.description")}
             headerAction={
                 <SettingsToggle
                     checked={settings.window.closeToTray}

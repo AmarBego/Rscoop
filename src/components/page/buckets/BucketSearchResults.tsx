@@ -4,6 +4,7 @@ import { BucketInfo } from "../../../hooks/useBuckets";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
 import { ExternalLink, Star, Package, GitFork, Shield, LoaderCircle } from "lucide-solid";
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { useI18n } from "../../../i18n";
 
 interface BucketSearchResultsProps {
   buckets: SearchableBucket[];
@@ -17,6 +18,7 @@ interface BucketSearchResultsProps {
 }
 
 function BucketSearchResults(props: BucketSearchResultsProps) {
+  const { t } = useI18n();
   const bucketInstall = useBucketInstall();
   const formatNumber = (num: number) => {
     if (num >= 1000) {
@@ -77,7 +79,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
       {/* Header */}
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-bold">
-          Search Results
+          {t("buckets.searchResults")}
           <Show when={!props.loading}>
             <span class="text-base-content/60 ml-2 text-lg font-normal">
               ({props.buckets.length}{props.totalCount > props.buckets.length ? ` of ${props.totalCount}` : ''})
@@ -88,7 +90,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         <Show when={props.isExpandedSearch}>
           <div class="badge badge-info badge-outline badge-lg">
             <Shield class="w-3 h-3 mr-1" />
-            Expanded Search
+            {t("buckets.expandedSearch")}
           </div>
         </Show>
       </div>
@@ -97,7 +99,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
       <Show when={props.loading}>
         <div class="flex justify-center items-center py-12">
           <span class="loading loading-spinner loading-lg mr-3"></span>
-          <span class="text-lg">Searching buckets...</span>
+          <span class="text-lg">{t("buckets.searching")}</span>
         </div>
       </Show>
 
@@ -110,7 +112,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
 
       {/* No Results */}
       <Show when={!props.loading && !props.error && props.buckets.length === 0}>
-        <p class="text-sm text-base-content/50 py-8 text-center">No buckets found. Try different search terms or enable expanded search.</p>
+        <p class="text-sm text-base-content/50 py-8 text-center">{t("buckets.noResults")}</p>
       </Show>
 
       {/* Results Grid */}
@@ -128,7 +130,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                   <Show when={bucket.is_verified}>
                     <span class="badge badge-info badge-outline badge-xs">
                       <Shield class="w-2.5 h-2.5 mr-0.5" />
-                      Verified
+                      {t("buckets.verified")}
                     </span>
                   </Show>
                   <button
@@ -137,7 +139,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       e.stopPropagation();
                       try { await openUrl(bucket.url); } catch {}
                     }}
-                    title="Open on GitHub"
+                    title={t("buckets.openOnGithub")}
                   >
                     <ExternalLink class="w-3.5 h-3.5" />
                   </button>
@@ -145,7 +147,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
 
                 {/* Description */}
                 <p class="text-s text-base-content/60 line-clamp-2 mb-2 min-h-[2rem]">
-                  {bucket.description || "No description"}
+                  {bucket.description || t("buckets.noDescription")}
                 </p>
 
                 {/* Repo name */}
@@ -178,10 +180,10 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                         >
                           <Show
                             when={bucketInstall.isBucketInstalling(bucket.name)}
-                            fallback={<>Install</>}
+                            fallback={<>{t("common.install")}</>}
                           >
                             <LoaderCircle class="w-3 h-3 animate-spin" />
-                            Installing...
+                            {t("common.installing")}
                           </Show>
                         </button>
                       }
@@ -193,10 +195,10 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       >
                         <Show
                           when={bucketInstall.isBucketRemoving(bucket.name)}
-                          fallback={<>Remove</>}
+                          fallback={<>{t("common.remove")}</>}
                         >
                           <LoaderCircle class="w-3 h-3 animate-spin" />
-                          Removing...
+                          {t("common.removing")}
                         </Show>
                       </button>
                     </Show>

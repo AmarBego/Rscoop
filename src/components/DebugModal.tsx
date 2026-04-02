@@ -3,11 +3,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { info } from "@tauri-apps/plugin-log";
 import settingsStore from "../stores/settings";
 import Modal from "./common/Modal";
+import { useI18n } from "../i18n";
 
 function FingerprintDisplay(props: { fingerprint: string | null }) {
+    const { t } = useI18n();
     return (
-        <Show when={props.fingerprint} fallback={<span class="opacity-50">None</span>}>
-            {(fp) => {
+        <Show when={props.fingerprint} fallback={<span class="opacity-50">{t("debug.fingerprintNone")}</span>}>
+            {(fp: () => string) => {
                 const raw = fp();
                 const pipeIdx = raw.indexOf("|");
                 const prefix = pipeIdx >= 0 ? raw.slice(0, pipeIdx) : null;
@@ -15,7 +17,7 @@ function FingerprintDisplay(props: { fingerprint: string | null }) {
                 return (
                     <div class="mt-1">
                         <Show when={prefix}>
-                            <span class="text-info font-semibold mr-1">{prefix} apps</span>
+                            <span class="text-info font-semibold mr-1">{t("debug.fingerprintApps", { count: prefix! })}</span>
                         </Show>
                         <div class="flex flex-wrap gap-1 mt-1">
                             {entries.map((entry) => {
@@ -73,6 +75,7 @@ interface DebugInfo {
 }
 
 const DebugModal = () => {
+    const { t } = useI18n();
     const [isOpen, setIsOpen] = createSignal(false);
     const [debugInfo, setDebugInfo] = createSignal<DebugInfo | null>(null);
     const [appLogs, setAppLogs] = createSignal<string>("");
@@ -153,7 +156,7 @@ const DebugModal = () => {
             <Modal
                 isOpen={isOpen()}
                 onClose={() => setIsOpen(false)}
-                title="Debug Information"
+                title={t("debug.title")}
                 size="full"
                 footer={
                     <div class="flex gap-2 w-full justify-end">
@@ -162,28 +165,28 @@ const DebugModal = () => {
                             onClick={refreshDebugInfo}
                             disabled={isLoading()}
                         >
-                            {isLoading() ? "Loading..." : "Refresh"}
+                            {isLoading() ? t("common.loading") : t("common.refresh")}
                         </button>
                         <button
                             class="btn btn-sm btn-primary"
                             onClick={exportDebugData}
                             disabled={isLoading() || !debugInfo()}
                         >
-                            Copy All Data
+                            {t("debug.copyAllData")}
                         </button>
                         <Show when={activeTab() === "logs" && logFileContent()}>
                             <button
                                 class="btn btn-sm btn-info"
                                 onClick={() => copyToClipboard(logFileContent())}
                             >
-                                Copy Logs
+                                {t("debug.copyLogs")}
                             </button>
                         </Show>
                         <button
                             class="btn btn-sm btn-outline"
                             onClick={() => setIsOpen(false)}
                         >
-                            Close
+                            {t("common.close")}
                         </button>
                     </div>
                 }
@@ -195,14 +198,14 @@ const DebugModal = () => {
                         classList={{ "tab-active": activeTab() === "info" }}
                         onClick={() => setActiveTab("info")}
                     >
-                        System Info
+                        {t("debug.tabSystemInfo")}
                     </button>
                     <button
                         class="tab"
                         classList={{ "tab-active": activeTab() === "logs" }}
                         onClick={() => setActiveTab("logs")}
                     >
-                        Logs
+                        {t("debug.tabLogs")}
                     </button>
                 </div>
 
@@ -214,23 +217,23 @@ const DebugModal = () => {
                             {(info) => (
                                 <div class="space-y-3 font-mono text-sm">
                                     <div class="bg-base-200 p-2 rounded">
-                                        <strong>Timestamp:</strong> {info().timestamp}
+                                        <strong>{t("debug.timestamp")}</strong> {info().timestamp}
                                     </div>
                                     <div class="bg-base-200 p-2 rounded">
-                                        <strong>Scoop Path:</strong> {info().scoop_path}
+                                        <strong>{t("debug.scoopPath")}</strong> {info().scoop_path}
                                     </div>
                                     <div class="bg-base-200 p-2 rounded">
-                                        <strong>Apps Directory Exists:</strong> {info().apps_dir_exists ? "✓ Yes" : "✗ No"}
+                                        <strong>{t("debug.appsDirExists")}</strong> {info().apps_dir_exists ? t("debug.yes") : t("debug.no")}
                                     </div>
                                     <div class="bg-base-200 p-2 rounded">
-                                        <strong>App Count in Directory:</strong> {info().app_count}
+                                        <strong>{t("debug.appCount")}</strong> {info().app_count}
                                     </div>
                                     <div class="bg-base-200 p-2 rounded">
-                                        <strong>Cache State:</strong>
+                                        <strong>{t("debug.cacheState")}</strong>
                                         <div class="ml-4 mt-2">
-                                            <div>Cached Apps: {info().cache_info.cached_count}</div>
+                                            <div>{t("debug.cachedApps")} {info().cache_info.cached_count}</div>
                                             <div class="text-xs break-all">
-                                                <span class="opacity-70">Fingerprint:</span>
+                                                <span class="opacity-70">{t("debug.fingerprint")}</span>
                                                 <FingerprintDisplay fingerprint={info().cache_info.fingerprint} />
                                             </div>
                                         </div>
@@ -238,25 +241,25 @@ const DebugModal = () => {
 
                                     {info().app_count === 0 && info().apps_dir_exists && (
                                         <div class="bg-warning p-3 rounded text-warning-content">
-                                            ⚠️ <strong>Alert:</strong> Apps directory exists but is empty. This could indicate:
+                                            <strong>{t("debug.alertTitle")}</strong> {t("debug.alertMessage")}
                                             <ul class="ml-4 mt-2 list-disc">
-                                                <li>Scoop installation issue</li>
-                                                <li>Path resolution problem on MSI first-run</li>
-                                                <li>Permission issue accessing apps</li>
+                                                <li>{t("debug.alertReason1")}</li>
+                                                <li>{t("debug.alertReason2")}</li>
+                                                <li>{t("debug.alertReason3")}</li>
                                             </ul>
                                         </div>
                                     )}
 
                                     {!info().apps_dir_exists && (
                                         <div class="bg-error p-3 rounded text-error-content">
-                                            ✗ <strong>Error:</strong> Apps directory not found at {info().scoop_path}. Scoop may not be properly installed.
+                                            <strong>{t("debug.errorTitle")}</strong> {t("debug.errorMessage", { path: info().scoop_path })}
                                         </div>
                                     )}
                                 </div>
                             )}
                         </Show>
                         <Show when={!debugInfo() && !isLoading()}>
-                            <p class="text-center text-base-content/50">Click "Refresh" to load debug info</p>
+                            <p class="text-center text-base-content/50">{t("debug.clickRefresh")}</p>
                         </Show>
                     </Show>
 
@@ -264,7 +267,7 @@ const DebugModal = () => {
                     <Show when={activeTab() === "logs"}>
                         <Show when={logFileContent()} fallback={
                             <pre class="text-xs overflow-auto max-h-full whitespace-pre-wrap break-words">
-                                {appLogs() ? "Loading log file..." : "No logs available"}
+                                {appLogs() ? t("debug.logsLoading") : t("debug.logsNone")}
                             </pre>
                         }>
                             <pre

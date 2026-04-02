@@ -1,6 +1,7 @@
 import { Accessor, Show, createSignal, createEffect } from "solid-js";
 import { Search, X, TriangleAlert, LoaderCircle } from "lucide-solid";
 import { useBucketSearch } from "../../../hooks/useBucketSearch";
+import { useI18n } from "../../../i18n";
 
 interface BucketSearchProps {
   isActive: Accessor<boolean>;
@@ -9,6 +10,7 @@ interface BucketSearchProps {
 }
 
 function BucketSearch(props: BucketSearchProps) {
+  const { t } = useI18n();
   const bucketSearch = useBucketSearch();
   const [searchInput, setSearchInput] = createSignal("");
   const [showExpandedDialog, setShowExpandedDialog] = createSignal(false);
@@ -90,13 +92,13 @@ function BucketSearch(props: BucketSearchProps) {
         <Show when={!props.isActive()}>
           <div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-primary/20 hover:border-primary/40 transition-all duration-200">
             <div class="flex flex-col">
-              <span class="text-sm font-semibold text-primary">Discover New Buckets</span>
-              <span class="text-xs text-base-content/60 hidden sm:block">Explore community package repositories</span>
+              <span class="text-sm font-semibold text-primary">{t("buckets.discoverNew")}</span>
+              <span class="text-xs text-base-content/60 hidden sm:block">{t("buckets.exploreCommunity")}</span>
             </div>
             <button
               onClick={props.onToggle}
               class="btn btn-circle btn-primary hover:btn-primary hover:scale-110 transition-all duration-200 shadow-lg"
-              aria-label="Search for new buckets to install"
+              aria-label={t("buckets.searchAriaLabel")}
             >
               <Search class="h-5 w-5" />
             </button>
@@ -127,7 +129,7 @@ function BucketSearch(props: BucketSearchProps) {
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Search buckets by name..."
+                placeholder={t("buckets.searchPlaceholder")}
                 class="input input-bordered w-full pl-10 pr-4 bg-base-300 transition-colors duration-200"
                 value={searchInput()}
                 onInput={(e) => handleSearchInput(e.currentTarget.value)}
@@ -139,7 +141,7 @@ function BucketSearch(props: BucketSearchProps) {
               <button
                 onClick={() => handleSearchInput("")}
                 class="btn btn-circle btn-sm btn-ghost hover:btn-error"
-                aria-label="Clear search"
+                aria-label={t("buckets.clearSearch")}
                 disabled={bucketSearch.isSearching()}
               >
                 <X class="h-4 w-4" />
@@ -149,7 +151,7 @@ function BucketSearch(props: BucketSearchProps) {
             <button
               onClick={closeSearch}
               class="btn btn-circle btn-outline hover:btn-error transition-colors"
-              aria-label="Close search"
+              aria-label={t("buckets.closeSearch")}
             >
               <X class="h-5 w-5" />
             </button>
@@ -160,7 +162,7 @@ function BucketSearch(props: BucketSearchProps) {
             <div class="flex items-center gap-4">
               {/* Sort Options */}
               <div class="flex items-center gap-2">
-                <span class="text-base-content/70">Sort by:</span>
+                <span class="text-base-content/70">{t("buckets.sortBy")}</span>
                 <select
                   class="select select-sm select-bordered"
                   value={bucketSearch.sortBy()}
@@ -174,18 +176,17 @@ function BucketSearch(props: BucketSearchProps) {
                     inputRef?.focus();
                   }}
                 >
-                  <option value="stars">Stars</option>
-                  <option value="relevance">Relevance</option>
-                  <option value="apps">Apps</option>
-                  <option value="name">Name</option>
+                  <option value="stars">{t("buckets.sortStars")}</option>
+                  <option value="relevance">{t("buckets.sortRelevance")}</option>
+                  <option value="apps">{t("buckets.sortApps")}</option>
+                  <option value="name">{t("buckets.sortName")}</option>
                 </select>
               </div>
 
               {/* Results Count */}
               <Show when={bucketSearch.searchResults().length > 0 && !bucketSearch.isSearching()}>
                 <div class="text-base-content/70">
-                  {bucketSearch.searchResults().length} of {bucketSearch.totalCount()} buckets
-
+                  {t("buckets.resultsCount", { count: bucketSearch.searchResults().length, total: bucketSearch.totalCount() })}
                 </div>
               </Show>
             </div>
@@ -201,7 +202,7 @@ function BucketSearch(props: BucketSearchProps) {
                   disabled={bucketSearch.isSearching()}
                 >
                   <TriangleAlert class="h-4 w-4 mr-1" />
-                  Community Buckets
+                  {t("buckets.communityBuckets")}
                 </button>
               </Show>
 
@@ -216,7 +217,7 @@ function BucketSearch(props: BucketSearchProps) {
                   title="Clear expanded search cache and return to verified buckets only"
                 >
                   <X class="h-4 w-4 mr-1" />
-                  Disable Community Buckets
+                  {t("buckets.disableCommunity")}
                 </button>
               </Show>
             </div>
@@ -236,17 +237,16 @@ function BucketSearch(props: BucketSearchProps) {
       <Show when={showExpandedDialog()}>
         <div class="modal modal-open backdrop-blur-sm">
           <div class="modal-box bg-base-200 max-w-md">
-            <h3 class="font-bold text-lg mb-3">Community Buckets</h3>
+            <h3 class="font-bold text-lg mb-3">{t("buckets.communityDialogTitle")}</h3>
 
             <p class="text-sm text-base-content/70 mb-4">
-              Downloads an index of ~{expandedInfo()?.total_buckets?.toLocaleString()} community buckets ({expandedInfo()?.estimated_size_mb} MB).
-              After the first download, searches are instant and work offline.
+              {t("buckets.communityDialogText", { totalBuckets: expandedInfo()?.total_buckets?.toLocaleString(), sizeMb: expandedInfo()?.estimated_size_mb })}
             </p>
 
             {/* Filters */}
             <div class="space-y-3 mb-6">
               <div class="flex items-center justify-between">
-                <span class="text-sm">Exclude Chinese buckets</span>
+                <span class="text-sm">{t("buckets.excludeChinese")}</span>
                 <input
                   type="checkbox"
                   class="toggle toggle-primary"
@@ -255,7 +255,7 @@ function BucketSearch(props: BucketSearchProps) {
                 />
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-sm">Minimum stars</span>
+                <span class="text-sm">{t("buckets.minimumStars")}</span>
                 <input
                   type="number"
                   class="input input-bordered input-sm w-20"
@@ -272,14 +272,14 @@ function BucketSearch(props: BucketSearchProps) {
                 class="btn btn-sm btn-ghost"
                 onClick={() => setShowExpandedDialog(false)}
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 class="btn btn-sm btn-primary"
                 onClick={confirmExpandedSearch}
                 disabled={bucketSearch.isSearching()}
               >
-                Enable
+                {t("buckets.enable")}
               </button>
             </div>
           </div>

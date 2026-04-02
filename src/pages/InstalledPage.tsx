@@ -6,12 +6,14 @@ import InstalledPageHeader from "../components/page/installed/InstalledPageHeade
 import PackageListView from "../components/page/installed/PackageListView";
 import PackageGridView from "../components/page/installed/PackageGridView";
 import { View } from "../types/scoop";
+import { useI18n } from "../i18n";
 
 interface InstalledPageProps {
   onNavigate?: (view: View) => void;
 }
 
 function InstalledPage(props: InstalledPageProps) {
+  const { t } = useI18n();
   const {
     loading,
     error,
@@ -87,14 +89,14 @@ function InstalledPage(props: InstalledPageProps) {
       <Show when={error()}>
         <div role="alert" class="alert alert-error">
           <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          <span>Error: {error()}</span>
+          <span>{t("common.error")}: {error()}</span>
           <button class="btn btn-sm btn-primary" onClick={fetchInstalledPackages}>Try Again</button>
         </div>
       </Show>
 
       <Show when={!loading() && !error() && filteredPackages().length === 0}>
         <div class="text-center py-16">
-          <p class="text-xl">No packages installed match the current filter</p>
+          <p class="text-xl">{t("installed.noPackages")}</p>
         </div>
       </Show>
 

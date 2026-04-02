@@ -2,6 +2,7 @@ import { For, Show, createSignal } from "solid-js";
 import { ScoopPackage } from "../../../types/scoop";
 import { Download, Check } from "lucide-solid";
 import Card from "../../common/Card";
+import { useI18n } from "../../../i18n";
 
 interface SearchResultsListProps {
     loading: boolean;
@@ -14,6 +15,7 @@ interface SearchResultsListProps {
 }
 
 function SearchResultsList(props: SearchResultsListProps) {
+    const { t } = useI18n();
     const [queued, setQueued] = createSignal<Set<string>>(new Set());
 
     const flashQueued = (name: string) => {
@@ -38,8 +40,7 @@ function SearchResultsList(props: SearchResultsListProps) {
             >
                 <div class="text-center py-16">
                     <p class="text-xl">
-                        No {props.activeTab === "packages" ? "packages" : "includes"} found
-                        for "{props.searchTerm}"
+                        {t("search.noResults", { type: props.activeTab === "packages" ? "packages" : "includes", term: props.searchTerm })}
                     </p>
                 </div>
             </Show>
@@ -54,7 +55,7 @@ function SearchResultsList(props: SearchResultsListProps) {
                                     <div class="flex flex-col gap-0">
                                         <span class="text-base font-semibold">{pkg.name}</span>
                                         <span class="text-sm font-normal text-base-content/70">
-                                            from bucket: <strong>{pkg.source}</strong>
+                                            {t("search.fromBucket", { source: pkg.source })}
                                         </span>
                                     </div>
                                 }
@@ -64,7 +65,7 @@ function SearchResultsList(props: SearchResultsListProps) {
                                             {pkg.version}
                                         </span>
                                         {pkg.is_installed ? (
-                                            <span class="badge badge-success">Installed</span>
+                                            <span class="badge badge-success">{t("search.installedBadge")}</span>
                                         ) : (
                                             <button
                                                 class="btn btn-sm btn-ghost"

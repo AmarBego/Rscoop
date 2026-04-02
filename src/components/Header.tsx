@@ -2,6 +2,7 @@ import { Component, For, onCleanup } from "solid-js";
 import { View } from "../types/scoop.ts";
 import { Package, Search, Settings, Stethoscope, FolderOpen } from "lucide-solid";
 import installedPackagesStore from '../stores/installedPackagesStore';
+import { useI18n } from "../i18n";
 
 interface HeaderProps {
   currentView: View;
@@ -9,12 +10,13 @@ interface HeaderProps {
 }
 
 const Header: Component<HeaderProps> = (props) => {
-  const navItems: { view: View; label: string; icon: typeof Search }[] = [
-    { view: "search", label: "Search", icon: Search },
-    { view: "bucket", label: "Buckets", icon: FolderOpen },
-    { view: "installed", label: "Installed", icon: Package },
-    { view: "doctor", label: "Doctor", icon: Stethoscope },
-    { view: "settings", label: "Settings", icon: Settings },
+  const { t } = useI18n();
+  const navItems: { view: View; labelKey: string; icon: typeof Search }[] = [
+    { view: "search", labelKey: "header.search", icon: Search },
+    { view: "bucket", labelKey: "header.buckets", icon: FolderOpen },
+    { view: "installed", labelKey: "header.installed", icon: Package },
+    { view: "doctor", labelKey: "header.doctor", icon: Stethoscope },
+    { view: "settings", labelKey: "header.settings", icon: Settings },
   ];
 
   const toggleCommandPalette = (e: KeyboardEvent) => {
@@ -30,7 +32,7 @@ const Header: Component<HeaderProps> = (props) => {
   return (
     <div class="navbar bg-base-400 border-b border-base-300 shadow-sm">
       <div class="flex-1">
-        <a class="btn btn-ghost text-xl font-bold">rScoop</a>
+        <a class="btn btn-ghost text-xl font-bold">{t("app.name")}</a>
       </div>
       <div class="flex-none">
         <ul class="menu menu-horizontal px-1 gap-1">
@@ -51,7 +53,7 @@ const Header: Component<HeaderProps> = (props) => {
                   }}
                 >
                   <item.icon class="w-4 h-4" />
-                  {item.label}
+                  {t(item.labelKey)}
                 </button>
               </li>
             )}

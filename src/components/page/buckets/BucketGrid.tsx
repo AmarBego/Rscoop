@@ -2,6 +2,7 @@ import { Show, For } from "solid-js";
 import { Plus, RefreshCw } from "lucide-solid";
 import { BucketInfo } from "../../../hooks/useBuckets";
 import BucketCard from "./BucketCard";
+import { useI18n } from "../../../i18n";
 
 interface BucketGridProps {
   buckets: BucketInfo[];
@@ -15,19 +16,20 @@ interface BucketGridProps {
 }
 
 function BucketGrid(props: BucketGridProps) {
+  const { t } = useI18n();
   const anyUpdating = () => props.updatingBuckets && props.updatingBuckets.size > 0;
 
   return (
     <div>
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-lg font-semibold">Installed Buckets</h2>
+        <h2 class="text-lg font-semibold">{t("buckets.installedSection")}</h2>
         <div class="flex items-center gap-2">
           <button
             class="btn btn-ghost btn-s"
             onClick={props.onAddBucket}
           >
             <Plus class="w-3.5 h-3.5" />
-            Add Bucket
+            {t("buckets.addBucket")}
           </button>
           <Show when={props.onUpdateAll && props.buckets.some(b => b.is_git_repo)}>
             <button
@@ -36,7 +38,7 @@ function BucketGrid(props: BucketGridProps) {
               disabled={anyUpdating()}
             >
               <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": anyUpdating() }} />
-              Update All
+              {t("buckets.updateAll")}
             </button>
           </Show>
         </div>
@@ -56,7 +58,7 @@ function BucketGrid(props: BucketGridProps) {
           </For>
         </div>
       }>
-        <p class="text-sm text-base-content/50 py-8 text-center">No buckets found.</p>
+        <p class="text-sm text-base-content/50 py-8 text-center">{t("buckets.noBuckets")}</p>
       </Show>
     </div>
   );

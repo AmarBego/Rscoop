@@ -1,6 +1,7 @@
 import { Show } from "solid-js";
 import { X, Trash2, Eye, EyeOff } from "lucide-solid";
 import { Shim } from "./ShimManager";
+import { useI18n } from "../../../i18n";
 
 interface ShimDetailsModalProps {
     shim: Shim;
@@ -11,6 +12,7 @@ interface ShimDetailsModalProps {
 }
 
 function ShimDetailsModal(props: ShimDetailsModalProps) {
+    const { t } = useI18n();
     const handleRemove = () => {
         props.onRemove(props.shim.name);
     }
@@ -29,14 +31,14 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
 
                 <div class="py-4 space-y-3">
                     <p class="text-sm  break-all">
-                        <span class="font-semibold text-base-content">Source: </span> {props.shim.source}
+                        <span class="font-semibold text-base-content">{t("doctor.shimDetailsSource")} </span> {props.shim.source}
                     </p>
                     <p class="text-sm  break-all">
-                        <span class="font-semibold text-base-content">Path: </span> {props.shim.path}
+                        <span class="font-semibold text-base-content">{t("doctor.shimDetailsPath")} </span> {props.shim.path}
                     </p>
                     <Show when={props.shim.args}>
                         <p class="text-sm  break-all">
-                            <span class="font-semibold text-base-content">Arguments: </span>
+                            <span class="font-semibold text-base-content">{t("doctor.shimDetailsArguments")} </span>
                             <span class="font-mono bg-base-300 px-1 rounded">{props.shim.args}</span>
                         </p>
                     </Show>
@@ -44,11 +46,11 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
 
                 <div class="modal-action">
                     <button class="btn btn-error" onClick={handleRemove} disabled={props.isOperationRunning}>
-                        <Trash2 class="w-4 h-4" /> Remove
+                        <Trash2 class="w-4 h-4" /> {t("doctor.shimRemove")}
                     </button>
                     <button class="btn" onClick={handleAlter} disabled={props.isOperationRunning}>
-                        <Show when={!props.shim.isHidden} fallback={<><Eye class="w-4 h-4" /> Unhide</>}>
-                            <EyeOff class="w-4 h-4" /> Hide
+                        <Show when={!props.shim.isHidden} fallback={<><Eye class="w-4 h-4" /> {t("doctor.shimUnhide")}</>}>
+                            <EyeOff class="w-4 h-4" /> {t("doctor.shimHide")}
                         </Show>
                     </button>
                 </div>
