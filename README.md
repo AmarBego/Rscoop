@@ -6,8 +6,8 @@ A desktop GUI for [Scoop](https://scoop.sh), search, install, update and manage 
 
 [![GitHub release](https://img.shields.io/github/v/release/AmarBego/Rscoop)](https://github.com/AmarBego/Rscoop/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Softpedia Review](https://img.shields.io/badge/Softpedia-reviewed-brightgreen)](https://www.softpedia.com/get/System/System-Miscellaneous/Rscoop.shtml)
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange)](https://v2.tauri.app)
+[![Crowdin](https://badges.crowdin.net/rscoop/localized.svg)](https://crowdin.com/project/rscoop)
 
 </div>
 
@@ -89,6 +89,8 @@ No promises on timelines. If something here matters to you, open an issue.
 ## Contributing
 
 Issues and PRs welcome. See the [Developer Guide](https://amarbego.github.io/Rscoop/developer-guide.html) for setup instructions.
+
+**Translations:** Help translate Rscoop into your language on [Crowdin](https://crowdin.com/project/rscoop). No coding needed.
 
 ## License
 
