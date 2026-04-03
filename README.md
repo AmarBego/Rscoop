@@ -13,7 +13,7 @@ A desktop GUI for [Scoop](https://scoop.sh), search, install, update and manage 
 
 ---
 
-![Package search](pics/installedpackages.png)
+![Video Showcase](pics/video_showcase.gif)
 
 ## What is Rscoop?
 
