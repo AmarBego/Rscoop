@@ -37,10 +37,7 @@ jobs:
             src-tauri -> target
 
       - name: Install system dependencies (UPX)
-        shell: pwsh
-        run: |
-          choco install upx -y
-          echo "$env:ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+        run: choco install upx -y
 
       - name: Install project dependencies
         run: npm ci
