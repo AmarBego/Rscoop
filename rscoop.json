@@ -4,7 +4,7 @@
     "homepage": "https://github.com/AmarBego/Rscoop",
     "license": "MIT",
     "url": "https://github.com/AmarBego/Rscoop/releases/download/v1.6.1/rscoop.exe",
-    "hash": "546d0663e28380f02b77372d24339a76ea5d96049d102f407e45cd11897f903f",
+    "hash": "066ef42a0871c4fd66661f4ae8e2ba7ef92d8f73a6ef1ff4ecf32d77238bc62e",
     "bin": "rscoop.exe",
     "shortcuts": [
         [
