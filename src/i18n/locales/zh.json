@@ -93,7 +93,7 @@
   "buckets.expandedSearch": "拓展搜索",
   "buckets.searching": "搜索 Buckets 中……",
   "buckets.noResults": "No buckets found. Try different search terms or enable expanded search.",
-  "buckets.verified": "Verified",
+  "buckets.verified": "已认证",
   "buckets.openOnGithub": "Open on GitHub",
   "buckets.noDescription": "No description",
   "buckets.addModalTitle": "Add Custom Bucket",
