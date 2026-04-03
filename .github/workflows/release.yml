@@ -37,7 +37,16 @@ jobs:
             src-tauri -> target
 
       - name: Install system dependencies (UPX)
-        run: choco install upx -y
+        shell: pwsh
+        run: |
+          choco install upx -y --no-progress
+          if (-not (Get-Command upx -ErrorAction SilentlyContinue)) {
+            Write-Host "First attempt failed, retrying..."
+            choco install upx -y --no-progress
+          }
+          if (-not (Get-Command upx -ErrorAction SilentlyContinue)) {
+            throw "UPX installation failed"
+          }
 
       - name: Install project dependencies
         run: npm ci
