@@ -10,6 +10,7 @@ import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
 import OperationModal from "./components/OperationModal.tsx";
 import OperationBar from "./components/OperationBar.tsx";
+import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import i18n from "./i18n";
 import { info, error as logError } from "@tauri-apps/plugin-log";
@@ -29,7 +30,7 @@ function App() {
     const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
 
     // Track if the app is installed via Scoop
-    const [isScoopInstalled] = createSignal<boolean>(false);
+    const [isScoopInstalled, setIsScoopInstalled] = createSignal<boolean>(false);
 
     const isReady = createMemo(() => readyFlag() === "true");
 
@@ -65,6 +66,14 @@ function App() {
 
 
     onMount(async () => {
+        // Check if installed via Scoop
+        try {
+            const isScoop = await invoke<boolean>("is_scoop_installation");
+            setIsScoopInstalled(isScoop);
+        } catch (e) {
+            console.error("Failed to check Scoop installation:", e);
+        }
+
         // Setup event listeners FIRST so early backend emits are captured
         const setupColdStartListeners = async () => {
             const webview = getCurrentWebviewWindow();
