@@ -12,7 +12,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_notification::NotificationExt;
 
 const OUTPUT_BUFFER_CAP: usize = 5000;
 const COMPLETED_HISTORY_CAP: usize = 20;
@@ -307,55 +306,140 @@ pub fn has_active_work(app: &AppHandle) -> bool {
     active_running || !m.queue.is_empty()
 }
 
+/// What pending decision, if any, the current op is waiting on — drives
+/// which action buttons we attach to the toast.
+#[derive(Debug, Clone, Copy)]
+enum PendingDecision {
+    ClearCache,
+    InstallAnyway,
+}
+
 /// Fire a Windows toast notifying the user an operation finished.
-/// Only notifies when the main webview window has been destroyed — if the
-/// window still exists (open, minimized, or in the background), the user
-/// will see the completion in the operation modal / bar, so a toast would
-/// just be noise. The window can only be destroyed while the app keeps
-/// running via close-to-tray, so this also implicitly honors that setting.
+/// Skipped when the main webview window still exists (the user will see the
+/// result in the in-app modal/bar, so a toast is redundant).
+#[cfg(windows)]
 fn notify_result(app: &AppHandle, title: &str, success: bool, message: &str) {
+    use tauri_winrt_notification::{Duration, Toast};
+
     if app.get_webview_window("main").is_some() {
         return;
     }
 
-    // Look at the current op to see if there's a pending action the user
-    // should know about (deferred chain or scan warning). Action-buttons
-    // on Windows toasts need a COM activator we don't ship, so we settle
-    // for surfacing the hint in the body instead.
-    let pending_hint: Option<String> = {
+    // Inspect the current op to decide which action buttons (if any) to
+    // attach. Scan warning → "Install Anyway"; deferred cache-clear chain
+    // → "Clear Cache"; otherwise no action buttons.
+    let decision: Option<PendingDecision> = {
         let state = manager(app);
         let m = state.lock().unwrap();
         m.current.as_ref().and_then(|a| {
-            if a.scan_warning.is_some() {
-                return Some("Review detections in rscoop".to_string());
+            if a.scan_warning.is_some()
+                && matches!(
+                    a.pending.chain.as_deref(),
+                    Some(EnqueueAction::Install { .. })
+                )
+            {
+                Some(PendingDecision::InstallAnyway)
+            } else if !a.pending.auto_chain
+                && matches!(
+                    a.pending.chain.as_deref(),
+                    Some(EnqueueAction::ClearCache { .. })
+                )
+                && success
+            {
+                Some(PendingDecision::ClearCache)
+            } else {
+                None
             }
-            if !a.pending.auto_chain {
-                if let Some(chain) = a.pending.chain.as_deref() {
-                    return Some(format!("Action required: {}", chain.title()));
-                }
-            }
-            None
         })
     };
 
-    let (marker, body) = match (success, pending_hint) {
-        (true, Some(hint)) => ("⚠", format!("{} — {}", message, hint)),
-        (false, Some(hint)) => ("✗", format!("{} — {}", message, hint)),
-        (true, None) => ("✓", message.to_string()),
-        (false, None) => ("✗", message.to_string()),
-    };
-
+    let marker = if success { "✓" } else { "✗" };
     let toast_title = format!("{} {}", title, marker);
 
-    if let Err(e) = app
-        .notification()
-        .builder()
-        .title(toast_title)
-        .body(body)
-        .show()
-    {
-        log::warn!("failed to show notification: {}", e);
+    let mut toast = Toast::new(&resolve_aumid(app))
+        .title(&toast_title)
+        .text1(message)
+        .duration(Duration::Short);
+
+    match decision {
+        Some(PendingDecision::ClearCache) => {
+            toast = toast
+                .add_button("Clear Cache", "clear-cache")
+                .add_button("Dismiss", "dismiss");
+        }
+        Some(PendingDecision::InstallAnyway) => {
+            toast = toast
+                .add_button("Install Anyway", "install-anyway")
+                .add_button("Cancel", "dismiss");
+        }
+        None => {}
     }
+
+    // Activation callback — fires on body click (argument = None) and on
+    // button click (argument = Some(action_id)).
+    let app_for_cb = app.clone();
+    toast = toast.on_activated(move |action: Option<String>| {
+        let app = app_for_cb.clone();
+        // Dispatch on the main thread: window recreation + Tauri command
+        // invocations must not happen on the WinRT callback thread.
+        let _ = app.clone().run_on_main_thread(move || {
+            match action.as_deref() {
+                Some("clear-cache") => {
+                    if let Err(e) = run_pending_chain(&app) {
+                        log::warn!("toast clear-cache failed: {}", e);
+                    }
+                }
+                Some("install-anyway") => {
+                    if let Err(e) = confirm_install_anyway(&app) {
+                        log::warn!("toast install-anyway failed: {}", e);
+                    }
+                }
+                Some("dismiss") => {
+                    // No-op: let Windows hide the toast.
+                }
+                _ => {
+                    // Body click or unknown action → restore the app.
+                    crate::tray::show_or_create_main_window(&app);
+                }
+            }
+        });
+        Ok(())
+    });
+
+    if let Err(e) = toast.show() {
+        log::warn!("failed to show toast: {}", e);
+    }
+}
+
+/// Pick the AppUserModelID for toasts. Uses our bundle identifier when the
+/// binary is in an installed location (installer registers the AUMID via
+/// the start-menu shortcut). In dev / raw `cargo build` binaries, we fall
+/// back to PowerShell's AUMID so the toast still appears — the icon and
+/// source name won't match rscoop, but actions still work.
+#[cfg(windows)]
+fn resolve_aumid(app: &AppHandle) -> String {
+    use std::path::MAIN_SEPARATOR as SEP;
+    use tauri_winrt_notification::Toast;
+
+    let is_dev = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.display().to_string()))
+        .map(|d| {
+            d.ends_with(&format!("{SEP}target{SEP}debug"))
+                || d.ends_with(&format!("{SEP}target{SEP}release"))
+        })
+        .unwrap_or(true);
+
+    if is_dev {
+        Toast::POWERSHELL_APP_ID.to_string()
+    } else {
+        app.config().identifier.clone()
+    }
+}
+
+#[cfg(not(windows))]
+fn notify_result(_app: &AppHandle, _title: &str, _success: bool, _message: &str) {
+    // rscoop is Windows-only; no-op elsewhere.
 }
 
 /// Append one output line to the current operation and emit to the frontend.

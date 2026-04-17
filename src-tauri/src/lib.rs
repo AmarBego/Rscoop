@@ -186,7 +186,6 @@ pub fn run() {
             cold_start::run_cold_start(window.app_handle().clone());
         })
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             commands::search::search_scoop,
