@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Manager, WebviewUrl, WebviewWindowBuilder,
 };
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
@@ -31,10 +31,7 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
             } = event
             {
                 let app = tray.app_handle();
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+                show_or_create_main_window(app);
                 // Re-warm manifest cache in the background in case it was invalidated
                 let app_clone = app.clone();
                 tauri::async_runtime::spawn(async move {
@@ -51,10 +48,7 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     app.exit(0);
                 }
                 "show" => {
-                    if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.show();
-                        let _ = window.set_focus();
-                    }
+                    show_or_create_main_window(app);
                     let app_clone = app.clone();
                     tauri::async_runtime::spawn(async move {
                         if let Err(e) = crate::commands::search::warm_manifest_cache(app_clone).await {
@@ -64,7 +58,7 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                 }
                 "hide" => {
                     if let Some(window) = app.get_webview_window("main") {
-                        let _ = window.hide();
+                        let _ = window.destroy();
                     }
                 }
                 "refresh_apps" => {
@@ -228,4 +222,25 @@ pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
 #[tauri::command]
 pub async fn refresh_tray_apps_menu(app: tauri::AppHandle) -> Result<(), String> {
     refresh_tray_menu(&app).await
+}
+
+/// Show the main window, recreating the webview if it was destroyed on tray-hide.
+pub fn show_or_create_main_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.show();
+        let _ = window.unminimize();
+        let _ = window.set_focus();
+        return;
+    }
+
+    match WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .title("rscoop")
+        .inner_size(800.0, 600.0)
+        .build()
+    {
+        Ok(window) => {
+            let _ = window.set_focus();
+        }
+        Err(e) => log::error!("Failed to recreate main window: {}", e),
+    }
 }

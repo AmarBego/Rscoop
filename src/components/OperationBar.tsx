@@ -33,7 +33,7 @@ function OperationBar() {
   };
   const isDone = () => !!op()?.result;
   const isSuccess = () => op()?.result?.success ?? false;
-  const needsAttention = () => !!op()?.scanWarning || (!!op()?.result?.success && !!op()?.nextStep);
+  const needsAttention = () => !!op()?.scanWarning || !!op()?.canClearCache;
 
   const [viewingLog, setViewingLog] = createSignal<CompletedOperation | null>(null);
 

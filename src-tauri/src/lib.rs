@@ -2,6 +2,7 @@
 mod cold_start;
 mod commands;
 mod models;
+mod operations;
 mod state;
 mod tray;
 mod scheduler;
@@ -21,12 +22,8 @@ pub fn run() {
     #[cfg(windows)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            // When a second instance is attempted, show and focus the existing window
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-                let _ = window.unminimize();
-            }
+            // When a second instance is attempted, show (or recreate) the main window
+            tray::show_or_create_main_window(app);
         }));
     }
 
@@ -92,6 +89,7 @@ pub fn run() {
             };
 
             app.manage(state::AppState::new(scoop_path));
+            app.manage(std::sync::Mutex::new(operations::OperationManager::new()));
 
     // Set up system tray
     let _ = tray::setup_system_tray(&app.handle());
@@ -124,9 +122,11 @@ pub fn run() {
                         _ => false,
                     };
 
-                    // Hide the window instead of closing the app
-                    let _ = window.hide();
+                    // Destroy the webview to free memory; tray keeps the app alive.
+                    // ExitRequested handler below prevents the app from exiting when
+                    // the last window is destroyed.
                     api.prevent_close();
+                    let _ = window.destroy();
 
                     // Show notification if it's the first time
                     if !first_notification_shown {
@@ -143,9 +143,42 @@ pub fn run() {
                             tray::show_system_notification_blocking(&app_clone);
                         });
                     }
+                } else if operations::has_active_work(&app_handle) {
+                    // Close-to-tray is off AND an operation is running —
+                    // ask the user whether they really want to kill it.
+                    api.prevent_close();
+                    let app_clone = app_handle.clone();
+                    std::thread::spawn(move || {
+                        use tauri_plugin_dialog::{
+                            DialogExt, MessageDialogButtons, MessageDialogKind,
+                        };
+                        let title = {
+                            let snap = operations::snapshot(&app_clone);
+                            snap.current
+                                .as_ref()
+                                .map(|c| c.title.clone())
+                                .unwrap_or_else(|| "a background operation".to_string())
+                        };
+                        let confirmed = app_clone
+                            .dialog()
+                            .message(format!(
+                                "You have a running operation: \"{}\".\n\nClosing now will terminate it. Are you sure?",
+                                title
+                            ))
+                            .title("Operation in progress")
+                            .kind(MessageDialogKind::Warning)
+                            .buttons(MessageDialogButtons::OkCancelCustom(
+                                "Close anyway".to_string(),
+                                "Keep running".to_string(),
+                            ))
+                            .blocking_show();
+                        if confirmed {
+                            app_clone.exit(0);
+                        }
+                    });
                 } else {
-                    // Let the window close normally (exit app)
-                    // Don't call prevent_close(), so the app will exit
+                    // No op running, close-to-tray off — let the window close
+                    // normally (app will exit).
                 }
             }
         })
@@ -160,13 +193,15 @@ pub fn run() {
             commands::installed::refresh_installed_packages,
             commands::installed::get_package_path,
             commands::info::get_package_info,
-            commands::install::install_package,
             commands::manifest::get_package_manifest,
             commands::updates::check_for_updates,
-            commands::update::update_package,
-            commands::update::update_all_packages,
-            commands::uninstall::uninstall_package,
-            commands::uninstall::clear_package_cache,
+            commands::operations::enqueue_operation,
+            commands::operations::get_operation_state,
+            commands::operations::cancel_queued_operation,
+            commands::operations::clear_completed_operations,
+            commands::operations::dismiss_current_operation,
+            commands::operations::confirm_install_anyway,
+            commands::operations::run_pending_chain,
             commands::status::check_scoop_status,
             commands::settings::get_config_value,
             commands::settings::set_config_value,
@@ -174,12 +209,9 @@ pub fn run() {
             commands::settings::set_scoop_path,
             commands::settings::get_virustotal_api_key,
             commands::settings::set_virustotal_api_key,
-            commands::virustotal::scan_package,
             commands::auto_cleanup::run_auto_cleanup,
             commands::doctor::checkup::run_scoop_checkup,
-            commands::doctor::cleanup::cleanup_all_apps,
             commands::doctor::cleanup::cleanup_all_apps_force,
-            commands::doctor::cleanup::cleanup_outdated_cache,
             commands::doctor::cache::list_cache_contents,
             commands::doctor::cache::clear_cache,
             commands::doctor::shim::list_shims,
@@ -217,6 +249,26 @@ pub fn run() {
             cold_start::is_cold_start_ready,
             tray::refresh_tray_apps_menu
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while running tauri application")
+        .run(|app_handle, event| {
+            if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
+                // `code` is Some(_) only when `app.exit(code)` was called explicitly
+                // (e.g. the tray "Quit" menu). When it's None, the exit was triggered
+                // by the last window closing — keep the app alive in the tray instead,
+                // but only if close-to-tray is enabled.
+                if code.is_none() {
+                    let close_to_tray = match commands::settings::get_config_value(
+                        app_handle.clone(),
+                        "window.closeToTray".to_string(),
+                    ) {
+                        Ok(Some(value)) => value.as_bool().unwrap_or(true),
+                        _ => true,
+                    };
+                    if close_to_tray {
+                        api.prevent_exit();
+                    }
+                }
+            }
+        });
 }

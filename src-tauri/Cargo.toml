@@ -54,3 +54,4 @@ url = "2.5"
 [target."cfg(windows)".dependencies]
 tauri-plugin-updater = "2.7.1"
 tauri-plugin-single-instance = "2"
+tauri-winrt-notification = "0.7.2"

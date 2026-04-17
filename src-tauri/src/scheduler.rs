@@ -1,5 +1,7 @@
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::AppHandle;
+use tauri::Manager;
 use crate::commands;
+use crate::operations::{self, OperationKind};
 use crate::state;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -60,16 +62,25 @@ pub fn start_background_tasks(app: AppHandle) {
             if elapsed >= interval_secs {
                 log::info!("Auto bucket update task running (interval='{}', seconds={}, elapsed={})", interval_raw, interval_secs, elapsed);
                 let run_started_at = now;
-                
-                // Emit start event to show modal
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.emit("auto-operation-start", "Updating buckets...");
-                    let _ = window.emit("operation-output", serde_json::json!({
-                        "line": "Starting automatic bucket update...",
-                        "source": "stdout"
-                    }));
+
+                // Register the auto-update as the current op. If something is
+                // already running we skip the UI surface but still perform
+                // the work; if that matters we can queue instead in future.
+                let started = operations::start_synthetic(
+                    &app,
+                    "Updating buckets".to_string(),
+                    OperationKind::AutoUpdate,
+                    None,
+                )
+                .is_some();
+                if started {
+                    operations::append_output(
+                        &app,
+                        "Starting automatic bucket update...".to_string(),
+                        "stdout",
+                    );
                 }
-                
+
                 match commands::bucket_install::update_all_buckets().await {
                     Ok(results) => {
                         let successes = results.iter().filter(|r| r.success).count();
@@ -78,27 +89,31 @@ pub fn start_background_tasks(app: AppHandle) {
                             successes,
                             results.len()
                         );
-                        
-                        // Stream results to modal
-                        if let Some(window) = app.get_webview_window("main") {
+
+                        if started {
                             for result in &results {
-                                let line = if result.success {
-                                    format!("✓ Updated bucket: {}", result.bucket_name)
+                                let (line, source) = if result.success {
+                                    (format!("✓ Updated bucket: {}", result.bucket_name), "stdout")
                                 } else {
-                                    format!("✗ Failed to update {}: {}", result.bucket_name, result.message)
+                                    (
+                                        format!("✗ Failed to update {}: {}", result.bucket_name, result.message),
+                                        "stderr",
+                                    )
                                 };
-                                let _ = window.emit("operation-output", serde_json::json!({
-                                    "line": line,
-                                    "source": if result.success { "stdout" } else { "stderr" }
-                                }));
+                                operations::append_output(&app, line, source);
                             }
-                            let _ = window.emit("operation-finished", serde_json::json!({
-                                "success": successes == results.len(),
-                                "message": format!("Bucket update completed: {} of {} succeeded", successes, results.len())
-                            }));
+                            operations::finish_synthetic(
+                                &app,
+                                successes == results.len(),
+                                format!(
+                                    "Bucket update completed: {} of {} succeeded",
+                                    successes,
+                                    results.len()
+                                ),
+                            );
                         }
-                        
-                        // Persist last run timestamp (record even if partial successes to avoid hammering)
+
+                        // Persist last run timestamp (record even on partial successes to avoid hammering)
                         let _ = commands::settings::set_config_value(
                             app.clone(),
                             "buckets.lastAutoUpdateTs".to_string(),
@@ -118,37 +133,48 @@ pub fn start_background_tasks(app: AppHandle) {
                         if auto_update_packages {
                             log::info!("Auto package update task running after bucket refresh (headless with events)");
                             let state = app.state::<state::AppState>();
-                            if let Some(window) = app.get_webview_window("main") {
-                                let _ = window.emit("auto-operation-start", "Updating packages...");
-                                let _ = window.emit("operation-output", serde_json::json!({
-                                    "line": "Starting automatic package update...",
-                                    "source": "stdout"
-                                }));
+                            let started_pkg = operations::start_synthetic(
+                                &app,
+                                "Updating packages".to_string(),
+                                OperationKind::AutoUpdate,
+                                None,
+                            )
+                            .is_some();
+                            if started_pkg {
+                                operations::append_output(
+                                    &app,
+                                    "Starting automatic package update...".to_string(),
+                                    "stdout",
+                                );
                             }
                             match commands::update::update_all_packages_headless(app.clone(), state).await {
                                 Ok(_) => {
-                                    if let Some(window) = app.get_webview_window("main") {
-                                        let _ = window.emit("operation-output", serde_json::json!({
-                                            "line": "Package update completed successfully.",
-                                            "source": "stdout"
-                                        }));
-                                        let _ = window.emit("operation-finished", serde_json::json!({
-                                            "success": true,
-                                            "message": "Automatic package update completed successfully"
-                                        }));
+                                    if started_pkg {
+                                        operations::append_output(
+                                            &app,
+                                            "Package update completed successfully.".to_string(),
+                                            "stdout",
+                                        );
+                                        operations::finish_synthetic(
+                                            &app,
+                                            true,
+                                            "Automatic package update completed successfully".to_string(),
+                                        );
                                     }
                                 }
                                 Err(e) => {
                                     log::warn!("Auto package headless update failed: {}", e);
-                                    if let Some(window) = app.get_webview_window("main") {
-                                        let _ = window.emit("operation-output", serde_json::json!({
-                                            "line": format!("Error: {}", e),
-                                            "source": "stderr"
-                                        }));
-                                        let _ = window.emit("operation-finished", serde_json::json!({
-                                            "success": false,
-                                            "message": format!("Automatic package update failed: {}", e)
-                                        }));
+                                    if started_pkg {
+                                        operations::append_output(
+                                            &app,
+                                            format!("Error: {}", e),
+                                            "stderr",
+                                        );
+                                        operations::finish_synthetic(
+                                            &app,
+                                            false,
+                                            format!("Automatic package update failed: {}", e),
+                                        );
                                     }
                                 }
                             }
@@ -156,19 +182,14 @@ pub fn start_background_tasks(app: AppHandle) {
                     }
                     Err(e) => {
                         log::warn!("Auto bucket update failed: {}", e);
-                        
-                        // Emit failure to modal
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.emit("operation-output", serde_json::json!({
-                                "line": format!("Error: {}", e),
-                                "source": "stderr"
-                            }));
-                            let _ = window.emit("operation-finished", serde_json::json!({
-                                "success": false,
-                                "message": format!("Bucket update failed: {}", e)
-                            }));
+                        if started {
+                            operations::append_output(&app, format!("Error: {}", e), "stderr");
+                            operations::finish_synthetic(
+                                &app,
+                                false,
+                                format!("Bucket update failed: {}", e),
+                            );
                         }
-                        
                         // Even on failure, set timestamp to avoid rapid retry storms
                         let _ = commands::settings::set_config_value(
                             app.clone(),

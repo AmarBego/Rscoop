@@ -1,11 +1,18 @@
 import { createRoot, createSignal } from "solid-js";
-import { listen, emit } from "@tauri-apps/api/event";
+import { listen, emit, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { VirustotalResult, ScoopPackage } from "../types/scoop";
+import { ScoopPackage } from "../types/scoop";
 import installedPackagesStore from "./installedPackagesStore";
 import settingsStore from "./settings";
 
+export interface ScanWarning {
+  detectionsFound: boolean;
+  isApiKeyMissing: boolean;
+  message: string;
+}
+
 // --- Types ---
+// These mirror the Rust-side DTOs in `src-tauri/src/operations.rs`.
 
 interface OperationOutput {
   line: string;
@@ -17,426 +24,311 @@ interface OperationResult {
   message: string;
 }
 
+export type OperationKind =
+  | "install"
+  | "update"
+  | "update-all"
+  | "uninstall"
+  | "clear-cache"
+  | "cleanup"
+  | "auto-update"
+  | "scan";
+
 export interface Operation {
   id: string;
   title: string;
-  type: "install" | "update" | "update-all" | "uninstall" | "clear-cache" | "cleanup" | "scan" | "auto-update";
+  kind: OperationKind;
   packageName?: string;
   output: OperationOutput[];
   result: OperationResult | null;
-  scanWarning: VirustotalResult | null;
+  // Set by Rust when a VirusTotal scan finishes with detections or a
+  // missing API key. Frontend renders the warning + "Install Anyway" path.
+  scanWarning: ScanWarning | null;
+  // True if the op is a scan whose chain holds an Install we can override to.
+  canOverrideScan: boolean;
+  // True if the op is a finished uninstall with a deferred Clear Cache
+  // chain waiting on user confirmation.
+  canClearCache: boolean;
+  // True while the op is in scan phase (kind === "scan" with no result yet).
   isScan: boolean;
-  nextStep: { buttonLabel: string; onNext: () => void } | null;
-  // Auto-chain: when the operation finishes successfully, run this next in the same modal (output continues)
-  chainOnSuccess?: { title: string; invokeCmd: () => void };
-  onComplete?: (wasSuccess: boolean) => void;
 }
 
 export interface CompletedOperation {
   id: string;
   title: string;
+  kind: OperationKind;
+  packageName?: string;
   success: boolean;
   output: OperationOutput[];
   message: string;
 }
 
-interface QueuedOperation {
+export interface QueuedOperation {
   id: string;
   title: string;
-  type: Operation["type"];
+  kind: OperationKind;
   packageName?: string;
-  invokeCmd: () => void;
-  isScan: boolean;
-  nextStep: Operation["nextStep"];
-  chainOnSuccess?: Operation["chainOnSuccess"];
-  onComplete?: (wasSuccess: boolean) => void;
+}
+
+interface StateSnapshot {
+  current: {
+    id: string;
+    title: string;
+    kind: OperationKind;
+    packageName?: string;
+    output: OperationOutput[];
+    result: OperationResult | null;
+    scanWarning?: ScanWarning;
+    canOverrideScan?: boolean;
+    canClearCache?: boolean;
+  } | null;
+  queue: QueuedOperation[];
+  completed: CompletedOperation[];
 }
 
 // --- Store ---
 
 function createOperationsStore() {
+  // Mirror of Rust state. `current`/`queue`/`completed` are authoritative
+  // on the Rust side; we only track them locally to drive reactive UI.
   const [current, setCurrent] = createSignal<Operation | null>(null);
   const [queue, setQueue] = createSignal<QueuedOperation[]>([]);
   const [completed, setCompleted] = createSignal<CompletedOperation[]>([]);
   const [isMinimized, setIsMinimized] = createSignal(false);
 
-  let nextId = 0;
-  const genId = () => `op-${++nextId}`;
 
-  // Pending VT scan → install state
-  let pendingPkg: ScoopPackage | null = null;
-  let pendingVersion: string | undefined = undefined;
-  let pendingOnComplete: ((wasSuccess: boolean) => void) | undefined = undefined;
+  // --- Post-op callbacks (frontend-only) ---
+  // Since Rust drives the queue we can't carry closures with the op. Instead,
+  // we register {packageName, kind} → callback, and fire on matching finish.
+  interface FinishCallback {
+    predicate: (op: CompletedOperation) => boolean;
+    cb: (wasSuccess: boolean) => void;
+  }
+  let finishCallbacks: FinishCallback[] = [];
 
-  // --- Global event listeners ---
+  function onNextFinish(predicate: FinishCallback["predicate"], cb: FinishCallback["cb"]) {
+    finishCallbacks.push({ predicate, cb });
+  }
+
+  function fireFinishCallbacks(op: CompletedOperation) {
+    const remaining: FinishCallback[] = [];
+    for (const fc of finishCallbacks) {
+      if (fc.predicate(op)) {
+        try { fc.cb(op.success); } catch (e) { console.error("finish callback threw:", e); }
+      } else {
+        remaining.push(fc);
+      }
+    }
+    finishCallbacks = remaining;
+  }
+
+  // --- Hydration ---
+
+  function applySnapshot(snap: StateSnapshot) {
+    setQueue(snap.queue);
+    setCompleted(snap.completed);
+    if (snap.current) {
+      const isScan =
+        snap.current.kind === "scan" && snap.current.result === null;
+      setCurrent({
+        id: snap.current.id,
+        title: snap.current.title,
+        kind: snap.current.kind,
+        packageName: snap.current.packageName,
+        output: snap.current.output,
+        result: snap.current.result,
+        scanWarning: snap.current.scanWarning ?? null,
+        canOverrideScan: snap.current.canOverrideScan ?? false,
+        canClearCache: snap.current.canClearCache ?? false,
+        isScan,
+      });
+    } else {
+      setCurrent(null);
+    }
+  }
+
+  async function hydrateFromRust() {
+    try {
+      const snap = await invoke<StateSnapshot>("get_operation_state");
+      applySnapshot(snap);
+    } catch (e) {
+      console.error("Failed to hydrate operation state:", e);
+    }
+  }
+
+  // --- Event listeners ---
+
+  const unlistens: UnlistenFn[] = [];
 
   async function setupListeners() {
-    await listen<OperationOutput>("operation-output", (event) => {
-      if (!current()) return;
-      setCurrent(prev => prev ? {
-        ...prev,
-        output: [...prev.output, event.payload],
-      } : null);
-    });
+    // Full state resync (primary source of truth for queue/completed).
+    unlistens.push(await listen<StateSnapshot>("operation-state-changed", (event) => {
+      applySnapshot(event.payload);
+    }));
 
-    await listen<OperationResult>("operation-finished", (event) => {
+    // Per-line streaming append for the current op (avoids waiting for a
+    // full state resync on every line).
+    unlistens.push(await listen<OperationOutput>("operation-output", (event) => {
       const op = current();
-      if (!op || op.isScan) return;
+      if (!op) return;
+      setCurrent({ ...op, output: [...op.output, event.payload] });
+    }));
 
-      // If successful and there's a chained operation, continue in the same modal
-      if (event.payload.success && op.chainOnSuccess) {
-        const chain = op.chainOnSuccess;
-        setCurrent(prev => prev ? {
-          ...prev,
-          title: chain.title,
-          chainOnSuccess: undefined,
-          result: null,
-        } : null);
-        chain.invokeCmd();
-        return;
-      }
-
-      // If there are queued operations, auto-advance: push to history, start next
-      if (queue().length > 0 && !op.nextStep) {
-        // Fire onComplete callback
-        if (op.onComplete) op.onComplete(event.payload.success);
-        if (event.payload.success) installedPackagesStore.refetch();
-
-        // Push to completed history with output snapshot
-        setCompleted(prev => [...prev, {
-          id: op.id,
-          title: op.title,
-          success: event.payload.success,
-          output: [...op.output],
-          message: event.payload.message,
-        }]);
-
-        setCurrent(null);
-        processQueue();
-        return;
-      }
-
-      // If there's completed history, this was part of a batch — push to history and clear current
-      if (completed().length > 0) {
-        if (op.onComplete) op.onComplete(event.payload.success);
-        if (event.payload.success) installedPackagesStore.refetch();
-
-        setCompleted(prev => [...prev, {
-          id: op.id,
-          title: op.title,
-          success: event.payload.success,
-          output: [...op.output],
-          message: event.payload.message,
-        }]);
-
-        setCurrent(null);
-        return;
-      }
-
-      // Single operation, no history — show result normally (user must dismiss)
-      setCurrent(prev => prev ? { ...prev, result: event.payload } : null);
-    });
-
-    await listen<VirustotalResult>("virustotal-scan-finished", (event) => {
+    // Result event. Rust immediately follows with a state-changed event
+    // that carries the result on current, so we just fire callbacks and
+    // refetch here.
+    unlistens.push(await listen<OperationResult>("operation-finished", (event) => {
       const op = current();
-      if (!op || !op.isScan) return;
-      if (event.payload.detections_found || event.payload.is_api_key_missing) {
-        setCurrent(prev => prev ? { ...prev, scanWarning: event.payload } : null);
-      } else {
-        // Clean scan — proceed to install
-        confirmInstallAfterScan();
-      }
-    });
+      if (!op) return;
+      if (op.isScan) return; // scan results come via virustotal-scan-finished
 
-    // Auto-update operations from backend scheduler
-    await listen<string>("auto-operation-start", (event) => {
-      startOperation({
-        title: event.payload,
-        type: "auto-update",
-        isScan: false,
-        nextStep: null,
-        invokeCmd: () => {}, // Already running on backend
+      if (event.payload.success) installedPackagesStore.refetch();
+
+      fireFinishCallbacks({
+        id: op.id,
+        title: op.title,
+        kind: op.kind,
+        packageName: op.packageName,
+        success: event.payload.success,
+        message: event.payload.message,
+        output: op.output,
       });
-    });
+    }));
+
   }
 
   setupListeners();
+  // Initial hydration (covers cold-start and webview recreation after tray-hide).
+  hydrateFromRust();
 
-  // --- Internal helpers ---
+  // --- Enqueue helpers ---
 
-  function startOperation(opts: {
-    title: string;
-    type: Operation["type"];
-    packageName?: string;
-    isScan: boolean;
-    nextStep: Operation["nextStep"];
-    chainOnSuccess?: Operation["chainOnSuccess"];
-    invokeCmd: () => void;
-    onComplete?: (wasSuccess: boolean) => void;
-  }) {
-    const op: Operation = {
-      id: genId(),
-      title: opts.title,
-      type: opts.type,
-      packageName: opts.packageName,
-      output: [],
-      result: null,
-      scanWarning: null,
-      isScan: opts.isScan,
-      nextStep: opts.nextStep,
-      chainOnSuccess: opts.chainOnSuccess,
-      onComplete: opts.onComplete,
-    };
+  interface EnqueueAction {
+    type: string;
+    [k: string]: any;
+  }
 
-    // If there's a finished operation sitting around, push it to history and take over
-    const existing = current();
-    if (existing?.result) {
-      if (existing.onComplete) existing.onComplete(existing.result.success);
-      if (existing.result.success) installedPackagesStore.refetch();
-      setCompleted(prev => [...prev, {
-        id: existing.id,
-        title: existing.title,
-        success: existing.result!.success,
-        output: [...existing.output],
-        message: existing.result!.message,
-      }]);
-      setCurrent(null);
-    }
-
-    // If something is actively running, queue it
-    if (current()) {
-      setQueue(prev => [...prev, {
-        id: op.id,
-        title: opts.title,
-        type: opts.type,
-        packageName: opts.packageName,
-        invokeCmd: opts.invokeCmd,
-        isScan: opts.isScan,
-        nextStep: opts.nextStep,
-        chainOnSuccess: opts.chainOnSuccess,
-        onComplete: opts.onComplete,
-      }]);
-      return;
-    }
-
-    setCurrent(op);
-
-    // Auto-minimize if background mode is on (except for scans that need user input)
+  async function enqueue(action: EnqueueAction): Promise<string | null> {
     const { settings } = settingsStore;
-    if (settings.operations.backgroundByDefault && !opts.isScan) {
+    // Auto-minimize when backgroundByDefault is on and this is a streaming op.
+    if (settings.operations.backgroundByDefault) {
       setIsMinimized(true);
     } else {
       setIsMinimized(false);
     }
-
-    opts.invokeCmd();
-  }
-
-  function processQueue() {
-    const q = queue();
-    if (q.length === 0) return;
-
-    const next = q[0];
-    setQueue(prev => prev.slice(1));
-
-    setCurrent({
-      id: next.id,
-      title: next.title,
-      type: next.type,
-      packageName: next.packageName,
-      output: [],
-      result: null,
-      scanWarning: null,
-      isScan: next.isScan,
-      nextStep: next.nextStep,
-      chainOnSuccess: next.chainOnSuccess,
-      onComplete: next.onComplete,
-    });
-
-    next.invokeCmd();
-  }
-
-  function doInstall(pkg: ScoopPackage, version?: string, onComplete?: (wasSuccess: boolean) => void) {
-    const displayName = version ? `${pkg.name}@${version}` : pkg.name;
-    startOperation({
-      title: `Installing ${displayName}`,
-      type: "install",
-      packageName: pkg.name,
-      isScan: false,
-      nextStep: null,
-      onComplete,
-      invokeCmd: () => {
-        invoke("install_package", {
-          packageName: pkg.name,
-          bucket: pkg.source,
-          version: version || null,
-        }).catch(err => console.error("Install invocation failed:", err));
-      },
-    });
-  }
-
-  function confirmInstallAfterScan() {
-    const pkg = pendingPkg;
-    const version = pendingVersion;
-    const onComplete = pendingOnComplete;
-    pendingPkg = null;
-    pendingVersion = undefined;
-    pendingOnComplete = undefined;
-
-    if (pkg) {
-      setCurrent(null);
-      doInstall(pkg, version, onComplete);
+    try {
+      const id = await invoke<string>("enqueue_operation", { action });
+      return id;
+    } catch (e) {
+      console.error("enqueue_operation failed:", e);
+      return null;
     }
   }
 
-  // --- Public API ---
-
-  function queueInstall(pkg: ScoopPackage, version?: string, onComplete?: (wasSuccess: boolean) => void) {
+  async function queueInstall(pkg: ScoopPackage, version?: string, onComplete?: (wasSuccess: boolean) => void) {
     const { settings } = settingsStore;
+    if (onComplete) {
+      onNextFinish(
+        (op) => op.kind === "install" && op.packageName === pkg.name,
+        onComplete,
+      );
+    }
 
     if (settings.virustotal.enabled && settings.virustotal.autoScanOnInstall) {
-      pendingPkg = pkg;
-      pendingVersion = version;
-      pendingOnComplete = onComplete;
-
-      startOperation({
-        title: `Scanning ${pkg.name} with VirusTotal...`,
-        type: "scan",
-        packageName: pkg.name,
-        isScan: true,
-        nextStep: null,
-        onComplete,
-        invokeCmd: () => {
-          invoke("scan_package", {
-            packageName: pkg.name,
-            bucket: pkg.source,
-          }).catch(err => console.error("Scan invocation failed:", err));
-        },
+      await enqueue({
+        type: "scan-and-install",
+        package: pkg.name,
+        bucket: pkg.source,
+        version: version || null,
       });
     } else {
-      doInstall(pkg, version, onComplete);
+      await enqueue({
+        type: "install",
+        package: pkg.name,
+        bucket: pkg.source,
+        version: version || null,
+      });
     }
   }
 
-  function handleInstallConfirm() {
-    confirmInstallAfterScan();
+  async function handleInstallConfirm() {
+    // Rust extracts the install params from the current scan op's chain
+    // and enqueues a plain install, archiving the scan op.
+    try {
+      await invoke("confirm_install_anyway");
+    } catch (e) {
+      console.error("confirm_install_anyway failed:", e);
+    }
   }
 
-  function queueUpdate(pkg: ScoopPackage, onComplete?: (wasSuccess: boolean) => void) {
-    startOperation({
-      title: `Updating ${pkg.name}`,
-      type: "update",
-      packageName: pkg.name,
-      isScan: false,
-      nextStep: null,
-      onComplete,
-      invokeCmd: () => {
-        invoke("update_package", { packageName: pkg.name })
-          .catch(err => console.error("Update invocation failed:", err));
-      },
-    });
+  async function queueUpdate(pkg: ScoopPackage, onComplete?: (wasSuccess: boolean) => void) {
+    if (onComplete) {
+      onNextFinish(
+        (op) => op.kind === "update" && op.packageName === pkg.name,
+        onComplete,
+      );
+    }
+    await enqueue({ type: "update", package: pkg.name });
   }
 
-  function queueUpdateAll(onComplete?: (wasSuccess: boolean) => void) {
-    startOperation({
-      title: "Updating all packages",
-      type: "update-all",
-      isScan: false,
-      nextStep: null,
-      onComplete,
-      invokeCmd: () => {
-        invoke("update_all_packages")
-          .catch(err => console.error("Update all invocation failed:", err));
-      },
-    });
+  async function queueUpdateAll(onComplete?: (wasSuccess: boolean) => void) {
+    if (onComplete) {
+      onNextFinish((op) => op.kind === "update-all", onComplete);
+    }
+    await enqueue({ type: "update-all" });
   }
 
-  function queueUninstall(pkg: ScoopPackage, onComplete?: (wasSuccess: boolean) => void) {
+  async function queueUninstall(pkg: ScoopPackage, onComplete?: (wasSuccess: boolean) => void) {
     const { settings } = settingsStore;
     const autoClear = settings.cleanup.autoClearCacheOnUninstall;
 
-    startOperation({
-      title: `Uninstalling ${pkg.name}`,
+    if (onComplete) {
+      onNextFinish(
+        (op) => op.kind === "uninstall" && op.packageName === pkg.name,
+        onComplete,
+      );
+    }
+    // When autoClear is false, Rust still attaches a ClearCache chain but
+    // marks it deferred (auto_chain=false). The frontend sees canClearCache
+    // on the finished op and renders the button — survives tray-hide.
+    await enqueue({
       type: "uninstall",
-      packageName: pkg.name,
-      isScan: false,
-      // Auto-clear ON: chain cache clear into the same modal (output continues, bar stays active)
-      // Auto-clear OFF: show "Clear Cache" button that requires user action
-      chainOnSuccess: autoClear ? {
-        title: `Clearing cache for ${pkg.name}`,
-        invokeCmd: () => {
-          invoke("clear_package_cache", {
-            packageName: pkg.name,
-            bucket: pkg.source,
-          }).catch(err => console.error("Clear cache invocation failed:", err));
-        },
-      } : undefined,
-      nextStep: autoClear ? null : {
-        buttonLabel: "Clear Cache",
-        onNext: () => {
-          setCurrent(null);
-          startOperation({
-            title: `Clearing cache for ${pkg.name}`,
-            type: "clear-cache",
-            packageName: pkg.name,
-            isScan: false,
-            nextStep: null,
-            onComplete,
-            invokeCmd: () => {
-              invoke("clear_package_cache", {
-                packageName: pkg.name,
-                bucket: pkg.source,
-              }).catch(err => console.error("Clear cache invocation failed:", err));
-            },
-          });
-        },
-      },
-      onComplete,
-      invokeCmd: () => {
-        invoke("uninstall_package", {
-          packageName: pkg.name,
-          bucket: pkg.source,
-        }).catch(err => console.error("Uninstall invocation failed:", err));
-      },
+      package: pkg.name,
+      bucket: pkg.source,
+      auto_clear_cache: autoClear,
     });
   }
 
-  function queueGenericOperation(title: string, invokeCmd: () => void, onComplete?: (wasSuccess: boolean) => void) {
-    startOperation({
-      title,
-      type: "cleanup",
-      isScan: false,
-      nextStep: null,
-      onComplete,
-      invokeCmd,
-    });
+  async function runPendingChain() {
+    try {
+      await invoke("run_pending_chain");
+    } catch (e) {
+      console.error("run_pending_chain failed:", e);
+    }
+  }
+
+  async function queueGenericOperation(
+    action: "cleanup-apps" | "cleanup-cache",
+    onComplete?: (wasSuccess: boolean) => void,
+  ) {
+    if (onComplete) {
+      onNextFinish((op) => op.kind === "cleanup", onComplete);
+    }
+    await enqueue({ type: action });
   }
 
   function close(wasSuccess: boolean) {
-    const op = current();
-    if (op?.onComplete) {
-      op.onComplete(wasSuccess);
-    }
-    if (wasSuccess) {
-      installedPackagesStore.refetch();
-    }
+    if (wasSuccess) installedPackagesStore.refetch();
     setCurrent(null);
     setIsMinimized(false);
-    pendingPkg = null;
-    pendingVersion = undefined;
-    pendingOnComplete = undefined;
-
-    // If there's more in the queue, keep going
-    if (queue().length > 0) {
-      processQueue();
-    }
+    // Tell Rust to archive the finished op into completed history.
+    invoke("dismiss_current_operation").catch(err => console.error("dismiss failed:", err));
   }
 
   function dismissAll() {
-    setCompleted([]);
-    if (!current()) {
-      setIsMinimized(false);
-    }
+    invoke("dismiss_current_operation").catch(() => {});
+    invoke("clear_completed_operations").catch(err => console.error("clear_completed failed:", err));
+    if (!current()) setIsMinimized(false);
   }
 
   function cancel() {
@@ -449,16 +341,12 @@ function createOperationsStore() {
       close(op.result.success);
       return;
     }
+    // Streaming op (including running scan): tell backend to kill the child.
     emit("cancel-operation");
   }
 
-  function minimize() {
-    setIsMinimized(true);
-  }
-
-  function restore() {
-    setIsMinimized(false);
-  }
+  function minimize() { setIsMinimized(true); }
+  function restore() { setIsMinimized(false); }
 
   return {
     current,
@@ -471,11 +359,13 @@ function createOperationsStore() {
     queueUninstall,
     queueGenericOperation,
     handleInstallConfirm,
+    runPendingChain,
     close,
     cancel,
     minimize,
     restore,
     dismissAll,
+    hydrateFromRust,
   };
 }
 
