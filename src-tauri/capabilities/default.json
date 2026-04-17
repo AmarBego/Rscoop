@@ -12,6 +12,7 @@
     "store:default",
     "updater:default",
     "dialog:default",
+    "notification:default",
     "process:default",
     "process:allow-restart",
     "opener:default",

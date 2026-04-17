@@ -5,15 +5,16 @@ type Locale = Record<string, string>;
 // All locale imports — add new languages here
 import en from "./locales/en.json";
 import de from "./locales/de.json";
+import zh from "./locales/zh.json";
 
-const locales: Record<string, Locale> = { en, de };
+const locales: Record<string, Locale> = { en, de, zh };
 
 // Available languages for the picker
 export const availableLanguages = [
   { code: "en", name: "English" },
   { code: "de", name: "Deutsch" },
+  { code: "zh", name: "简体中文" },
   // { code: "fr", name: "Français" },
-  // { code: "zh", name: "中文" },
   // { code: "es", name: "Español" },
   // { code: "ja", name: "日本語" },
 ];

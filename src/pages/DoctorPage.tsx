@@ -55,17 +55,11 @@ function DoctorPage() {
     };
 
     const handleCleanupApps = () => {
-        operationsStore.queueGenericOperation(
-            "Cleaning up old app versions...",
-            () => { invoke("cleanup_all_apps").catch(err => console.error("Cleanup failed:", err)); }
-        );
+        operationsStore.queueGenericOperation("cleanup-apps");
     };
 
     const handleCleanupCache = () => {
-        operationsStore.queueGenericOperation(
-            "Cleaning up outdated cache...",
-            () => { invoke("cleanup_outdated_cache").catch(err => console.error("Cleanup failed:", err)); }
-        );
+        operationsStore.queueGenericOperation("cleanup-cache");
     };
 
     return (

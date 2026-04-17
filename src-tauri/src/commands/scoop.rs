@@ -1,5 +1,5 @@
-use super::powershell::{self, EVENT_CANCEL, EVENT_FINISHED, EVENT_OUTPUT};
-use tauri::Window;
+use super::powershell;
+use tauri::AppHandle;
 
 /// Defines the supported Scoop operations.
 #[derive(Debug, Clone, Copy)]
@@ -11,8 +11,6 @@ pub enum ScoopOp {
     UpdateAll,
 }
 
-/// Builds a Scoop command as a string, returning an error if a required
-/// package name is missing.
 fn build_scoop_cmd(
     op: ScoopOp,
     package: Option<&str>,
@@ -44,12 +42,9 @@ fn build_scoop_cmd(
     Ok(command)
 }
 
-/// Executes a Scoop operation and streams the output to the frontend.
-///
-/// This function builds the Scoop command, creates a human-friendly operation
-/// name for the UI, and then executes it using the PowerShell runner.
+/// Executes a Scoop operation and streams output through the OperationManager.
 pub async fn execute_scoop(
-    window: Window,
+    app: AppHandle,
     op: ScoopOp,
     package: Option<&str>,
     bucket: Option<&str>,
@@ -62,17 +57,8 @@ pub async fn execute_scoop(
         (ScoopOp::Update, Some(pkg)) => format!("Updating {}", pkg),
         (ScoopOp::ClearCache, Some(pkg)) => format!("Clearing cache for {}", pkg),
         (ScoopOp::UpdateAll, _) => "Updating all packages".to_string(),
-        // This case should not be reached if `build_scoop_cmd` is correct.
         _ => return Err("Invalid operation or missing package name.".to_string()),
     };
 
-    powershell::run_and_stream_command(
-        window,
-        cmd,
-        op_name,
-        EVENT_OUTPUT,
-        EVENT_FINISHED,
-        EVENT_CANCEL,
-    )
-    .await
+    powershell::run_and_stream(app, cmd, op_name).await
 }

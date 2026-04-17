@@ -66,10 +66,7 @@ function OperationModal() {
   };
 
   const handleNextStep = () => {
-    const o = op();
-    if (o?.nextStep) {
-      o.nextStep.onNext();
-    }
+    operationsStore.runPendingChain();
   };
 
   return (
@@ -122,9 +119,9 @@ function OperationModal() {
                 {t("operation.installAnyway")}
               </button>
             </Show>
-            <Show when={op()?.result?.success && op()?.nextStep}>
+            <Show when={op()?.canClearCache}>
               <button class="btn btn-sm btn-primary" onClick={handleNextStep}>
-                {op()!.nextStep!.buttonLabel}
+                Clear Cache
               </button>
             </Show>
             <Show when={isRunning()}>
