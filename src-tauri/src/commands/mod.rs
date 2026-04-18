@@ -13,6 +13,7 @@ pub mod linker;
 pub mod manifest;
 pub mod operations;
 pub mod powershell;
+pub mod release_notes;
 pub mod scoop;
 pub mod search;
 pub mod settings;

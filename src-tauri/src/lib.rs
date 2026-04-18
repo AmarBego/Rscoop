@@ -247,6 +247,7 @@ pub fn run() {
             commands::debug::get_app_logs,
             commands::debug::read_app_log_file,
             commands::version::check_and_update_version,
+            commands::release_notes::get_release_notes,
             commands::startup::is_auto_start_enabled,
             commands::startup::set_auto_start_enabled,
             cold_start::is_cold_start_ready,

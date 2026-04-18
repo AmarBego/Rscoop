@@ -197,6 +197,10 @@
   "tray.empty.genericMsg": "No apps match.",
   "tray.empty.genericSub": "Try a different filter.",
 
+  "update.bannerMessage": "Updated to rscoop {version}.",
+  "update.whatsNew": "What's new",
+  "update.modalTitle": "What's new in rscoop {version}",
+
   "settings.cleanup.title": "Auto Cleanup",
   "settings.cleanup.description": "Tidy up old package versions and stale cache after install, update, or uninstall.",
   "settings.cleanup.cleanOldVersions": "Clean old versions",

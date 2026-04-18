@@ -6,6 +6,7 @@ import InstalledPage from "./pages/InstalledPage.tsx";
 import BucketPage from "./pages/BucketPage.tsx";
 import { View } from "./types/scoop.ts";
 import SettingsPage from "./pages/SettingsPage.tsx";
+import UpdateBanner from "./components/UpdateBanner.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
 import OperationModal from "./components/OperationModal.tsx";
@@ -280,6 +281,7 @@ function App() {
                     <div class="drawer-content flex flex-col h-screen">
                         <Header currentView={view()} onNavigate={setView} />
                         <main class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
+                            <UpdateBanner />
                             <Show when={view() === "search"}>
                                 <SearchPage />
                             </Show>

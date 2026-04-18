@@ -21,6 +21,7 @@
     "@tauri-apps/plugin-updater": "^2.10.1",
     "highlight.js": "^11.11.1",
     "lucide-solid": "^1.8.0",
+    "marked": "^15.0.7",
     "solid-js": "^1.9.12"
   },
   "devDependencies": {

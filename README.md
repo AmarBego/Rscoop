@@ -19,7 +19,7 @@ A desktop GUI for [Scoop](https://scoop.sh), search, install, update and manage 
 
 rScoop is a native Windows app that wraps the [Scoop](https://scoop.sh) CLI. It doesn't replace Scoop rather it gives you a proper interface for it. Search across all your buckets at once, install and update packages, manage buckets, clean up disk space, and optionally scan downloads through VirusTotal, all from one window.
 
-Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Sits in your system tray when you're not using it.
+Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Runs in your system tray with desktop notifications, so it stays out of the way without losing track of what's running.
 
 ## Features
 
@@ -33,7 +33,9 @@ Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Sits in your sys
 
 **VirusTotal Integration**: Paste your API key in settings and rScoop will scan packages before install. Configurable threat threshold blocks anything above it.
 
-**Background Operations**: Install, update, and uninstall packages without waiting. Operations queue up and run one at a time behind a progress bar. Start browsing for your next package while the current one installs.
+**Background Operations**: Install, update, and uninstall run in the background. Close the window to the tray and operations keep going. Windows notifications tell you when something finishes, with action buttons on the toast so you can respond without reopening the app. Queue up five installs, minimize, come back to find them all done.
+
+**Tray Menu**: Pin your favorite Scoop apps to the top of the tray menu, hide the ones you never launch from there, see your full app list laid out at a glance. Real icons extracted from each exe, so the tray reads like a proper launcher.
 
 **Settings**: Dark/light theme, tray behavior, auto-cleanup, auto-updates, background operations, security preferences.
 
