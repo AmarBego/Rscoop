@@ -41,7 +41,7 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Com",
     "Win32_UI_WindowsAndMessaging",
 ] }
-png = "0.17"
+png = "0.18.1"
 regex = "1.12"
 rayon = "1.11.0"
 itertools = "0.14"
