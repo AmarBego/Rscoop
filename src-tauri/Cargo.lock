@@ -1893,7 +1893,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3e795dff5605e0f04bff85ca41b51a96b83e80b281e96231bcaaf1ac35103371"
 dependencies = [
  "byteorder",
- "png",
+ "png 0.17.16",
 ]
 
 [[package]]
@@ -2458,7 +2458,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-foundation 0.3.2",
  "once_cell",
- "png",
+ "png 0.17.16",
  "serde",
  "thiserror 2.0.17",
  "windows-sys 0.60.2",
@@ -3094,6 +3094,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "png"
+version = "0.18.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60769b8b31b2a9f263dae2776c37b1b28ae246943cf719eb6946a1db05128a61"
+dependencies = [
+ "bitflags 2.9.4",
+ "crc32fast",
+ "fdeflate",
+ "flate2",
+ "miniz_oxide",
+]
+
+[[package]]
 name = "polling"
 version = "3.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3679,6 +3692,7 @@ dependencies = [
  "lnk",
  "log",
  "once_cell",
+ "png 0.18.1",
  "rayon",
  "regex",
  "reqwest",
@@ -4578,7 +4592,7 @@ dependencies = [
  "ico",
  "json-patch",
  "plist",
- "png",
+ "png 0.17.16",
  "proc-macro2",
  "quote",
  "semver",
@@ -5275,7 +5289,7 @@ dependencies = [
  "objc2-core-graphics",
  "objc2-foundation 0.3.2",
  "once_cell",
- "png",
+ "png 0.17.16",
  "serde",
  "thiserror 2.0.17",
  "windows-sys 0.59.0",

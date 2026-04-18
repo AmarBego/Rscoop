@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod cold_start;
 mod commands;
+mod icons;
 mod models;
 mod operations;
 mod state;
@@ -90,6 +91,8 @@ pub fn run() {
 
             app.manage(state::AppState::new(scoop_path));
             app.manage(std::sync::Mutex::new(operations::OperationManager::new()));
+            app.manage(icons::IconCache::new());
+            app.manage(tray::PendingNavigation::default());
 
     // Set up system tray
     let _ = tray::setup_system_tray(&app.handle());
@@ -247,7 +250,9 @@ pub fn run() {
             commands::startup::is_auto_start_enabled,
             commands::startup::set_auto_start_enabled,
             cold_start::is_cold_start_ready,
-            tray::refresh_tray_apps_menu
+            tray::refresh_tray_apps_menu,
+            tray::get_tray_apps,
+            tray::consume_pending_settings_tab
         ])
         .build(tauri::generate_context!())
         .expect("error while running tauri application")

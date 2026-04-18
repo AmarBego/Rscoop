@@ -35,11 +35,13 @@ chrono = { version = "0.4.44", features = ["serde"] }
 dirs = "6.0"
 windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
+    "Win32_Graphics_Gdi",
     "Win32_Storage_FileSystem",
     "Win32_UI_Shell",
     "Win32_System_Com",
     "Win32_UI_WindowsAndMessaging",
 ] }
+png = "0.18.1"
 regex = "1.12"
 rayon = "1.11.0"
 itertools = "0.14"
