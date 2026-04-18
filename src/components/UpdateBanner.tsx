@@ -22,23 +22,19 @@ export default function UpdateBanner() {
       const current = await getVersion();
 
       const lastSeen = await invoke<string | null>("get_config_value", { key: LAST_SEEN_KEY });
+      if (lastSeen === current) return;
 
-      // First launch ever — silently record current version, no banner.
-      if (!lastSeen) {
+      // Missing lastSeen means either a fresh install or an upgrade from a
+      // pre-banner version (1.6.1 shipped without this key). Either way, if
+      // notes exist for the current version, show them — a new user seeing
+      // the changelog once is acceptable UX.
+      const notes = await invoke<string | null>("get_release_notes", { version: current });
+      if (notes) {
+        setVersion(current);
+        setShow(true);
+      } else {
+        // No notes — record so we don't re-check on every launch.
         await invoke("set_config_value", { key: LAST_SEEN_KEY, value: current });
-        return;
-      }
-
-      if (lastSeen !== current) {
-        // Only bother fetching notes if some actually exist for this version.
-        const notes = await invoke<string | null>("get_release_notes", { version: current });
-        if (notes) {
-          setVersion(current);
-          setShow(true);
-        } else {
-          // No notes — treat as seen so we don't keep re-checking.
-          await invoke("set_config_value", { key: LAST_SEEN_KEY, value: current });
-        }
       }
     } catch (e) {
       console.error("UpdateBanner init failed:", e);
