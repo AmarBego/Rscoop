@@ -14,7 +14,8 @@ pub fn is_valid_bucket(bucket: &str) -> bool {
     !bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScoopAppShortcut {
     pub name: String,
     pub display_name: String,

@@ -1,4 +1,4 @@
-import { createSignal, onMount, For, Show } from "solid-js";
+import { createSignal, createEffect, onMount, For, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import ScoopConfiguration from "../components/page/settings/ScoopConfiguration";
 import VirusTotalSettings from "../components/page/settings/VirusTotalSettings";
@@ -13,11 +13,17 @@ import StartupSettings from "../components/page/settings/StartupSettings";
 import ThemeSettings from "../components/page/settings/ThemeSettings";
 import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
 import LanguageSettings from "../components/page/settings/LanguageSettings";
+import TrayMenuSettings from "../components/page/settings/TrayMenuSettings";
 import heldStore from "../stores/held";
 import { useI18n } from "../i18n";
 
 interface SettingsPageProps {
     isScoopInstalled?: boolean;
+    /** Requested tab key — set by deep-link navigations (e.g. tray
+     *  "Edit Tray Menu…"). SettingsPage activates the tab then calls
+     *  `onTabConsumed` to clear it so it doesn't re-fire on re-render. */
+    pendingTab?: string | null;
+    onTabConsumed?: () => void;
 }
 
 function SettingsPage(props: SettingsPageProps) {
@@ -29,6 +35,7 @@ function SettingsPage(props: SettingsPageProps) {
     const TABS = [
         { key: 'automation', label: t("settings.tabAutomation") },
         { key: 'management', label: t("settings.tabManagement") },
+        { key: 'tray', label: t("settings.tabTray") },
         { key: 'security', label: t("settings.tabSecurity") },
         { key: 'window', label: t("settings.tabWindow") },
         { key: 'about', label: t("settings.tabAbout") },
@@ -38,6 +45,15 @@ function SettingsPage(props: SettingsPageProps) {
     onMount(() => {
         // Preload update info silently
         aboutSectionRef?.checkForUpdates(false);
+    });
+
+    // React to deep-link tab requests (tray "Edit Tray Menu…" etc.).
+    createEffect(() => {
+        const requested = props.pendingTab;
+        if (requested && TABS.some(t => t.key === requested)) {
+            setActiveTab(requested);
+            props.onTabConsumed?.();
+        }
     });
 
     const handleUnhold = (packageName: string) => {
@@ -106,6 +122,11 @@ function SettingsPage(props: SettingsPageProps) {
                             <DefaultLaunchPageSettings />
                             <DebugSettings />
                         </div>
+                    </Show>
+
+                    {/* Tray Menu Tab */}
+                    <Show when={activeTab() === 'tray'}>
+                        <TrayMenuSettings />
                     </Show>
 
                     {/* About Tab */}

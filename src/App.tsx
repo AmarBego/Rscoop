@@ -29,6 +29,10 @@ function App() {
     // Always start with false on app launch to ensure loading screen shows
     const [readyFlag, setReadyFlag] = createSignal<"true" | "false">("false");
 
+    // Pending settings tab — set by tray "Edit Tray Menu…" or any future
+    // deep-link navigation. SettingsPage reads this and activates the tab.
+    const [pendingSettingsTab, setPendingSettingsTab] = createSignal<string | null>(null);
+
     // Track if the app is installed via Scoop
     const [isScoopInstalled, setIsScoopInstalled] = createSignal<boolean>(false);
 
@@ -138,6 +142,29 @@ function App() {
         };
 
         const cleanup = await setupColdStartListeners();
+
+        // Deep-link navigation: tray "Edit Tray Menu…" sets a pending tab in
+        // Rust state and emits an event. Consume-on-mount handles the cold
+        // webview case; the listener handles the warm case (window already up).
+        const navigateToSettingsTab = async () => {
+            try {
+                const tab = await invoke<string | null>("consume_pending_settings_tab");
+                if (tab) {
+                    setView("settings");
+                    setPendingSettingsTab(tab);
+                }
+            } catch (e) {
+                logError(`Failed to consume pending settings tab: ${e}`);
+            }
+        };
+        await navigateToSettingsTab();
+        try {
+            await listen<string>("navigate-to-settings-tab", () => {
+                navigateToSettingsTab();
+            });
+        } catch (e) {
+            logError(`Failed to register navigate-to-settings-tab listener: ${e}`);
+        }
 
         // Deferred / concurrent update check logic (network) with timeout; triggered after ready event
         const triggerUpdateCheck = async () => {
@@ -263,7 +290,11 @@ function App() {
                                 <InstalledPage onNavigate={setView} />
                             </Show>
                             <Show when={view() === "settings"}>
-                                <SettingsPage isScoopInstalled={isScoopInstalled()} />
+                                <SettingsPage
+                                    isScoopInstalled={isScoopInstalled()}
+                                    pendingTab={pendingSettingsTab()}
+                                    onTabConsumed={() => setPendingSettingsTab(null)}
+                                />
                             </Show>
                             <Show when={view() === "doctor"}>
                                 <DoctorPage />
