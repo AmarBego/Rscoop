@@ -1,4 +1,4 @@
-### Release Notes 1.7.0
+### Release Notes 1.7.2
 
 Big quality-of-life release. The theme: rscoop does more for you when the window isn't even open.
 
@@ -17,7 +17,3 @@ Big quality-of-life release. The theme: rscoop does more for you when the window
 #### Translations
 - rscoop is now on Crowdin. If you use it in a non-English language and something reads awkwardly, you can fix it yourself at [crowdin.com/project/rscoop](https://crowdin.com/project/rscoop).
 - Thanks to [@Kwensiu](https://github.com/Kwensiu), Simplified Chinese is newly available in the language picker.
-
-### Release Notes 1.7.1
-
-- Patch new version banner
