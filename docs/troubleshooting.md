@@ -25,6 +25,13 @@ Go to **Settings > Management > Scoop Configuration** and check the detected pat
 - For more detail, open the log file at `%LOCALAPPDATA%\rscoop\logs\rscoop.log`.
 - You can also view logs from **Settings > About**.
 
+## Moving to a new machine
+
+Use the profile export/import feature:
+1. On the old machine, go to **Settings > Management > Export profile** and save a Full profile.
+2. Transfer the file to the new machine.
+3. Go to **Settings > Management > Import profile**, open the file, and apply the groups you need. Buckets clone, apps queue for background install, and settings merge.
+
 ## Still stuck?
 
 Open an issue on [GitHub](https://github.com/AmarBego/rscoop/issues) with the relevant log output and mention whether you installed Rscoop through Scoop or the standalone installer.

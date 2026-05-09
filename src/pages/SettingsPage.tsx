@@ -4,6 +4,7 @@ import ScoopConfiguration from "../components/page/settings/ScoopConfiguration";
 import VirusTotalSettings from "../components/page/settings/VirusTotalSettings";
 import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSettings";
 import HeldPackagesManagement from "../components/page/settings/HeldPackagesManagement";
+import ExportImportSettings from "../components/page/settings/ExportImportSettings";
 import AboutSection, { AboutSectionRef } from "../components/page/settings/AboutSection";
 import DebugSettings from "../components/page/settings/DebugSettings";
 import AutoCleanupSettings from "../components/page/settings/AutoCleanupSettings";
@@ -35,9 +36,9 @@ function SettingsPage(props: SettingsPageProps) {
     const TABS = [
         { key: 'automation', label: t("settings.tabAutomation") },
         { key: 'management', label: t("settings.tabManagement") },
-        { key: 'tray', label: t("settings.tabTray") },
         { key: 'security', label: t("settings.tabSecurity") },
         { key: 'window', label: t("settings.tabWindow") },
+        { key: 'tray', label: t("settings.tabTray") },
         { key: 'about', label: t("settings.tabAbout") },
     ];
     const [activeTab, setActiveTab] = createSignal<string>('automation');
@@ -102,6 +103,7 @@ function SettingsPage(props: SettingsPageProps) {
                                 onUnhold={handleUnhold}
                                 operationInProgress={isUnholding()}
                             />
+                            <ExportImportSettings />
                         </div>
                     </Show>
 

@@ -57,7 +57,7 @@ const defaultSettings: Settings = {
     autoClearCacheOnUninstall: false,
   },
   operations: {
-    backgroundByDefault: false,
+    backgroundByDefault: true,
   },
   buckets: {
     autoUpdateInterval: "off",
@@ -109,11 +109,17 @@ function createSettingsStore() {
 
   const [settings, setSettings] = createStore<Settings>(getInitialSettings());
 
-  // Sync cleanup settings to Tauri store on startup so the backend
-  // can read them (localStorage is frontend-only).
+  // Sync frontend-only localStorage settings to the Tauri store on
+  // startup so the Rust scheduler and other backend code can read them.
   const initial = getInitialSettings();
   for (const [key, value] of Object.entries(initial.cleanup)) {
     invoke("set_config_value", { key: `cleanup.${key}`, value }).catch(() => {});
+  }
+  for (const [key, value] of Object.entries(initial.buckets)) {
+    invoke("set_config_value", { key: `buckets.${key}`, value }).catch(() => {});
+  }
+  for (const [key, value] of Object.entries(initial.operations)) {
+    invoke("set_config_value", { key: `operations.${key}`, value }).catch(() => {});
   }
 
   const saveSettings = (newSettings: Partial<Settings>) => {
@@ -168,21 +174,23 @@ function createSettingsStore() {
   };
 
   const setBucketSettings = (newBucketSettings: Partial<Settings['buckets']>) => {
-    saveSettings({
-      buckets: {
-        ...settings.buckets,
-        ...newBucketSettings,
-      },
-    });
+    const merged = { ...settings.buckets, ...newBucketSettings };
+    saveSettings({ buckets: merged });
+    for (const [key, value] of Object.entries(merged)) {
+      invoke("set_config_value", { key: `buckets.${key}`, value }).catch((e) =>
+        console.error(`Failed to sync bucket setting buckets.${key}:`, e)
+      );
+    }
   };
 
   const setOperationsSettings = (newOpsSettings: Partial<Settings['operations']>) => {
-    saveSettings({
-      operations: {
-        ...settings.operations,
-        ...newOpsSettings,
-      },
-    });
+    const merged = { ...settings.operations, ...newOpsSettings };
+    saveSettings({ operations: merged });
+    for (const [key, value] of Object.entries(merged)) {
+      invoke("set_config_value", { key: `operations.${key}`, value }).catch((e) =>
+        console.error(`Failed to sync operations setting operations.${key}:`, e)
+      );
+    }
   };
 
   const setLanguage = (lang: string) => {

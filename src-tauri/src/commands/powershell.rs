@@ -37,7 +37,12 @@ fn spawn_output_stream_handler(
     let mut reader = BufReader::new(stream).lines();
     tokio::spawn(async move {
         while let Ok(Some(line)) = reader.next_line().await {
-            if source == "stderr" || line.to_lowercase().contains("error") {
+            // Don't treat raw stderr as a failure signal — scoop's PowerShell
+            // scripts route normal progress lines ("Removing shim…", "Running
+            // uninstaller script…") through stderr. Fall back to the child's
+            // exit code + a substring match on the line content (scoop emits
+            // "ERROR" mid-line too, not just at the start).
+            if line.to_lowercase().contains("error") {
                 has_error.store(true, Ordering::Relaxed);
             }
             operations::append_output(&app, line, source);

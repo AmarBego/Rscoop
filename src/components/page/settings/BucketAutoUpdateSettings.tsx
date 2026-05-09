@@ -42,7 +42,6 @@ export default function BucketAutoUpdateSettings() {
         setError(null);
         try {
             setBucketSettings({ autoUpdateInterval: newValue });
-            await invoke("set_config_value", { key: "buckets.autoUpdateInterval", value: newValue });
         } catch {
             setError(t("settings.bucketUpdate.errorSave"));
         } finally {
@@ -129,9 +128,8 @@ export default function BucketAutoUpdateSettings() {
                             type="checkbox"
                             class="toggle toggle-primary"
                             checked={settings.buckets.autoUpdatePackagesEnabled}
-                            onChange={async (e) => {
+                            onChange={(e) => {
                                 setBucketSettings({ autoUpdatePackagesEnabled: e.currentTarget.checked });
-                                await invoke("set_config_value", { key: "buckets.autoUpdatePackagesEnabled", value: e.currentTarget.checked });
                             }}
                         />
                     </div>

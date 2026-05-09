@@ -37,6 +37,8 @@ Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Runs in your sys
 
 **Tray Menu**: Pin your favorite Scoop apps to the top of the tray menu, hide the ones you never launch from there, see your full app list laid out at a glance. Real icons extracted from each exe, so the tray reads like a proper launcher.
 
+**Profile Export & Import**: Export your entire rScoop + Scoop setup (apps, buckets, holds, config, preferences) to a portable JSON file. Import on a new machine to replicate your environment — buckets are cloned, apps are queued for background install, and settings are merged. Pluggable group system lets you export exactly what you need (full profile, scoop-compatible, or just preferences). Files are plain JSON with a versioned schema, safe to check into dotfiles repos.
+
 **Settings**: Dark/light theme, tray behavior, auto-cleanup, auto-updates, background operations, security preferences.
 
 ## Screenshots
@@ -85,7 +87,7 @@ Want to help? [Jump in on Crowdin](https://crowdin.com/project/rscoop).
 | Package ops | Delegates to the Scoop CLI |
 | Native | System tray, single instance, auto-updater, file dialogs |
 
-The Rust backend exposes 25+ [commands](src-tauri/src/commands/), search, install, uninstall, update, hold, bucket management, VirusTotal scanning, doctor checks, cache/cleanup, shim management, and more. Everything goes through Scoop's CLI under the hood; rScoop doesn't reimplement package logic.
+The Rust backend exposes 30+ [commands](src-tauri/src/commands/), search, install, uninstall, update, hold, bucket management, VirusTotal scanning, doctor checks, cache/cleanup, shim management, profile export/import, and more. Everything goes through Scoop's CLI under the hood; rScoop doesn't reimplement package logic.
 
 ## Docs
 

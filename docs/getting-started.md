@@ -26,7 +26,15 @@ Rscoop wraps the Scoop CLI, so you need Scoop installed before anything else. He
 
 If you have a VirusTotal API key, go to **Settings > Security** and paste it in. Rscoop will scan packages before installing them and block anything above your configured threat threshold.
 
-## 5. Updating
+## 5. Migrating from another machine
+
+If you already have Rscoop set up on another PC, use the profile export/import feature to replicate your environment:
+1. On the source machine, go to **Settings > Management > Export profile** and save a Full profile to a JSON file.
+2️. Transfer the file to the new machine (USB, cloud, dotfiles repo).
+3. On the new machine, go to **Settings > Management > Import profile**, open the file, and apply the groups you want.
+4. Buckets will be cloned, apps queued for background install, and settings merged — nothing gets uninstalled.
+
+## 6. Updating
 
 - **Installed via Scoop?** Run `scoop update rscoop` from PowerShell.
 - **Standalone installer?** Rscoop shows a banner when a new version is available. Click it to update.
@@ -34,4 +42,5 @@ If you have a VirusTotal API key, go to **Settings > Security** and paste it in.
 ## Next
 
 - [User Guide](user-guide/index.md), tour of every page
-- [Settings](user-guide/settings.md), configure VirusTotal, themes, auto-updates, and more
+- [Settings](user-guide/settings.md), configure themes, auto-updates, tray, and more
+- [Security & Privacy](security.md), how VirusTotal and networking work

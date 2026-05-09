@@ -24,18 +24,6 @@ impl Default for BucketFilterOptions {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BucketCsvRecord {
-    pub name: String,
-    pub full_name: String,
-    pub description: String,
-    pub url: String,
-    pub apps: u32,
-    pub stars: u32,
-    pub forks: u32,
-    pub last_updated: String,
-}
-
 // Global HashMap to cache parsed buckets
 static BUCKET_CACHE: Lazy<tokio::sync::RwLock<HashMap<String, SearchableBucket>>> =
     Lazy::new(|| tokio::sync::RwLock::new(HashMap::new()));

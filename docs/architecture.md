@@ -13,28 +13,37 @@ Rscoop is a Tauri 2 app. Rust backend, SolidJS frontend, talking to each other o
 The backend lives in `src-tauri/src/`. Here's how it's organized:
 
 - **`lib.rs`** is the entry point. Wires up all Tauri plugins, resolves the Scoop root path, and creates the shared `AppState` (cached packages, Scoop directory).
-- **`commands/`** has 30+ Tauri commands grouped by domain: search, install, update, uninstall, buckets, doctor, VirusTotal, settings, shims, cache, version switching, and more. These are what the frontend calls.
+- **`commands/`** has 30+ Tauri commands grouped by domain: search, install, update, uninstall, buckets, doctor, VirusTotal, settings, shims, cache, version switching, profile export/import, and more. These are what the frontend calls.
 - **`cold_start.rs`** runs on first launch to preload Scoop metadata. Emits `cold-start-finished` and `scoop-ready` events that the frontend waits for before rendering.
 - **`utils.rs`** has shared helpers for running PowerShell, parsing manifests, caching bucket metadata, and working with shims/shortcuts.
-- **`tray.rs`** builds the system tray menu from installed Scoop apps. Handles show/hide and app launching.
-- **`scheduler.rs`** is the background loop for auto-updating buckets and packages on a configurable interval.
+- **`tray.rs`** builds the system tray menu from installed Scoop apps. Extracts real exe icons, supports pinning/hiding apps, and handles show/hide operations.
+- **`scheduler.rs`** is the background loop for auto-updating buckets and packages on a configurable interval. Persists across restarts.
+- **`operations.rs`** manages the install/update/uninstall queue. Operations run in the background via Tokio tasks, streaming progress to the frontend through `tauri-plugin-log`. The queue is FIFO; queued items can be cancelled individually.
 
 ## SolidJS frontend
 
-The frontend lives in `src/`. Five pages, each with its own components:
+The frontend lives in `src/`. Four pages plus settings, each with its own components:
 
 - **`App.tsx`** is the root component. Listens for backend lifecycle events, manages the update banner, handles routing.
 - **`pages/`** contains SearchPage, InstalledPage, BucketPage, DoctorPage, SettingsPage.
 - **`hooks/`** wraps Tauri command calls. `useInstalledPackages` handles refreshes, `useBucketSearch` does paginated discovery, `usePackageOperations` orchestrates install/update flows.
-- **`stores/`** holds reactive state shared across components. Installed packages cache, held packages, view preferences.
+- **`stores/`** holds reactive state shared across components. Installed packages cache, held packages, settings, operations queue state.
 - **`components/page/`** mirrors the page structure. Each page has its own subfolder of components.
 
 ## How data flows
 
 1. User clicks something (e.g. "Install").
 2. A hook calls the matching Rust command via `@tauri-apps/api/core.invoke`.
-3. The Rust command runs the Scoop CLI (or a native helper like git2), streams logs through `tauri-plugin-log`, and returns results.
+3. The Rust command runs the Scoop CLI (or a native helper like git2 for bucket cloning), streams logs through `tauri-plugin-log`, and returns results.
 4. The hook updates SolidJS signals/stores, which re-renders the UI. Completion triggers follow-up refreshes (e.g. reloading the package list).
+
+## Profile export & import
+
+The `commands/profile.rs` module handles serializing and restoring a user's Rscoop + Scoop setup:
+
+- **Export**: Gathers installed apps, buckets, held packages, Scoop global config, and Rscoop preferences. Each group is optional — the frontend picks which to include. Output is a versioned JSON document.
+- **Import**: Parses the JSON leniently (unknown fields ignored, malformed entries skipped), then applies groups in order: Rscoop settings → Scoop config → bucket cloning → app installs (queued into the operations system) → holds. Everything is additive — nothing is uninstalled.
+- The frontend has its own Export Profile and Import Profile modals that preview the file, let you pick groups, and show warnings before applying.
 
 ## Caching
 
