@@ -84,10 +84,11 @@ Want to help? [Jump in on Crowdin](https://crowdin.com/project/rscoop).
 |---|---|
 | Backend | Rust, Tauri 2 |
 | Frontend | SolidJS, TypeScript, Vite |
-| Package ops | Delegates to the Scoop CLI |
+| Runtime | [Execra](https://crates.io/crates/execra) for long-running jobs, cancellation, and operation status |
+| Package ops | Scoop CLI for package installs/updates/uninstalls; Rust-native rScoop logic for indexing, cache, doctor, profiles, shims, scheduling, and app state |
 | Native | System tray, single instance, auto-updater, file dialogs |
 
-The Rust backend exposes 30+ [commands](src-tauri/src/commands/), search, install, uninstall, update, hold, bucket management, VirusTotal scanning, doctor checks, cache/cleanup, shim management, profile export/import, and more. Everything goes through Scoop's CLI under the hood; rScoop doesn't reimplement package logic.
+The Rust backend exposes 30+ [commands](src-tauri/src/commands/) for search, install, uninstall, update, hold, bucket management, VirusTotal scanning, doctor checks, cache cleanup, shim management, profile export/import, scheduling, and more. rScoop uses Scoop where Scoop should remain the source of truth, especially package install/update/uninstall behavior, but much of the surrounding logic is implemented directly in Rust for speed, safer filesystem handling, richer UI state, and better cancellation.
 
 ## Docs
 

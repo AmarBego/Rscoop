@@ -15,7 +15,8 @@ The backend lives in `src-tauri/src/`. Here's how it's organized:
 - **`lib.rs`** is the entry point. Wires up all Tauri plugins, resolves the Scoop root path, and creates the shared `AppState` (cached packages, Scoop directory).
 - **`commands/`** has 30+ Tauri commands grouped by domain: search, install, update, uninstall, buckets, doctor, VirusTotal, settings, shims, cache, version switching, profile export/import, and more. These are what the frontend calls.
 - **`cold_start.rs`** runs on first launch to preload Scoop metadata. Emits `cold-start-finished` and `scoop-ready` events that the frontend waits for before rendering.
-- **`utils.rs`** has shared helpers for running PowerShell, parsing manifests, caching bucket metadata, and working with shims/shortcuts.
+- **Execra** is the runtime used for long-running jobs. It provides process execution, streamed output, cancellation, and structured outcomes for Scoop jobs, cleanup, update flows, and VirusTotal scans.
+- **`utils.rs`** has shared helpers for parsing manifests, caching bucket metadata, resolving Scoop state, and working with shims/shortcuts.
 - **`tray.rs`** builds the system tray menu from installed Scoop apps. Extracts real exe icons, supports pinning/hiding apps, and handles show/hide operations.
 - **`scheduler.rs`** is the background loop for auto-updating buckets and packages on a configurable interval. Persists across restarts.
 - **`operations.rs`** manages the install/update/uninstall queue. Operations run in the background via Tokio tasks, streaming progress to the frontend through `tauri-plugin-log`. The queue is FIFO; queued items can be cancelled individually.
@@ -34,7 +35,7 @@ The frontend lives in `src/`. Four pages plus settings, each with its own compon
 
 1. User clicks something (e.g. "Install").
 2. A hook calls the matching Rust command via `@tauri-apps/api/core.invoke`.
-3. The Rust command runs the Scoop CLI (or a native helper like git2 for bucket cloning), streams logs through `tauri-plugin-log`, and returns results.
+3. The Rust command either delegates the core package action to Scoop through Execra or handles the task natively in Rust. Search indexing, manifest parsing, cache cleanup, doctor checks, shim inspection, profiles, bucket metadata, scheduling, and UI-facing state are rScoop logic, while package install/update/uninstall behavior stays with Scoop.
 4. The hook updates SolidJS signals/stores, which re-renders the UI. Completion triggers follow-up refreshes (e.g. reloading the package list).
 
 ## Profile export & import

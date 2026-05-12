@@ -54,8 +54,9 @@ Output goes to `src-tauri/target/release/bundle`.
 
 - Commands are in `src-tauri/src/commands/`, grouped by domain (search, install, buckets, doctor, profile, etc.).
 - `operations.rs` manages the background install/update/uninstall queue. Use `EnqueueAction` to push work; the queue processes FIFO via Tokio tasks.
+- Execra is the runtime for long-running jobs. Use it for process execution, cancellation, streamed output, and structured operation status instead of adding new ad-hoc process wrappers.
 - `tray.rs` builds the tray menu from installed Scoop apps, extracting real exe icons and supporting pinned/hidden app preferences.
-- Use `utils.rs` helpers for running PowerShell, probing Scoop state, and filesystem operations.
+- Use the existing Rust helpers for probing Scoop state, parsing manifests, cache cleanup, shim/shortcut inspection, and filesystem operations. rScoop delegates core package actions to Scoop, but most surrounding app logic should stay in Rust for speed and predictable error handling.
 - Log progress with `log::info!` / `log::warn!`. The frontend operation modal picks these up through `tauri-plugin-log`.
 
 ## Frontend notes
