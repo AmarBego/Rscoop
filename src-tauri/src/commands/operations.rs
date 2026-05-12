@@ -19,6 +19,11 @@ pub async fn cancel_queued_operation(app: AppHandle, id: String) -> Result<bool,
 }
 
 #[tauri::command]
+pub async fn cancel_current_operation(app: AppHandle) -> Result<bool, String> {
+    operations::cancel_current_job(&app)
+}
+
+#[tauri::command]
 pub async fn clear_completed_operations(app: AppHandle) -> Result<(), String> {
     operations::clear_completed(&app);
     Ok(())

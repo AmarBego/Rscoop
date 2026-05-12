@@ -4,11 +4,11 @@
 //! We are grateful to the SFSU team for their original work and logic.
 //! Original source: https://github.com/winpax/sfsu/blob/trunk/src/commands/checkup.rs
 
-use crate::commands::powershell::create_powershell_command;
 use crate::state::AppState;
+use execra::tauri::ExecraExt;
 use serde::Serialize;
 use std::path::Path;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 // Import Windows-specific checks only on Windows.
 #[cfg(windows)]
@@ -28,11 +28,13 @@ pub struct CheckupItem {
 }
 
 /// Checks if Git is installed and available in the PATH.
-async fn check_git_installed() -> CheckupItem {
-    let git_installed = create_powershell_command("git --version")
-        .output()
+async fn check_git_installed(app: AppHandle) -> CheckupItem {
+    let git_installed = app
+        .execra()
+        .task(execra::Command::new("git").arg("--version"))
+        .label("Checking Git")
         .await
-        .is_ok();
+        .is_success();
 
     CheckupItem {
         id: None,
@@ -99,13 +101,16 @@ fn check_missing_helpers(scoop_path: &Path) -> Vec<CheckupItem> {
 
 /// Runs the Scoop checkup process, performing various system checks.
 #[tauri::command]
-pub async fn run_scoop_checkup(state: State<'_, AppState>) -> Result<Vec<CheckupItem>, String> {
+pub async fn run_scoop_checkup(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Vec<CheckupItem>, String> {
     log::info!("Running native system checkup");
 
     let scoop_path = state.scoop_path();
 
     // Run the async git check concurrently with the sync checks.
-    let git_check_future = check_git_installed();
+    let git_check_future = check_git_installed(app);
 
     // Run synchronous checks.
     let mut items = vec![];

@@ -1,6 +1,6 @@
 //! Commands for automatic cleanup based on user settings.
 use crate::commands::installed::get_installed_packages_full;
-use crate::commands::powershell;
+use crate::commands::doctor::cache;
 use crate::commands::settings;
 use crate::state::AppState;
 use serde::Deserialize;
@@ -91,7 +91,7 @@ pub async fn run_auto_cleanup<R: Runtime>(
 
     if settings.cleanup_cache && !regular_packages.is_empty() {
         log::info!("Running auto cleanup of outdated cache");
-        cleanup_cache_for_packages(&regular_packages).await?;
+        cleanup_cache_for_packages(app.clone(), &regular_packages).await?;
     }
 
     log::info!("Auto cleanup completed successfully");
@@ -139,11 +139,7 @@ fn get_versions_to_remove(
     let current_link = package_path.join("current");
     let active_version = std::fs::read_link(&current_link)
         .ok()
-        .and_then(|target| {
-            target
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-        });
+        .and_then(|target| target.file_name().map(|n| n.to_string_lossy().to_string()));
 
     // Read all version directories (excluding "current" symlink)
     let mut versions: Vec<String> = std::fs::read_dir(package_path)
@@ -206,38 +202,27 @@ async fn remove_specific_versions(scoop_path: &PathBuf, package_name: &str, vers
 }
 
 /// Cleans up the cache for specified packages.
-async fn cleanup_cache_for_packages(packages: &[String]) -> Result<(), String> {
+async fn cleanup_cache_for_packages<R: Runtime>(
+    app: AppHandle<R>,
+    packages: &[String],
+) -> Result<(), String> {
     if packages.is_empty() {
         return Ok(());
     }
 
-    let packages_str = packages.join(" ");
-    let command = format!("scoop cleanup {} --cache", packages_str);
-
-    match powershell::create_powershell_command(&command)
-        .output()
-        .await
-    {
-        Ok(output) => {
-            if !output.status.success() {
-                log::warn!(
-                    "Cache cleanup completed with warnings: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            } else {
-                log::debug!(
-                    "Successfully cleaned up cache for {} packages",
-                    packages.len()
-                );
-            }
-            Ok(())
+    match cache::cleanup_outdated_cache_internal(app).await {
+        Ok(result) => {
+            log::debug!(
+                "Automatic cache cleanup deleted {} outdated files",
+                result.deleted.len()
+            );
         }
         Err(e) => {
             log::warn!("Failed to execute cache cleanup: {}", e);
-            // Don't fail the entire operation if cache cleanup fails
-            Ok(())
         }
     }
+
+    Ok(())
 }
 
 /// Helper function to trigger auto cleanup from other commands.

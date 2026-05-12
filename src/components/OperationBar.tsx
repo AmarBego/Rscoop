@@ -1,5 +1,5 @@
 import { Show, For, createSignal } from "solid-js";
-import { Maximize2, ShieldAlert, CircleCheck, CircleX } from "lucide-solid";
+import { Maximize2, ShieldAlert, CircleCheck, CircleX, TriangleAlert } from "lucide-solid";
 import operationsStore, { CompletedOperation } from "../stores/operations";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
@@ -33,7 +33,8 @@ function OperationBar() {
   };
   const isDone = () => !!op()?.result;
   const isSuccess = () => op()?.result?.success ?? false;
-  const needsAttention = () => !!op()?.scanWarning || !!op()?.canClearCache;
+  const isWarning = () => op()?.result?.status === "warning";
+  const needsAttention = () => !!op()?.scanWarning || !!op()?.canClearCache || isWarning();
 
   const [viewingLog, setViewingLog] = createSignal<CompletedOperation | null>(null);
 
@@ -47,13 +48,19 @@ function OperationBar() {
       .replace(/^Cleaning up (.+)/, (_, name) => t("operationbar.cleanedUp", { name }));
   };
 
-  const successCount = () => operationsStore.completed().filter(c => c.success).length;
-  const failCount = () => operationsStore.completed().filter(c => !c.success).length;
+  const completedIsWarning = (item: CompletedOperation) => item.status === "warning";
+  const completedIsFailure = (item: CompletedOperation) => item.status === "error" || !item.success;
+  const successCount = () => operationsStore.completed().filter(c => c.success && !completedIsWarning(c)).length;
+  const warningCount = () => operationsStore.completed().filter(completedIsWarning).length;
+  const failCount = () => operationsStore.completed().filter(completedIsFailure).length;
+  const hasCompletedWarnings = () => warningCount() > 0;
+  const latestWarningMessage = () => operationsStore.completed().find(completedIsWarning)?.message;
 
   const barText = () => {
     const c = operationsStore.completed();
 
-    if (needsAttention()) return t("operationbar.actionRequired");
+    if (op()?.scanWarning || op()?.canClearCache) return t("operationbar.actionRequired");
+    if (isWarning()) return op()?.result?.message ?? op()?.title;
     if (isRunning()) return op()?.title;
 
     // Single completed op still in current (no batch history)
@@ -62,8 +69,10 @@ function OperationBar() {
     // Batch finished — all in history, no current
     if (c.length > 0) {
       const s = successCount();
+      const w = warningCount();
       const f = failCount();
-      if (c.length === 1) return formatTitle(c[0].title, c[0].success);
+      if (c.length === 1) return completedIsWarning(c[0]) ? c[0].message : formatTitle(c[0].title, c[0].success);
+      if (w > 0 && f === 0) return latestWarningMessage() ?? t("operationbar.actionRequired");
       return f > 0
         ? t("operationbar.allCompletedWithFails", { success: String(s), failed: String(f) })
         : t("operationbar.allCompleted", { success: String(s) });
@@ -94,7 +103,7 @@ function OperationBar() {
             <div class="h-0.5 w-full bg-warning animate-pulse" />
           </Show>
           <Show when={!op() && hasCompleted()}>
-            <div class="h-0.5 w-full" classList={{ "bg-success": failCount() === 0, "bg-warning": failCount() > 0 }} />
+            <div class="h-0.5 w-full" classList={{ "bg-success": failCount() === 0 && !hasCompletedWarnings(), "bg-warning": failCount() === 0 && hasCompletedWarnings(), "bg-error": failCount() > 0 }} />
           </Show>
 
           {/* Content */}
@@ -104,11 +113,17 @@ function OperationBar() {
                 <span class="loading loading-spinner loading-xs shrink-0"></span>
               </Show>
               <Show when={needsAttention()}>
-                <ShieldAlert class="w-4 h-4 text-warning shrink-0 animate-pulse" />
+                <Show when={isWarning()} fallback={<ShieldAlert class="w-4 h-4 text-warning shrink-0 animate-pulse" />}>
+                  <TriangleAlert class="w-4 h-4 text-warning shrink-0" />
+                </Show>
               </Show>
               <Show when={!isRunning() && !needsAttention() && (isDone() || hasCompleted())}>
-                <Show when={failCount() === 0} fallback={<CircleX class="w-4 h-4 text-error shrink-0" />}>
-                  <CircleCheck class="w-4 h-4 text-success shrink-0" />
+                <Show when={failCount() > 0} fallback={
+                  <Show when={hasCompletedWarnings()} fallback={<CircleCheck class="w-4 h-4 text-success shrink-0" />}>
+                    <TriangleAlert class="w-4 h-4 text-warning shrink-0" />
+                  </Show>
+                }>
+                  <CircleX class="w-4 h-4 text-error shrink-0" />
                 </Show>
               </Show>
               <span class="text-sm truncate">{barText()}</span>
@@ -154,8 +169,12 @@ function OperationBar() {
                           setViewingLog(item);
                         }}
                       >
-                        <Show when={item.success} fallback={<CircleX class="w-3 h-3 text-error shrink-0" />}>
-                          <CircleCheck class="w-3 h-3 text-success shrink-0" />
+                        <Show when={completedIsWarning(item)} fallback={
+                          <Show when={item.success} fallback={<CircleX class="w-3 h-3 text-error shrink-0" />}>
+                            <CircleCheck class="w-3 h-3 text-success shrink-0" />
+                          </Show>
+                        }>
+                          <TriangleAlert class="w-3 h-3 text-warning shrink-0" />
                         </Show>
                         <span class="truncate text-base-content/60">{formatTitle(item.title, item.success)}</span>
                       </div>
@@ -189,7 +208,7 @@ function OperationBar() {
         size="large"
         footer={
           <div class="flex items-center w-full">
-            <span class="flex-1 text-sm" classList={{ "text-success": viewingLog()?.success, "text-error": !viewingLog()?.success }}>
+            <span class="flex-1 text-sm" classList={{ "text-success": !!viewingLog()?.success && viewingLog()?.status !== "warning", "text-warning": viewingLog()?.status === "warning", "text-error": !viewingLog()?.success }}>
               {viewingLog()?.message}
             </span>
             <button class="btn btn-sm" onClick={() => setViewingLog(null)}>{t("common.close")}</button>

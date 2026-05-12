@@ -29,28 +29,28 @@ function PackageGridView(props: PackageGridViewProps) {
         {(pkg) => (
           <div class="card bg-base-300 shadow-xl transition-transform transform hover:scale-101 hover:bg-base-400" data-no-close-search>
             <div class="card-body">
-              <div class="flex justify-between items-start mb-2">
-                <h2 class="card-title">
-                  <button class="hover:underline" onClick={() => props.onViewInfo(pkg)}>
+              <div class="flex justify-between items-start mb-2 w-full min-w-0 gap-2">
+                <h2 class="card-title flex-nowrap min-w-0 flex-1">
+                  <button class="hover:underline truncate text-left block max-w-full" onClick={() => props.onViewInfo(pkg)} title={pkg.name}>
                     {pkg.name}
                   </button>
                   <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                    <div class="tooltip" data-tip={t("installed.updateAvailable", { version: pkg.available_version ?? "" })}>
+                    <div class="tooltip shrink-0" data-tip={t("installed.updateAvailable", { version: pkg.available_version ?? "" })}>
                       <CircleArrowUp class="w-4 h-4 text-primary" />
                     </div>
                   </Show>
                   <Show when={pkg.is_versioned_install}>
-                    <div class="tooltip" data-tip={t("installed.versionedInstallTooltip")}>
+                    <div class="tooltip shrink-0" data-tip={t("installed.versionedInstallTooltip")}>
                       <Lock class="w-4 h-4 text-cyan-400" />
                     </div>
                   </Show>
                   <Show when={heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                    <div class="tooltip" data-tip={t("installed.onHoldTooltip")}>
+                    <div class="tooltip shrink-0" data-tip={t("installed.onHoldTooltip")}>
                       <Lock class="w-4 h-4 text-warning" />
                     </div>
                   </Show>
                 </h2>
-                <div class="dropdown dropdown-end">
+                <div class="dropdown dropdown-end shrink-0">
                   <label tabindex="0" class="btn btn-ghost btn-xs btn-circle">
                     <Ellipsis class="w-4 h-4" />
                   </label>

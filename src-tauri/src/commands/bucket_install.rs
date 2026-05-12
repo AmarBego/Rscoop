@@ -2,9 +2,10 @@ use git2::{Cred, CredentialType, FetchOptions, RemoteCallbacks, Repository};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use tauri::command;
+use tauri::{command, AppHandle, Manager, Runtime};
 
 use crate::commands::search::invalidate_manifest_cache;
+use crate::state::AppState;
 use crate::utils;
 
 /// Creates git remote callbacks with credential handling for SSH and HTTPS.
@@ -42,23 +43,21 @@ pub struct BucketInstallResult {
 }
 
 // Get the buckets directory path
-fn get_buckets_dir() -> Result<PathBuf, String> {
-    // Use fallback method to get scoop directory
-    let scoop_dir = utils::get_scoop_root_fallback();
+fn get_buckets_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    let scoop_dir = app.state::<AppState>().scoop_path();
     Ok(scoop_dir.join("buckets"))
 }
 
-
 // Check if bucket already exists
-fn bucket_exists(bucket_name: &str) -> Result<bool, String> {
-    let buckets_dir = get_buckets_dir()?;
+fn bucket_exists<R: Runtime>(app: &AppHandle<R>, bucket_name: &str) -> Result<bool, String> {
+    let buckets_dir = get_buckets_dir(app)?;
     let bucket_path = buckets_dir.join(bucket_name);
     Ok(bucket_path.exists())
 }
 
 // Get bucket directory path
-fn get_bucket_path(bucket_name: &str) -> Result<PathBuf, String> {
-    let buckets_dir = get_buckets_dir()?;
+fn get_bucket_path<R: Runtime>(app: &AppHandle<R>, bucket_name: &str) -> Result<PathBuf, String> {
+    let buckets_dir = get_buckets_dir(app)?;
     Ok(buckets_dir.join(bucket_name))
 }
 
@@ -109,7 +108,8 @@ fn remove_bucket_directory(bucket_path: &Path) -> Result<(), String> {
 }
 
 // Main function to install a bucket
-async fn install_bucket_internal(
+async fn install_bucket_internal<R: Runtime>(
+    app: &AppHandle<R>,
     options: BucketInstallOptions,
 ) -> Result<BucketInstallResult, String> {
     let BucketInstallOptions { name, url, force } = options;
@@ -125,7 +125,7 @@ async fn install_bucket_internal(
     };
 
     // Check if bucket already exists
-    if bucket_exists(&bucket_name)? && !force {
+    if bucket_exists(app, &bucket_name)? && !force {
         return Ok(BucketInstallResult {
             success: false,
             message: format!(
@@ -133,12 +133,12 @@ async fn install_bucket_internal(
                 bucket_name
             ),
             bucket_name: bucket_name.clone(),
-            bucket_path: Some(get_bucket_path(&bucket_name)?.to_string_lossy().to_string()),
+            bucket_path: Some(get_bucket_path(app, &bucket_name)?.to_string_lossy().to_string()),
             manifest_count: None,
         });
     }
 
-    let bucket_path = get_bucket_path(&bucket_name)?;
+    let bucket_path = get_bucket_path(app, &bucket_name)?;
 
     // If force is true and bucket exists, remove it first
     if force && bucket_path.exists() {
@@ -165,7 +165,7 @@ async fn install_bucket_internal(
             let manifest_count = utils::count_manifests(&bucket_path);
 
             // Invalidate search cache so new bucket's packages are searchable
-            invalidate_manifest_cache().await;
+            invalidate_manifest_cache(&app.state::<AppState>().scoop_path()).await;
 
             log::info!(
                 "Successfully installed bucket '{}' with {} manifests",
@@ -195,10 +195,13 @@ async fn install_bucket_internal(
 
 // Tauri command to install a bucket
 #[command]
-pub async fn install_bucket(options: BucketInstallOptions) -> Result<BucketInstallResult, String> {
+pub async fn install_bucket<R: Runtime>(
+    app: AppHandle<R>,
+    options: BucketInstallOptions,
+) -> Result<BucketInstallResult, String> {
     log::info!("Installing bucket: {} from {}", options.name, options.url);
 
-    match install_bucket_internal(options).await {
+    match install_bucket_internal(&app, options).await {
         Ok(result) => {
             log::info!("Bucket installation result: {:?}", result);
             Ok(result)
@@ -218,7 +221,8 @@ pub async fn install_bucket(options: BucketInstallOptions) -> Result<BucketInsta
 
 // Command to check if a bucket can be installed (validation only)
 #[command]
-pub async fn validate_bucket_install(
+pub async fn validate_bucket_install<R: Runtime>(
+    app: AppHandle<R>,
     name: String,
     url: String,
 ) -> Result<BucketInstallResult, String> {
@@ -256,10 +260,10 @@ pub async fn validate_bucket_install(
     };
 
     // Check if bucket already exists
-    let already_exists = bucket_exists(&bucket_name).unwrap_or(false);
+    let already_exists = bucket_exists(&app, &bucket_name).unwrap_or(false);
 
     let bucket_path = if already_exists {
-        get_bucket_path(&bucket_name)
+        get_bucket_path(&app, &bucket_name)
             .ok()
             .map(|p| p.to_string_lossy().to_string())
     } else {
@@ -284,10 +288,13 @@ pub async fn validate_bucket_install(
 
 // Command to update a bucket (git pull)
 #[command]
-pub async fn update_bucket(bucket_name: String) -> Result<BucketInstallResult, String> {
+pub async fn update_bucket<R: Runtime>(
+    app: AppHandle<R>,
+    bucket_name: String,
+) -> Result<BucketInstallResult, String> {
     log::info!("Updating bucket: {}", bucket_name);
 
-    let bucket_path = get_bucket_path(&bucket_name)?;
+    let bucket_path = get_bucket_path(&app, &bucket_name)?;
 
     if !bucket_path.exists() {
         return Ok(BucketInstallResult {
@@ -477,9 +484,11 @@ fn update_bucket_sync(bucket_name: &str, bucket_path: &Path) -> Result<BucketIns
 /// Command to update all buckets sequentially.
 /// Returns a list of per-bucket results. Non-fatal errors are captured in each result.
 #[command]
-pub async fn update_all_buckets() -> Result<Vec<BucketInstallResult>, String> {
+pub async fn update_all_buckets<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<Vec<BucketInstallResult>, String> {
     log::info!("Updating all buckets (auto-update task)");
-    let buckets_dir = match get_buckets_dir() {
+    let buckets_dir = match get_buckets_dir(&app) {
         Ok(p) => p,
         Err(e) => return Err(format!("Failed to resolve buckets directory: {}", e)),
     };
@@ -505,7 +514,7 @@ pub async fn update_all_buckets() -> Result<Vec<BucketInstallResult>, String> {
             continue;
         }
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-            match update_bucket(name.to_string()).await {
+            match update_bucket(app.clone(), name.to_string()).await {
                 Ok(res) => results.push(res),
                 Err(e) => results.push(BucketInstallResult {
                     success: false,
@@ -524,10 +533,13 @@ pub async fn update_all_buckets() -> Result<Vec<BucketInstallResult>, String> {
 
 // Command to remove a bucket
 #[command]
-pub async fn remove_bucket(bucket_name: String) -> Result<BucketInstallResult, String> {
+pub async fn remove_bucket<R: Runtime>(
+    app: AppHandle<R>,
+    bucket_name: String,
+) -> Result<BucketInstallResult, String> {
     log::info!("Removing bucket: {}", bucket_name);
 
-    let bucket_path = get_bucket_path(&bucket_name)?;
+    let bucket_path = get_bucket_path(&app, &bucket_name)?;
 
     if !bucket_path.exists() {
         return Ok(BucketInstallResult {
@@ -542,7 +554,7 @@ pub async fn remove_bucket(bucket_name: String) -> Result<BucketInstallResult, S
     match remove_bucket_directory(&bucket_path) {
         Ok(_) => {
             // Invalidate search cache so removed bucket's packages are no longer searchable
-            invalidate_manifest_cache().await;
+            invalidate_manifest_cache(&app.state::<AppState>().scoop_path()).await;
 
             log::info!("Successfully removed bucket '{}'", bucket_name);
             Ok(BucketInstallResult {

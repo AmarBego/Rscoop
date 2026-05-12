@@ -46,7 +46,7 @@ function DoctorPage() {
         try {
             await invoke("install_package", { packageName: helperId, bucket: '' });
             await runCheckup();
-            installedPackagesStore.refetch();
+            installedPackagesStore.reload();
         } catch (err) {
             console.error(`Failed to install ${helperId}:`, err);
         } finally {

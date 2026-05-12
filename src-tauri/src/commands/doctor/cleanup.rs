@@ -2,7 +2,9 @@
 //! OperationManager — callers should enqueue `CleanupApps` / `CleanupCache`
 //! actions rather than invoke these directly.
 use crate::commands::installed::get_installed_packages_full;
-use crate::commands::powershell;
+use crate::commands::doctor::cache;
+use crate::commands::scoop;
+use crate::operations;
 use crate::state::AppState;
 use tauri::{AppHandle, Manager};
 
@@ -33,13 +35,14 @@ pub async fn cleanup_all_apps_internal(app: AppHandle) -> Result<(), String> {
             return Ok(());
         }
 
-        let command = format!("scoop cleanup {}", regular_packages.join(" "));
-        powershell::run_and_stream(app, command, "Cleanup Old App Versions".to_string()).await
+        let mut args = vec!["cleanup".to_string()];
+        args.extend(regular_packages);
+        run_cleanup(app, args, "Cleanup Old App Versions").await
     } else {
-        powershell::run_and_stream(
+        run_cleanup(
             app,
-            "scoop cleanup --all".to_string(),
-            "Cleanup Old App Versions".to_string(),
+            vec!["cleanup".to_string(), "--all".to_string()],
+            "Cleanup Old App Versions",
         )
         .await
     }
@@ -47,23 +50,45 @@ pub async fn cleanup_all_apps_internal(app: AppHandle) -> Result<(), String> {
 
 /// Cleans up cache for regular apps (versioned installs are excluded).
 pub async fn cleanup_outdated_cache_internal(app: AppHandle) -> Result<(), String> {
-    log::info!("Running version-aware cleanup of outdated app caches");
-    let state = app.state::<AppState>();
-    let installed_packages = get_installed_packages_full(app.clone(), state.clone()).await?;
+    log::info!("Running version-aware cleanup of Scoop download cache");
+    operations::append_output(
+        &app,
+        "Scanning Scoop cache directory for safe-to-delete files...".to_string(),
+        "stdout",
+    );
 
-    let safe_packages: Vec<String> = installed_packages
-        .iter()
-        .filter(|pkg| !pkg.is_versioned_install)
-        .map(|pkg| pkg.name.clone())
-        .collect();
+    let result = cache::cleanup_outdated_cache_internal(app.clone()).await?;
 
-    if safe_packages.is_empty() {
-        log::info!("No packages found that are safe for cache cleanup");
-        return Ok(());
+    for file in result.deleted.iter().take(100) {
+        operations::append_output(&app, format!("Deleted cache file: {}", file), "stdout");
+    }
+    if result.deleted.len() > 100 {
+        operations::append_output(
+            &app,
+            format!("...and {} more cache files", result.deleted.len() - 100),
+            "stdout",
+        );
+    }
+    if !result.failed.is_empty() {
+        for (file, reason) in &result.failed {
+            operations::append_output(
+                &app,
+                format!("Failed to delete {}: {}", file, reason),
+                "stderr",
+            );
+        }
+        return Err(format!(
+            "Failed to delete {} cache file(s)",
+            result.failed.len()
+        ));
     }
 
-    let command = format!("scoop cleanup {} --cache", safe_packages.join(" "));
-    powershell::run_and_stream(app, command, "Cleanup Outdated App Caches".to_string()).await
+    operations::append_output(
+        &app,
+        format!("Deleted {} outdated cache file(s)", result.deleted.len()),
+        "stdout",
+    );
+    Ok(())
 }
 
 /// Force-cleanup ALL apps including versioned installs. Kept as a separate
@@ -72,10 +97,19 @@ pub async fn cleanup_outdated_cache_internal(app: AppHandle) -> Result<(), Strin
 #[tauri::command]
 pub async fn cleanup_all_apps_force(app: AppHandle) -> Result<(), String> {
     log::warn!("Running FORCE cleanup of ALL app versions (including versioned installs)");
-    powershell::run_and_stream(
+    run_cleanup(
         app,
-        "scoop cleanup --all".to_string(),
-        "Force Cleanup All App Versions".to_string(),
+        vec!["cleanup".to_string(), "--all".to_string()],
+        "Force Cleanup All App Versions",
     )
     .await
+}
+
+async fn run_cleanup(app: AppHandle, args: Vec<String>, label: &str) -> Result<(), String> {
+    let outcome = scoop::run_scoop_operation(app, args, label).await?;
+    if outcome.is_success() {
+        Ok(())
+    } else {
+        Err(outcome.message())
+    }
 }

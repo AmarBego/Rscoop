@@ -4,9 +4,9 @@ mod commands;
 mod icons;
 mod models;
 mod operations;
+mod scheduler;
 mod state;
 mod tray;
-mod scheduler;
 pub mod utils;
 
 use tauri::{Manager, WindowEvent};
@@ -62,6 +62,12 @@ pub fn run() {
         .build();
 
     builder
+        .plugin(execra::tauri::init_with(
+            execra::Runtime::builder()
+                .max_concurrent(1)
+                .build()
+                .expect("failed to build Execra runtime"),
+        ))
         .plugin(log_plugin)
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(|app| {
@@ -201,11 +207,13 @@ pub fn run() {
             commands::operations::enqueue_operation,
             commands::operations::get_operation_state,
             commands::operations::cancel_queued_operation,
+            commands::operations::cancel_current_operation,
             commands::operations::clear_completed_operations,
             commands::operations::dismiss_current_operation,
             commands::operations::confirm_install_anyway,
             commands::operations::run_pending_chain,
             commands::status::check_scoop_status,
+            commands::bucket_install::update_all_buckets,
             commands::settings::get_config_value,
             commands::settings::set_config_value,
             commands::settings::get_scoop_path,

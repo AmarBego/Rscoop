@@ -358,12 +358,9 @@ pub async fn refresh_installed_packages<R: Runtime>(
         log::debug!(
             "=== INSTALLED REFRESH === Debouncing refresh (less than 1 second since last refresh)"
         );
-        // Return cached results without rescanning
-        let cache_guard = state.installed_packages.lock().await;
-        if let Some(cache) = cache_guard.as_ref() {
-            log::info!("=== INSTALLED REFRESH === Returning cached packages due to debounce");
-            return Ok(cache.packages.clone());
-        }
+        // During a debounce window, DO NOT invalidate the cache again.
+        // Just return whatever the standard cache-aware fetch would return.
+        return scan_installed_packages_internal(app, &state, false).await;
     }
 
     state.update_refresh_time();

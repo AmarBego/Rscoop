@@ -1,6 +1,6 @@
 import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
 import {
-  Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert
+  Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, Activity
 } from 'lucide-solid';
 import { useI18n } from "../../../i18n";
 
@@ -98,17 +98,21 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           <Show when={props.updatableCount() > 0}
             fallback={
               <button
-                class="btn btn-ghost btn-circle tooltip tooltip-bottom"
+                class={`btn btn-ghost btn-circle tooltip tooltip-bottom ${props.scoopStatus?.()?.is_everything_ok ? "text-success" : ""}`}
                 data-tip={t("installed.checkStatusTooltip")}
                 onClick={props.onCheckStatus}
                 disabled={props.statusLoading?.()}
               >
                 <Show when={props.statusLoading?.()}
                   fallback={
-                    <Show when={props.scoopStatus?.()?.is_everything_ok}
-                      fallback={<CircleAlert class="w-4 h-4" />}
+                    <Show when={props.scoopStatus?.() !== null && props.scoopStatus?.() !== undefined}
+                      fallback={<Activity class="w-4 h-4" />}
                     >
-                      <CircleCheckBig class="w-4 h-4" />
+                      <Show when={props.scoopStatus?.()?.is_everything_ok}
+                        fallback={<CircleAlert class="w-4 h-4 text-warning" />}
+                      >
+                        <CircleCheckBig class="w-4 h-4" />
+                      </Show>
                     </Show>
                   }
                 >

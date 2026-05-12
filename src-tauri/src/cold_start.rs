@@ -14,10 +14,10 @@ pub fn run_cold_start<R: Runtime>(app: AppHandle<R>) {
         let app_clone = app.clone();
         tauri::async_runtime::spawn(async move {
             // Allow the frontend a moment to register listeners.
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
 
-            // Emit events with exponential backoff to ensure delivery
-            emit_ready_events_with_retry(&app_clone, true).await;
+            // For re-emits, we only need a few attempts
+            emit_ready_events_with_retry(&app_clone, true, 2).await;
         });
         return;
     }
@@ -36,7 +36,7 @@ pub fn run_cold_start<R: Runtime>(app: AppHandle<R>) {
                 }
 
                 // Emit events with retry logic
-                emit_ready_events_with_retry(&app, true).await;
+                emit_ready_events_with_retry(&app, true, 3).await;
             }
             Err(e) => {
                 log::error!("Failed to prefetch installed packages: {}", e);
@@ -44,23 +44,22 @@ pub fn run_cold_start<R: Runtime>(app: AppHandle<R>) {
                 COLD_START_DONE.store(false, Ordering::SeqCst);
 
                 // Emit failure events
-                emit_ready_events_with_retry(&app, false).await;
+                emit_ready_events_with_retry(&app, false, 3).await;
             }
         }
     });
 }
 
 /// Emits ready events with exponential backoff retry logic to ensure delivery
-async fn emit_ready_events_with_retry<R: Runtime>(app: &AppHandle<R>, success: bool) {
+async fn emit_ready_events_with_retry<R: Runtime>(app: &AppHandle<R>, success: bool, max_retries: u32) {
     let mut retry_count = 0;
-    let max_retries = 5;
 
     while retry_count < max_retries {
         let delay = if retry_count == 0 {
-            Duration::from_millis(100)
+            Duration::from_millis(50)
         } else {
-            // Exponential backoff: 200ms, 400ms, 800ms, 1600ms
-            Duration::from_millis(200 * 2u64.pow(retry_count as u32 - 1))
+            // Exponential backoff: 150ms, 450ms
+            Duration::from_millis(150 * 3u64.pow(retry_count as u32 - 1))
         };
 
         log::info!(
@@ -69,34 +68,19 @@ async fn emit_ready_events_with_retry<R: Runtime>(app: &AppHandle<R>, success: b
             max_retries
         );
 
-        // Try to emit to main window specifically first
-        let main_result = app.emit_to("main", "cold-start-finished", success);
-        if let Err(e) = &main_result {
-            log::warn!("Failed to emit cold-start-finished to main window: {}", e);
+        // Emit events globally. Tauri Emitter::emit is reliable and reaches all windows.
+        // We emit both for compatibility, but the frontend should ideally listen to just one.
+        if let Err(e) = app.emit("cold-start-finished", success) {
+            log::error!("Failed to emit cold-start-finished globally: {}", e);
         }
 
-        // Fallback to global emit if targeting fails
-        if main_result.is_err() {
-            if let Err(e) = app.emit("cold-start-finished", success) {
-                log::error!("Failed to emit cold-start-finished globally: {}", e);
-            }
-        }
-
-        // Same for scoop-ready event
-        let scoop_ready_result = app.emit_to("main", "scoop-ready", success);
-        if let Err(e) = &scoop_ready_result {
-            log::warn!("Failed to emit scoop-ready to main window: {}", e);
-        }
-
-        if scoop_ready_result.is_err() {
-            if let Err(e) = app.emit("scoop-ready", success) {
-                log::error!("Failed to emit scoop-ready globally: {}", e);
-            }
+        if let Err(e) = app.emit("scoop-ready", success) {
+            log::error!("Failed to emit scoop-ready globally: {}", e);
         }
 
         // If we're on the last retry, log a warning
         if retry_count == max_retries - 1 {
-            log::warn!("Final attempt to emit cold start events completed");
+            log::debug!("Completed emission attempts for cold start events");
         }
 
         tokio::time::sleep(delay).await;

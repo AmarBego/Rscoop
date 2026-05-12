@@ -86,13 +86,15 @@ function OperationModal() {
                 {t("operation.running")}
               </span>
             </Show>
-            <Show when={op()?.result?.success}>
-              <span class="flex items-center gap-2 text-sm text-success">
-                <CircleCheck class="w-4 h-4 shrink-0" />
+            <Show when={op()?.result?.success && !op()?.scanWarning}>
+              <span class="flex items-center gap-2 text-sm" classList={{ "text-success": op()?.result?.status !== "warning", "text-warning": op()?.result?.status === "warning" }}>
+                <Show when={op()?.result?.status === "warning"} fallback={<CircleCheck class="w-4 h-4 shrink-0" />}>
+                  <TriangleAlert class="w-4 h-4 shrink-0" />
+                </Show>
                 <span class="truncate">{op()!.result!.message}</span>
               </span>
             </Show>
-            <Show when={op()?.result && !op()?.result?.success}>
+            <Show when={op()?.result && !op()?.result?.success && !op()?.scanWarning}>
               <span class="flex items-center gap-2 text-sm text-error">
                 <CircleX class="w-4 h-4 shrink-0" />
                 <span class="truncate">{op()!.result!.message}</span>

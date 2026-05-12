@@ -481,7 +481,7 @@ pub async fn import_profile(
                 if b.name.is_empty() || b.source.is_empty() {
                     continue;
                 }
-                let res = install_bucket(BucketInstallOptions {
+                let res = install_bucket(app.clone(), BucketInstallOptions {
                     name: b.name.clone(),
                     url: b.source.clone(),
                     force: false,

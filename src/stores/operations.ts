@@ -1,5 +1,5 @@
 import { createRoot, createSignal } from "solid-js";
-import { listen, emit, UnlistenFn } from "@tauri-apps/api/event";
+import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage } from "../types/scoop";
 import installedPackagesStore from "./installedPackagesStore";
@@ -22,6 +22,7 @@ interface OperationOutput {
 interface OperationResult {
   success: boolean;
   message: string;
+  status?: "success" | "warning" | "error";
 }
 
 export type OperationKind =
@@ -36,6 +37,7 @@ export type OperationKind =
 
 export interface Operation {
   id: string;
+  jobId?: string;
   title: string;
   kind: OperationKind;
   packageName?: string;
@@ -59,6 +61,7 @@ export interface CompletedOperation {
   kind: OperationKind;
   packageName?: string;
   success: boolean;
+  status?: "success" | "warning" | "error";
   output: OperationOutput[];
   message: string;
 }
@@ -73,6 +76,7 @@ export interface QueuedOperation {
 interface StateSnapshot {
   current: {
     id: string;
+    jobId?: string;
     title: string;
     kind: OperationKind;
     packageName?: string;
@@ -132,6 +136,7 @@ function createOperationsStore() {
         snap.current.kind === "scan" && snap.current.result === null;
       setCurrent({
         id: snap.current.id,
+        jobId: snap.current.jobId,
         title: snap.current.title,
         kind: snap.current.kind,
         packageName: snap.current.packageName,
@@ -182,7 +187,7 @@ function createOperationsStore() {
       if (!op) return;
       if (op.isScan) return; // scan results come via virustotal-scan-finished
 
-      if (event.payload.success) installedPackagesStore.refetch();
+      if (event.payload.success) installedPackagesStore.reload();
 
       fireFinishCallbacks({
         id: op.id,
@@ -190,6 +195,7 @@ function createOperationsStore() {
         kind: op.kind,
         packageName: op.packageName,
         success: event.payload.success,
+        status: event.payload.status ?? (event.payload.success ? "success" : "error"),
         message: event.payload.message,
         output: op.output,
       });
@@ -318,7 +324,6 @@ function createOperationsStore() {
   }
 
   function close(wasSuccess: boolean) {
-    if (wasSuccess) installedPackagesStore.refetch();
     setCurrent(null);
     setIsMinimized(false);
     // Tell Rust to archive the finished op into completed history.
@@ -331,7 +336,7 @@ function createOperationsStore() {
     if (!current()) setIsMinimized(false);
   }
 
-  function cancel() {
+  async function cancel() {
     const op = current();
     if (op?.scanWarning) {
       close(false);
@@ -341,8 +346,11 @@ function createOperationsStore() {
       close(op.result.success);
       return;
     }
-    // Streaming op (including running scan): tell backend to kill the child.
-    emit("cancel-operation");
+    try {
+      await invoke("cancel_current_operation");
+    } catch (e) {
+      console.error("cancel_current_operation failed:", e);
+    }
   }
 
   function minimize() { setIsMinimized(true); }

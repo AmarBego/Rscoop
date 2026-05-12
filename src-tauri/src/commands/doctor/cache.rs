@@ -3,10 +3,10 @@ use crate::commands::installed::get_installed_packages_full;
 use crate::state::AppState;
 use rayon::prelude::*;
 use serde::Serialize;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::Path;
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Manager, Runtime, State};
 
 /// Represents a single entry in the Scoop cache.
 #[derive(Serialize, Debug, Clone)]
@@ -18,6 +18,12 @@ pub struct CacheEntry {
     pub file_name: String,
     pub is_versioned_install: bool,
     pub is_safe_to_delete: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct CacheClearResult {
+    pub deleted: Vec<String>,
+    pub failed: Vec<(String, String)>,
 }
 
 /// Parses a `CacheEntry` from a given file path.
@@ -107,7 +113,7 @@ pub async fn list_cache_contents<R: Runtime>(
 #[tauri::command]
 pub async fn clear_cache<R: Runtime>(
     app: AppHandle<R>,
-    state: State<'_, AppState>,
+    _state: State<'_, AppState>,
     files: Option<Vec<String>>,
 ) -> Result<(), String> {
     log::info!(
@@ -115,14 +121,26 @@ pub async fn clear_cache<R: Runtime>(
         &files
     );
 
+    clear_cache_internal(app, files)
+        .await
+        .map(|_| ())
+}
+
+pub async fn clear_cache_internal<R: Runtime>(
+    app: AppHandle<R>,
+    files: Option<Vec<String>>,
+) -> Result<CacheClearResult, String> {
+    let state_app = app.clone();
+    let state = state_app.state::<AppState>();
     let scoop_path = state.scoop_path();
     let cache_path = scoop_path.join("cache");
-
     if !cache_path.is_dir() {
-        return Ok(());
+        return Ok(CacheClearResult {
+            deleted: vec![],
+            failed: vec![],
+        });
     }
 
-    // Get versioned packages to avoid deleting their cache
     let installed_packages = get_installed_packages_full(app, state).await?;
     let versioned_packages: HashSet<String> = installed_packages
         .iter()
@@ -130,31 +148,75 @@ pub async fn clear_cache<R: Runtime>(
         .map(|pkg| pkg.name.clone())
         .collect();
 
-    match files {
-        Some(files_to_delete) if !files_to_delete.is_empty() => {
-            clear_specific_files_safe(&cache_path, &files_to_delete, &versioned_packages)
-        }
-        _ => clear_safe_cache(&cache_path, &versioned_packages),
-    }
+    let files_to_delete = match files {
+        Some(files) if !files.is_empty() => files,
+        _ => fs::read_dir(&cache_path)
+            .map_err(|e| format!("Failed to read cache directory: {}", e))?
+            .filter_map(Result::ok)
+            .filter_map(|entry| entry.file_name().to_str().map(ToOwned::to_owned))
+            .collect(),
+    };
+
+    clear_specific_files_safe(&cache_path, &files_to_delete, &versioned_packages)
 }
 
-/// Removes a specific list of files from the cache directory, avoiding versioned installs.
+pub async fn cleanup_outdated_cache_internal<R: Runtime>(
+    app: AppHandle<R>,
+) -> Result<CacheClearResult, String> {
+    let state_app = app.clone();
+    let state = state_app.state::<AppState>();
+    let scoop_path = state.scoop_path();
+    let cache_path = scoop_path.join("cache");
+    if !cache_path.is_dir() {
+        return Ok(CacheClearResult {
+            deleted: vec![],
+            failed: vec![],
+        });
+    }
+
+    let installed_packages = get_installed_packages_full(app, state).await?;
+    let installed_versions: HashMap<String, String> = installed_packages
+        .iter()
+        .map(|pkg| (pkg.name.to_ascii_lowercase(), pkg.version.clone()))
+        .collect();
+
+    let files_to_delete: Vec<String> = fs::read_dir(&cache_path)
+        .map_err(|e| format!("Failed to read cache directory: {}", e))?
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            let cache_entry = parse_cache_entry_from_path(&path, &HashSet::new())?;
+            let installed_version =
+                installed_versions.get(&cache_entry.name.to_ascii_lowercase());
+            let is_outdated = match installed_version {
+                Some(version) => cache_entry.version != *version,
+                None => true,
+            };
+            is_outdated.then_some(cache_entry.file_name)
+        })
+        .collect();
+
+    clear_specific_files_safe(&cache_path, &files_to_delete, &HashSet::new())
+}
+
 fn clear_specific_files_safe(
     cache_path: &Path,
     files_to_delete: &[String],
     versioned_packages: &HashSet<String>,
-) -> Result<(), String> {
+) -> Result<CacheClearResult, String> {
     log::info!(
         "Clearing {} specified cache files (avoiding versioned installs).",
         files_to_delete.len()
     );
 
-    files_to_delete.par_iter().for_each(|file_name| {
+    let results: Vec<(String, Result<(), String>)> = files_to_delete
+        .par_iter()
+        .map(|file_name| {
         // Parse the package name from the cache file name (format: name#version#hash.ext)
         if let Some(package_name) = file_name.split('#').next() {
             if versioned_packages.contains(package_name) {
                 log::info!("Skipping cache file for versioned install: {}", file_name);
-                return; // Skip this file
+                return (file_name.clone(), Err("versioned install".to_string()));
             }
         }
 
@@ -163,50 +225,31 @@ fn clear_specific_files_safe(
             match fs::remove_file(&file_path) {
                 Ok(()) => {
                     log::debug!("Deleted cache file: {}", file_name);
+                    (file_name.clone(), Ok(()))
                 }
                 Err(e) => {
                     log::error!("Failed to delete cache file {}: {}", file_name, e);
+                    (file_name.clone(), Err(e.to_string()))
                 }
             }
+        } else {
+            (file_name.clone(), Err("not a file".to_string()))
         }
-    });
+        })
+        .collect();
 
-    Ok(())
-}
+    let mut deleted = Vec::new();
+    let mut failed = Vec::new();
+    for (file, result) in results {
+        match result {
+            Ok(()) => deleted.push(file),
+            Err(reason) if reason == "versioned install" => {}
+            Err(reason) => failed.push((file, reason)),
+        }
+    }
 
-/// Removes all non-versioned files from the cache directory.
-fn clear_safe_cache(cache_path: &Path, versioned_packages: &HashSet<String>) -> Result<(), String> {
-    log::info!("Clearing cache directory (avoiding versioned installs).");
-
-    let dir_entries =
-        fs::read_dir(cache_path).map_err(|e| format!("Failed to read cache directory: {}", e))?;
-
-    dir_entries
-        .par_bridge()
-        .filter_map(Result::ok)
-        .for_each(|entry| {
-            let path = entry.path();
-            if path.is_file() {
-                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    // Parse the package name from the cache file name
-                    if let Some(package_name) = file_name.split('#').next() {
-                        if versioned_packages.contains(package_name) {
-                            log::debug!("Skipping cache file for versioned install: {}", file_name);
-                            return; // Skip this file
-                        }
-                    }
-                }
-
-                match fs::remove_file(&path) {
-                    Ok(()) => {
-                        log::debug!("Deleted cache file: {:?}", path.file_name());
-                    }
-                    Err(e) => {
-                        log::error!("Failed to remove cache file {:?}: {}", path.file_name(), e);
-                    }
-                }
-            }
-        });
-
-    Ok(())
+    Ok(CacheClearResult {
+        deleted,
+        failed,
+    })
 }

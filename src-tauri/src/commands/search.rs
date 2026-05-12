@@ -11,8 +11,14 @@ use std::path::{Path, PathBuf};
 use tauri::Manager;
 use tokio::sync::Mutex;
 
-// Global cache for manifest paths to avoid re-scanning the filesystem on every search.
-static MANIFEST_CACHE: Lazy<Mutex<Option<HashSet<PathBuf>>>> = Lazy::new(|| Mutex::new(None));
+#[derive(Clone, Debug)]
+pub struct CachedManifest {
+    pub package: ScoopPackage,
+    pub bin_strings: Vec<String>,
+}
+
+// Global cache for manifest content to avoid re-scanning the filesystem and re-parsing JSON on every search.
+static MANIFEST_CACHE: Lazy<Mutex<Option<Vec<CachedManifest>>>> = Lazy::new(|| Mutex::new(None));
 
 /// Finds all `.json` manifest files in a given bucket's `bucket` subdirectory.
 fn find_manifests_in_bucket(bucket_path: PathBuf) -> Vec<PathBuf> {
@@ -31,49 +37,8 @@ fn find_manifests_in_bucket(bucket_path: PathBuf) -> Vec<PathBuf> {
     }
 }
 
-/// Scans all bucket directories to find package manifests and populates the cache.
-async fn populate_manifest_cache(scoop_path: &Path) -> Result<HashSet<PathBuf>, String> {
-    let buckets_path = scoop_path.join("buckets");
-    if !tokio::fs::try_exists(&buckets_path).await.unwrap_or(false) {
-        return Err("Scoop buckets directory not found".to_string());
-    }
-
-    let mut read_dir = tokio::fs::read_dir(&buckets_path)
-        .await
-        .map_err(|e| format!("Failed to read buckets directory: {}", e))?;
-    let mut manifest_paths = HashSet::new();
-
-    while let Ok(Some(entry)) = read_dir.next_entry().await {
-        if entry.path().is_dir() {
-            let bucket_manifests = find_manifests_in_bucket(entry.path());
-            manifest_paths.extend(bucket_manifests);
-        }
-    }
-
-    Ok(manifest_paths)
-}
-
-/// Acquires a lock on the manifest cache and populates it if it's empty.
-async fn get_manifests<R: tauri::Runtime>(
-    app: tauri::AppHandle<R>,
-) -> Result<(HashSet<PathBuf>, bool), String> {
-    let mut guard = MANIFEST_CACHE.lock().await;
-    let is_cold = guard.is_none();
-
-    if is_cold {
-        log::info!("Cold search: Populating manifest cache.");
-        let state = app.state::<AppState>();
-        let scoop_path = state.scoop_path();
-        let paths = populate_manifest_cache(&scoop_path).await?;
-        *guard = Some(paths.clone());
-        Ok((paths, true))
-    } else {
-        Ok((guard.as_ref().unwrap().clone(), false))
-    }
-}
-
-/// Parses a Scoop package manifest file to extract package information.
-fn parse_package_from_manifest(path: &Path) -> Option<ScoopPackage> {
+/// Parses a Scoop package manifest file to extract package information and binary search strings.
+fn parse_package_from_manifest(path: &Path) -> Option<CachedManifest> {
     let file_name = path.file_stem().and_then(|s| s.to_str())?.to_string();
 
     let content = std::fs::read_to_string(path).ok()?;
@@ -82,13 +47,103 @@ fn parse_package_from_manifest(path: &Path) -> Option<ScoopPackage> {
     let version = json.get("version").and_then(|v| v.as_str())?.to_string();
     let bucket = path.parent()?.parent()?.file_name()?.to_str()?.to_string();
 
-    Some(ScoopPackage {
+    let package = ScoopPackage {
         name: file_name,
         version,
         source: bucket,
         match_source: MatchSource::Name,
         ..Default::default()
+    };
+
+    // Pre-extract all potential binary match strings
+    let mut bin_strings = Vec::new();
+    if let Some(bin_val) = json.get("bin") {
+        match bin_val {
+            Value::String(s) => bin_strings.push(s.to_string()),
+            Value::Array(arr) => {
+                for entry in arr {
+                    match entry {
+                        Value::String(s) => bin_strings.push(s.to_string()),
+                        Value::Object(obj) => {
+                            for k in obj.keys() {
+                                bin_strings.push(k.to_string());
+                            }
+                            for v in obj.values() {
+                                if let Some(s) = v.as_str() {
+                                    bin_strings.push(s.to_string());
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            Value::Object(obj) => {
+                for k in obj.keys() {
+                    bin_strings.push(k.to_string());
+                }
+                for v in obj.values() {
+                    if let Some(s) = v.as_str() {
+                        bin_strings.push(s.to_string());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    Some(CachedManifest { package, bin_strings })
+}
+
+/// Scans all bucket directories to find package manifests and populates the cache.
+async fn populate_manifest_cache(scoop_path: &Path) -> Result<Vec<CachedManifest>, String> {
+    let buckets_path = scoop_path.join("buckets");
+    if !tokio::fs::try_exists(&buckets_path).await.unwrap_or(false) {
+        return Err("Scoop buckets directory not found".to_string());
+    }
+
+    let mut read_dir = tokio::fs::read_dir(&buckets_path)
+        .await
+        .map_err(|e| format!("Failed to read buckets directory: {}", e))?;
+    let mut manifest_paths = Vec::new();
+
+    while let Ok(Some(entry)) = read_dir.next_entry().await {
+        if entry.path().is_dir() {
+            let bucket_manifests = find_manifests_in_bucket(entry.path());
+            manifest_paths.extend(bucket_manifests);
+        }
+    }
+
+    // Parse all manifests in parallel
+    let cached_manifests = tokio::task::spawn_blocking(move || {
+        manifest_paths
+            .par_iter()
+            .filter_map(|path| parse_package_from_manifest(path))
+            .collect::<Vec<_>>()
     })
+    .await
+    .map_err(|e| e.to_string())?;
+
+    Ok(cached_manifests)
+}
+
+/// Acquires a lock on the manifest cache and populates it if it's empty.
+async fn get_manifests<R: tauri::Runtime>(
+    app: tauri::AppHandle<R>,
+) -> Result<(Vec<CachedManifest>, bool), String> {
+    let mut guard = MANIFEST_CACHE.lock().await;
+    let is_cold = guard.is_none();
+
+    if is_cold {
+        log::info!("Cold search: Populating manifest cache.");
+        let state = app.state::<AppState>();
+        let scoop_path = state.scoop_path();
+        let cached = populate_manifest_cache(&scoop_path).await?;
+        *guard = Some(cached.clone());
+        Ok((cached, true))
+    } else {
+        Ok((guard.as_ref().unwrap().clone(), false))
+    }
 }
 
 /// Builds a regex pattern for searching, supporting exact and partial matches.
@@ -121,7 +176,7 @@ pub async fn search_scoop<R: tauri::Runtime>(
     log::info!("search_scoop: Starting search for term: '{}'", term);
     let search_start = std::time::Instant::now();
 
-    let (manifest_paths, is_cold) = get_manifests(app.clone()).await?;
+    let (manifests, is_cold) = get_manifests(app.clone()).await?;
     let cache_time = search_start.elapsed();
 
     if is_cold {
@@ -132,57 +187,24 @@ pub async fn search_scoop<R: tauri::Runtime>(
     } else {
         log::info!(
             "search_scoop: ✓ Using pre-warmed manifest cache ({} manifests, retrieved in {:.2}ms)",
-            manifest_paths.len(),
+            manifests.len(),
             cache_time.as_millis()
         );
     }
 
     let pattern = build_search_regex(&term)?;
 
-    let manifest_paths_clone = manifest_paths.clone();
-
+    // Perform the search in memory
     let mut packages: Vec<ScoopPackage> = tokio::task::spawn_blocking(move || {
-        manifest_paths_clone
+        manifests
             .par_iter()
-            .filter_map(|path| {
-                // Check if the file name (package name) matches first
-                let file_name = path.file_stem().and_then(|s| s.to_str())?;
-                let name_matches = pattern.is_match(file_name);
+            .filter_map(|cached| {
+                let name_matches = pattern.is_match(&cached.package.name);
 
-                // Determine if the search term matches one of the binaries declared in the manifest.
-                // We only do this expensive parse if the package name itself did **not** match.
                 let match_source = if name_matches {
                     MatchSource::Name
                 } else {
-                    // Load and inspect the manifest's `bin` field
-                    let content = std::fs::read_to_string(path).ok()?;
-                    let json: Value = serde_json::from_str(&content).ok()?;
-
-                    let does_bin_match = json.get("bin").map_or(false, |bin_val| {
-                        match bin_val {
-                            Value::String(s) => pattern.is_match(s),
-                            Value::Array(arr) => arr.iter().any(|entry| match entry {
-                                Value::String(s) => pattern.is_match(s),
-                                Value::Object(obj) => {
-                                    // Some manifests use object syntax { "alias": "path/to/file" }
-                                    obj.keys().any(|k| pattern.is_match(k))
-                                        || obj.values().any(|v| {
-                                            v.as_str().map_or(false, |s| pattern.is_match(s))
-                                        })
-                                }
-                                _ => false,
-                            }),
-                            Value::Object(obj) => {
-                                // Very uncommon, but treat similarly to array/object case
-                                obj.keys().any(|k| pattern.is_match(k))
-                                    || obj
-                                        .values()
-                                        .any(|v| v.as_str().map_or(false, |s| pattern.is_match(s)))
-                            }
-                            _ => false,
-                        }
-                    });
-
+                    let does_bin_match = cached.bin_strings.iter().any(|s| pattern.is_match(s));
                     if does_bin_match {
                         MatchSource::Binary
                     } else {
@@ -194,7 +216,7 @@ pub async fn search_scoop<R: tauri::Runtime>(
                     return None;
                 }
 
-                let mut pkg = parse_package_from_manifest(path)?;
+                let mut pkg = cached.package.clone();
                 pkg.match_source = match_source;
                 Some(pkg)
             })
@@ -265,14 +287,13 @@ pub async fn warm_manifest_cache<R: tauri::Runtime>(
 /// Invalidates and immediately re-warms the global manifest cache.
 /// This should be called after operations that change the available packages,
 /// such as installing or uninstalling a package or adding/removing buckets.
-pub async fn invalidate_manifest_cache() {
+pub async fn invalidate_manifest_cache(scoop_path: &Path) {
     let mut guard = MANIFEST_CACHE.lock().await;
     *guard = None;
     log::info!("Manifest cache invalidated, re-warming...");
 
     let start = std::time::Instant::now();
-    let scoop_path = crate::utils::get_scoop_root_fallback();
-    match populate_manifest_cache(&scoop_path).await {
+    match populate_manifest_cache(scoop_path).await {
         Ok(manifests) => {
             let count = manifests.len();
             *guard = Some(manifests);

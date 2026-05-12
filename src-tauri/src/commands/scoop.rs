@@ -1,7 +1,80 @@
-use super::powershell;
+use execra::tauri::ExecraExt;
+use execra::{Context, ExitCode, Interpreter, InterpreterEvent, Line, Outcome};
 use tauri::AppHandle;
 
-/// Defines the supported Scoop operations.
+use crate::operations;
+
+fn ps_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+pub fn scoop_cmd<I, S>(args: I) -> execra::Command
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let args = args
+        .into_iter()
+        .map(|arg| ps_quote(arg.as_ref()))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let inner = format!(
+        "Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {} 2>&1",
+        args
+    );
+    execra::Command::new("powershell")
+        .args(["-NoLogo", "-NoProfile", "-Command", &inner])
+        .tags(["scoop".to_string()])
+}
+
+#[derive(Default)]
+pub struct ScoopInterpreter {
+    last_error: Option<String>,
+}
+
+impl Interpreter for ScoopInterpreter {
+    fn on_line(&mut self, _ctx: &Context, line: &Line) -> Vec<InterpreterEvent> {
+        let lower = line.text.to_lowercase();
+        if lower.contains("completed successfully") || lower.contains("was uninstalled") {
+            return vec![];
+        }
+        if lower.contains("error") || lower.contains("failed") {
+            self.last_error = Some(line.text.clone());
+            return vec![InterpreterEvent::KnownError {
+                code: "scoop.command_error".into(),
+                message: line.text.clone(),
+            }];
+        }
+        if lower.contains("downloading") {
+            return vec![InterpreterEvent::Progress {
+                progress: execra::Progress::indeterminate("downloading"),
+            }];
+        }
+        if lower.contains("extracting") {
+            return vec![InterpreterEvent::Progress {
+                progress: execra::Progress::indeterminate("extracting"),
+            }];
+        }
+        vec![]
+    }
+
+    fn on_exit(&mut self, _ctx: &Context, exit: &ExitCode) -> Vec<InterpreterEvent> {
+        if exit.is_success() {
+            return vec![];
+        }
+        self.last_error
+            .take()
+            .map(|message| {
+                vec![InterpreterEvent::KnownError {
+                    code: "scoop.command_error".into(),
+                    message,
+                }]
+            })
+            .unwrap_or_default()
+    }
+}
+
+/// Supported Scoop operations.
 #[derive(Debug, Clone, Copy)]
 pub enum ScoopOp {
     Install,
@@ -11,54 +84,113 @@ pub enum ScoopOp {
     UpdateAll,
 }
 
-fn build_scoop_cmd(
+fn build_scoop_args(
     op: ScoopOp,
     package: Option<&str>,
     bucket: Option<&str>,
-) -> Result<String, String> {
-    let command = match op {
+) -> Result<Vec<String>, String> {
+    match op {
         ScoopOp::Install => {
             let pkg = package.ok_or("A package name is required to install.")?;
-            match bucket {
-                Some(b) => format!("scoop install {}/{}", b, pkg),
-                None => format!("scoop install {}", pkg),
-            }
+            let target = match bucket {
+                Some(b) => format!("{}/{}", b, pkg),
+                None => pkg.to_string(),
+            };
+            Ok(vec!["install".into(), target])
         }
         ScoopOp::Uninstall => {
             let pkg = package.ok_or("A package name is required to uninstall.")?;
-            format!("scoop uninstall {}", pkg)
+            Ok(vec!["uninstall".into(), pkg.into()])
         }
         ScoopOp::Update => {
             let pkg = package.ok_or("A package name is required to update.")?;
-            format!("scoop update {}", pkg)
+            Ok(vec!["update".into(), pkg.into()])
         }
         ScoopOp::ClearCache => {
             let pkg = package.ok_or("A package name is required to clear the cache.")?;
-            format!("scoop cache rm {}", pkg)
+            Ok(vec!["cache".into(), "rm".into(), pkg.into()])
         }
-        ScoopOp::UpdateAll => "scoop update *".to_string(),
-    };
-
-    Ok(command)
+        ScoopOp::UpdateAll => Ok(vec!["update".into(), "*".into()]),
+    }
 }
 
-/// Executes a Scoop operation and streams output through the OperationManager.
+fn operation_name(op: ScoopOp, package: Option<&str>) -> Result<String, String> {
+    match (op, package) {
+        (ScoopOp::Install, Some(pkg)) => Ok(format!("Installing {}", pkg)),
+        (ScoopOp::Uninstall, Some(pkg)) => Ok(format!("Uninstalling {}", pkg)),
+        (ScoopOp::Update, Some(pkg)) => Ok(format!("Updating {}", pkg)),
+        (ScoopOp::ClearCache, Some(pkg)) => Ok(format!("Clearing cache for {}", pkg)),
+        (ScoopOp::UpdateAll, _) => Ok("Updating all packages".into()),
+        _ => Err("Invalid operation or missing package name.".into()),
+    }
+}
+
+/// Spawn a scoop command and stream its output through `OperationManager`,
+/// awaiting the outcome.
+pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<Outcome, String> {
+    let outcome = app
+        .execra()
+        .task(command)
+        .on_created(|app, job| operations::set_current_job(app, Some(job)))
+        .on_output(|app, stream, line| {
+            operations::append_output(app, line.to_string(), stream.as_str());
+        })
+        .on_interpreter_error(|_app, interpreter, error, line| {
+            log::warn!(
+                "Execra interpreter error in {}: {} ({:?})",
+                interpreter,
+                error,
+                line
+            );
+        })
+        .on_finalized(|app, _outcome| operations::set_current_job(app, None))
+        .await;
+    Ok(outcome)
+}
+
+pub async fn execute_scoop_outcome(
+    app: AppHandle,
+    op: ScoopOp,
+    package: Option<&str>,
+    bucket: Option<&str>,
+) -> Result<Outcome, String> {
+    let args = build_scoop_args(op, package, bucket)?;
+    let label = operation_name(op, package)?;
+    run_operation(
+        app,
+        scoop_cmd(args)
+            .label(label)
+            .interpreter(ScoopInterpreter::default()),
+    )
+    .await
+}
+
+/// Run a scoop operation, mapping outcome to a flat Result.
 pub async fn execute_scoop(
     app: AppHandle,
     op: ScoopOp,
     package: Option<&str>,
     bucket: Option<&str>,
 ) -> Result<(), String> {
-    let cmd = build_scoop_cmd(op, package, bucket)?;
+    let label = operation_name(op, package)?;
+    let outcome = execute_scoop_outcome(app, op, package, bucket).await?;
+    if outcome.is_success() {
+        Ok(())
+    } else {
+        Err(format!("{} failed: {}", label, outcome.message()))
+    }
+}
 
-    let op_name = match (op, package) {
-        (ScoopOp::Install, Some(pkg)) => format!("Installing {}", pkg),
-        (ScoopOp::Uninstall, Some(pkg)) => format!("Uninstalling {}", pkg),
-        (ScoopOp::Update, Some(pkg)) => format!("Updating {}", pkg),
-        (ScoopOp::ClearCache, Some(pkg)) => format!("Clearing cache for {}", pkg),
-        (ScoopOp::UpdateAll, _) => "Updating all packages".to_string(),
-        _ => return Err("Invalid operation or missing package name.".to_string()),
-    };
-
-    powershell::run_and_stream(app, cmd, op_name).await
+pub async fn run_scoop_operation(
+    app: AppHandle,
+    args: Vec<String>,
+    label: impl Into<String>,
+) -> Result<Outcome, String> {
+    run_operation(
+        app,
+        scoop_cmd(args)
+            .label(label.into())
+            .interpreter(ScoopInterpreter::default()),
+    )
+    .await
 }

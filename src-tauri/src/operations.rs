@@ -6,8 +6,9 @@
 //! `operation-state-changed` events to stay in sync.
 
 use crate::commands::scoop::{self, ScoopOp};
-use crate::commands::virustotal::{self, ScanOutcome, ScanWarning};
+use crate::commands::virustotal::{self, ScanWarning};
 use crate::state::AppState;
+use execra::tauri::ExecraExt;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -19,7 +20,6 @@ const COMPLETED_HISTORY_CAP: usize = 20;
 pub const EVENT_OUTPUT: &str = "operation-output";
 pub const EVENT_FINISHED: &str = "operation-finished";
 pub const EVENT_STATE_CHANGED: &str = "operation-state-changed";
-pub const EVENT_CANCEL: &str = "cancel-operation";
 
 // --- Public DTOs -------------------------------------------------------------
 
@@ -46,17 +46,28 @@ pub struct OutputLine {
 pub struct CommandResult {
     pub success: bool,
     pub message: String,
+    pub status: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+pub struct OperationWarning {
+    pub code: String,
+    pub message: String,
 }
 
 #[derive(Serialize, Clone, Debug)]
 pub struct CurrentOperation {
     pub id: String,
+    #[serde(rename = "jobId", skip_serializing_if = "Option::is_none")]
+    pub job_id: Option<execra::JobId>,
     pub title: String,
     pub kind: OperationKind,
     #[serde(rename = "packageName", skip_serializing_if = "Option::is_none")]
     pub package_name: Option<String>,
     pub output: Vec<OutputLine>,
     pub result: Option<CommandResult>,
+    #[serde(rename = "operationWarning", skip_serializing_if = "Option::is_none")]
+    pub operation_warning: Option<OperationWarning>,
     /// Populated when a VirusTotal scan produced a warning — frontend shows
     /// the warning banner + "Install Anyway" button.
     #[serde(rename = "scanWarning", skip_serializing_if = "Option::is_none")]
@@ -90,8 +101,11 @@ pub struct CompletedOperation {
     pub success: bool,
     pub message: String,
     pub output: Vec<OutputLine>,
+    pub status: String,
     #[serde(rename = "scanWarning", skip_serializing_if = "Option::is_none")]
     pub scan_warning: Option<ScanWarning>,
+    #[serde(rename = "operationWarning", skip_serializing_if = "Option::is_none")]
+    pub operation_warning: Option<OperationWarning>,
 }
 
 #[derive(Serialize, Clone, Debug, Default)]
@@ -145,7 +159,9 @@ pub enum EnqueueAction {
 impl EnqueueAction {
     fn title(&self) -> String {
         match self {
-            EnqueueAction::Install { package, version, .. } => match version {
+            EnqueueAction::Install {
+                package, version, ..
+            } => match version {
                 Some(v) if !v.is_empty() => format!("Installing {}@{}", package, v),
                 _ => format!("Installing {}", package),
             },
@@ -155,8 +171,7 @@ impl EnqueueAction {
             EnqueueAction::ClearCache { package, .. } => format!("Clearing cache for {}", package),
             EnqueueAction::CleanupApps => "Cleaning up old app versions".to_string(),
             EnqueueAction::CleanupCache => "Cleaning up outdated cache".to_string(),
-            EnqueueAction::Scan { package, .. }
-            | EnqueueAction::ScanAndInstall { package, .. } => {
+            EnqueueAction::Scan { package, .. } | EnqueueAction::ScanAndInstall { package, .. } => {
                 format!("Scanning {} with VirusTotal", package)
             }
         }
@@ -208,6 +223,7 @@ struct PendingOp {
 
 struct ActiveOp {
     pending: PendingOp,
+    job_id: Option<execra::JobId>,
     output: VecDeque<OutputLine>,
     /// Set when the op has finished. While Some, the op is still displayed
     /// as "current" so the user can see the result. It is moved into
@@ -215,6 +231,7 @@ struct ActiveOp {
     /// (b) the user explicitly dismisses it via `dismiss_current_result`.
     result: Option<CommandResult>,
     scan_warning: Option<ScanWarning>,
+    operation_warning: Option<OperationWarning>,
 }
 
 pub struct OperationManager {
@@ -243,11 +260,13 @@ impl OperationManager {
         OperationStateSnapshot {
             current: self.current.as_ref().map(|s| CurrentOperation {
                 id: s.pending.id.clone(),
+                job_id: s.job_id,
                 title: s.pending.title.clone(),
                 kind: s.pending.kind.clone(),
                 package_name: s.pending.package_name.clone(),
                 output: s.output.iter().cloned().collect(),
                 result: s.result.clone(),
+                operation_warning: s.operation_warning.clone(),
                 scan_warning: s.scan_warning.clone(),
                 can_override_scan: matches!(
                     s.pending.chain.as_deref(),
@@ -318,7 +337,7 @@ enum PendingDecision {
 /// Skipped when the main webview window still exists (the user will see the
 /// result in the in-app modal/bar, so a toast is redundant).
 #[cfg(windows)]
-fn notify_result(app: &AppHandle, title: &str, success: bool, message: &str) {
+fn notify_result(app: &AppHandle, title: &str, success: bool, status: &str, message: &str) {
     use tauri_winrt_notification::{Duration, Toast};
 
     if app.get_webview_window("main").is_some() {
@@ -353,7 +372,11 @@ fn notify_result(app: &AppHandle, title: &str, success: bool, message: &str) {
         })
     };
 
-    let marker = if success { "✓" } else { "✗" };
+    let marker = match status {
+        "warning" => "⚠",
+        _ if success => "✓",
+        _ => "✗",
+    };
     let toast_title = format!("{} {}", title, marker);
 
     let mut toast = Toast::new(&resolve_aumid(app))
@@ -438,20 +461,35 @@ fn resolve_aumid(app: &AppHandle) -> String {
 }
 
 #[cfg(not(windows))]
-fn notify_result(_app: &AppHandle, _title: &str, _success: bool, _message: &str) {
+fn notify_result(_app: &AppHandle, _title: &str, _success: bool, _status: &str, _message: &str) {
     // rscoop is Windows-only; no-op elsewhere.
+}
+
+fn detect_operation_warning(line: &str) -> Option<OperationWarning> {
+    let lower = line.to_ascii_lowercase();
+    if lower.contains("running process detected") && lower.contains("skip updating") {
+        Some(OperationWarning {
+            code: "scoop.update.running_process".to_string(),
+            message: "Scoop skipped one or more updates because related processes are still running. Close the listed processes and run the update again.".to_string(),
+        })
+    } else {
+        None
+    }
 }
 
 /// Append one output line to the current operation and emit to the frontend.
 pub fn append_output(app: &AppHandle, line: String, source: &str) {
     let out = OutputLine {
-        line,
+        line: line.clone(),
         source: source.to_string(),
     };
     {
         let state = manager(app);
         let mut m = state.lock().unwrap();
         if let Some(active) = m.current.as_mut() {
+            if active.operation_warning.is_none() {
+                active.operation_warning = detect_operation_warning(&line);
+            }
             if active.output.len() >= OUTPUT_BUFFER_CAP {
                 active.output.pop_front();
             }
@@ -459,6 +497,33 @@ pub fn append_output(app: &AppHandle, line: String, source: &str) {
         }
     }
     let _ = app.emit(EVENT_OUTPUT, out);
+}
+
+pub fn set_current_job(app: &AppHandle, job_id: Option<execra::JobId>) {
+    {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        if let Some(active) = m.current.as_mut() {
+            active.job_id = job_id;
+        }
+    }
+    emit_state(app);
+}
+
+pub fn cancel_current_job(app: &AppHandle) -> Result<bool, String> {
+    let job_id = {
+        let state = manager(app);
+        let m = state.lock().unwrap();
+        m.current.as_ref().and_then(|active| active.job_id)
+    };
+
+    match job_id {
+        Some(id) => {
+            app.execra().cancel(id).map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+        None => Ok(false),
+    }
 }
 
 /// Enqueue an action. Starts immediately if idle; otherwise queues.
@@ -484,9 +549,11 @@ pub fn enqueue(app: &AppHandle, action: EnqueueAction) -> String {
         if m.current.is_none() {
             m.current = Some(ActiveOp {
                 pending: pending.clone(),
+                job_id: None,
                 output: VecDeque::new(),
                 result: None,
                 scan_warning: None,
+                operation_warning: None,
             });
             (id, Some(pending))
         } else {
@@ -505,9 +572,7 @@ pub fn enqueue(app: &AppHandle, action: EnqueueAction) -> String {
 /// enqueued request. Meta-actions like `ScanAndInstall` expand into
 /// primary + chain. `auto_chain=false` means the chain is deferred —
 /// waits for explicit user confirmation (e.g. manual Clear Cache button).
-fn expand_action(
-    action: EnqueueAction,
-) -> (EnqueueAction, Option<Box<EnqueueAction>>, bool) {
+fn expand_action(action: EnqueueAction) -> (EnqueueAction, Option<Box<EnqueueAction>>, bool) {
     match action {
         EnqueueAction::ScanAndInstall {
             package,
@@ -586,7 +651,9 @@ fn archive_finished_current(m: &mut OperationManager) -> bool {
             success: result.success,
             message: result.message,
             output: active.output.into_iter().collect(),
+            status: result.status,
             scan_warning: active.scan_warning,
+            operation_warning: active.operation_warning,
         };
         if m.completed.len() >= COMPLETED_HISTORY_CAP {
             m.completed.pop_front();
@@ -679,9 +746,11 @@ pub fn start_synthetic(
                 chain: None,
                 auto_chain: true,
             },
+            job_id: None,
             output: VecDeque::new(),
             result: None,
             scan_warning: None,
+            operation_warning: None,
         });
         id
     };
@@ -694,6 +763,7 @@ pub fn finish_synthetic(app: &AppHandle, success: bool, message: String) {
     let result = CommandResult {
         success,
         message: message.clone(),
+        status: if success { "success" } else { "error" }.to_string(),
     };
     let _ = app.emit(EVENT_FINISHED, result.clone());
 
@@ -706,7 +776,7 @@ pub fn finish_synthetic(app: &AppHandle, success: bool, message: String) {
             .map(|a| a.pending.title.clone())
             .unwrap_or_else(|| "Background task".to_string())
     };
-    notify_result(app, &title, success, &message);
+    notify_result(app, &title, success, &result.status, &message);
 
     let next = {
         let state = manager(app);
@@ -721,9 +791,11 @@ pub fn finish_synthetic(app: &AppHandle, success: bool, message: String) {
             if let Some(p) = next.clone() {
                 m.current = Some(ActiveOp {
                     pending: p,
+                    job_id: None,
                     output: VecDeque::new(),
                     result: None,
                     scan_warning: None,
+                    operation_warning: None,
                 });
             }
             next
@@ -770,15 +842,43 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
         primary_result
     };
 
+    let has_scan_warning = {
+        let state = manager(&app);
+        let m = state.lock().unwrap();
+        m.current
+            .as_ref()
+            .and_then(|a| a.scan_warning.as_ref())
+            .is_some()
+    };
+    let operation_warning = {
+        let state = manager(&app);
+        let m = state.lock().unwrap();
+        m.current
+            .as_ref()
+            .and_then(|a| a.operation_warning.clone())
+    };
+
     // Build result message
     let result = match &final_result {
+        Ok(()) if let Some(warning) = operation_warning => CommandResult {
+            success: true,
+            message: warning.message,
+            status: "warning".to_string(),
+        },
         Ok(()) => CommandResult {
             success: true,
             message: format!("{} completed successfully", pending.title),
+            status: "success".to_string(),
+        },
+        Err(e) if has_scan_warning => CommandResult {
+            success: true,
+            message: "Scan completed with warnings".to_string(),
+            status: "warning".to_string(),
         },
         Err(e) => CommandResult {
             success: false,
             message: e.clone(),
+            status: "error".to_string(),
         },
     };
 
@@ -799,7 +899,13 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
             .map(|a| a.pending.title.clone())
             .unwrap_or_else(|| pending.title.clone())
     };
-    notify_result(&app, &toast_title, result.success, &result.message);
+    notify_result(
+        &app,
+        &toast_title,
+        result.success,
+        &result.status,
+        &result.message,
+    );
 
     // Decide: if there's a queued op, move current → completed and start it.
     // Otherwise keep current with result set so the user can see the outcome
@@ -818,9 +924,11 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
             if let Some(p) = next.clone() {
                 m.current = Some(ActiveOp {
                     pending: p,
+                    job_id: None,
                     output: VecDeque::new(),
                     result: None,
                     scan_warning: None,
+                    operation_warning: None,
                 });
             }
             next
@@ -885,7 +993,9 @@ async fn execute_action(app: &AppHandle, action: &EnqueueAction) -> Result<(), S
         EnqueueAction::UpdateAll => {
             scoop::execute_scoop(app.clone(), ScoopOp::UpdateAll, None, None).await
         }
-        EnqueueAction::Uninstall { package, bucket, .. } => {
+        EnqueueAction::Uninstall {
+            package, bucket, ..
+        } => {
             let bucket_opt = crate::utils::is_valid_bucket(bucket).then(|| bucket.as_str());
             scoop::execute_scoop(app.clone(), ScoopOp::Uninstall, Some(package), bucket_opt).await
         }
@@ -894,8 +1004,6 @@ async fn execute_action(app: &AppHandle, action: &EnqueueAction) -> Result<(), S
             scoop::execute_scoop(app.clone(), ScoopOp::ClearCache, Some(package), bucket_opt).await
         }
         EnqueueAction::CleanupApps => {
-            // Use the existing cleanup command; it streams via the manager
-            // when invoked through run_and_stream_command.
             crate::commands::doctor::cleanup::cleanup_all_apps_internal(app.clone()).await
         }
         EnqueueAction::CleanupCache => {
@@ -903,14 +1011,15 @@ async fn execute_action(app: &AppHandle, action: &EnqueueAction) -> Result<(), S
         }
         EnqueueAction::Scan { package, bucket } => {
             let bucket_opt = crate::utils::is_valid_bucket(bucket).then(|| bucket.as_str());
-            match virustotal::run_scan(app.clone(), package, bucket_opt).await {
-                Ok(ScanOutcome::Clean) => Ok(()),
-                Ok(ScanOutcome::Warning(w)) => {
-                    let msg = w.message.clone();
-                    set_scan_warning(app, w);
-                    Err(msg)
-                }
-                Err(e) => Err(e),
+            let outcome = virustotal::run_scan(app.clone(), package, bucket_opt).await?;
+            if let Some(warning) = virustotal::scan_warning(&outcome) {
+                let msg = warning.message.clone();
+                set_scan_warning(app, warning);
+                Err(msg)
+            } else if outcome.is_success() {
+                Ok(())
+            } else {
+                Err(outcome.message())
             }
         }
         EnqueueAction::ScanAndInstall { .. } => {
@@ -931,7 +1040,7 @@ async fn run_post_hooks(app: &AppHandle, pending: &PendingOp, result: &Result<()
         | EnqueueAction::Uninstall { .. }
         | EnqueueAction::Update { .. }
         | EnqueueAction::UpdateAll => {
-            invalidate_manifest_cache().await;
+            invalidate_manifest_cache(&state.scoop_path()).await;
             invalidate_installed_cache(state.clone()).await;
             // Auto-cleanup fires regardless of success on the original impl;
             // mirror that.

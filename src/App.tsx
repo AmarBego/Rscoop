@@ -81,53 +81,28 @@ function App() {
 
         // Setup event listeners FIRST so early backend emits are captured
         const setupColdStartListeners = async () => {
-            const webview = getCurrentWebviewWindow();
             const unlistenFunctions: (() => void)[] = [];
 
-            // Auto-operation-start is now handled by the global operations store
-
-            // Listen for window-specific cold-start-finished event
+            // Listen for global scoop-ready event
             try {
-                const unlisten1 = await webview.listen<boolean>("cold-start-finished", (event) => {
-                    info(`Received window-specific cold-start-finished event with payload: ${event.payload}`);
+                const unlisten = await listen<boolean>("scoop-ready", (event) => {
+                    info(`Received scoop-ready event with payload: ${event.payload}`);
                     handleColdStartEvent(event.payload);
                 });
-                unlistenFunctions.push(unlisten1);
+                unlistenFunctions.push(unlisten);
             } catch (e) {
-                logError(`Failed to register window-specific cold-start-finished listener: ${e}`);
+                logError(`Failed to register scoop-ready listener: ${e}`);
             }
 
-            // Listen for global cold-start-finished event as fallback
+            // Also listen for cold-start-finished for compatibility
             try {
-                const unlisten2 = await listen<boolean>("cold-start-finished", (event) => {
-                    info(`Received global cold-start-finished event with payload: ${event.payload}`);
+                const unlisten = await listen<boolean>("cold-start-finished", (event) => {
+                    info(`Received cold-start-finished event with payload: ${event.payload}`);
                     handleColdStartEvent(event.payload);
                 });
-                unlistenFunctions.push(unlisten2);
+                unlistenFunctions.push(unlisten);
             } catch (e) {
-                logError(`Failed to register global cold-start-finished listener: ${e}`);
-            }
-
-            // Listen for window-specific scoop-ready event
-            try {
-                const unlisten3 = await webview.listen<boolean>("scoop-ready", (event) => {
-                    info(`Received window-specific scoop-ready event with payload: ${event.payload}`);
-                    handleColdStartEvent(event.payload);
-                });
-                unlistenFunctions.push(unlisten3);
-            } catch (e) {
-                logError(`Failed to register window-specific scoop-ready listener: ${e}`);
-            }
-
-            // Listen for global scoop-ready event as fallback
-            try {
-                const unlisten4 = await listen<boolean>("scoop-ready", (event) => {
-                    info(`Received global scoop-ready event with payload: ${event.payload}`);
-                    handleColdStartEvent(event.payload);
-                });
-                unlistenFunctions.push(unlisten4);
-            } catch (e) {
-                logError(`Failed to register global scoop-ready listener: ${e}`);
+                logError(`Failed to register cold-start-finished listener: ${e}`);
             }
 
             return () => {
@@ -196,17 +171,17 @@ function App() {
             // Only update if not already ready
             if (!isReady() && !error()) {
                 if (payload) {
-                    info("Cold start ready event - triggering installed packages refetch");
+                    info("Cold start ready event - triggering installed packages fetch");
                     setReadyFlag("true");
 
-                    // Trigger refetch of installed packages to ensure we get the freshly prefetched data
+                    // Trigger fetch of installed packages to ensure we get the freshly prefetched data
                     // Use a small delay to ensure backend event is fully processed
                     setTimeout(() => {
-                        info("Executing deferred refetch of installed packages");
-                        installedPackagesStore.refetch()
-                            .then(() => info("Refetch completed successfully"))
+                        info("Executing initial fetch of installed packages");
+                        installedPackagesStore.fetch()
+                            .then(() => info("Initial fetch completed successfully"))
                             .catch(err => {
-                                logError(`Failed to refetch installed packages on cold start: ${err}`);
+                                logError(`Failed to fetch installed packages on cold start: ${err}`);
                             });
                     }, 100);
                     // Kick off update check shortly after readiness if applicable

@@ -58,7 +58,9 @@ export function useInstalledPackages() {
     setStatusLoading(true);
     setStatusError(null);
     try {
-      // First refresh the packages list to catch any CLI installations
+      // First update buckets to ensure status check is accurate
+      await invoke("update_all_buckets");
+      // Then refresh the packages list to catch any CLI installations
       await refetch();
       const status = await invoke<ScoopStatus>("check_scoop_status");
       setScoopStatus(status);

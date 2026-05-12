@@ -1,15 +1,14 @@
-//! VirusTotal scan runner. Scans are driven by the OperationManager — output
-//! streams into the current op's buffer via `operations::append_output`, and
-//! the structured outcome is returned so the runner can decide whether to
-//! chain into install or halt with a warning.
-use crate::commands::powershell;
-use crate::operations;
+//! VirusTotal scan runner. Scans are normal Execra jobs with a small
+//! interpreter that maps scoop-virustotal's documented exit codes into the
+//! shared Outcome shape.
+
+use crate::commands::scoop::{run_operation, scoop_cmd};
+use execra::{
+    Context, ExitCode, FailureReason, Finding, Interpreter, InterpreterEvent, Line, Outcome,
+};
 use serde::{Deserialize, Serialize};
 use tauri::AppHandle;
-use tokio::io::{AsyncBufReadExt, BufReader};
 
-/// Structured outcome of a `scoop virustotal` run. Mirrors the original
-/// three-way exit code split from https://github.com/rasa/scoop-virustotal.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ScanWarning {
@@ -18,88 +17,100 @@ pub struct ScanWarning {
     pub message: String,
 }
 
-#[derive(Debug, Clone)]
-pub enum ScanOutcome {
-    Clean,
-    Warning(ScanWarning),
+pub struct VirusTotalInterpreter;
+
+impl Interpreter for VirusTotalInterpreter {
+    fn on_line(&mut self, _ctx: &Context, _line: &Line) -> Vec<InterpreterEvent> {
+        vec![]
+    }
+
+    fn on_exit(&mut self, _ctx: &Context, exit: &ExitCode) -> Vec<InterpreterEvent> {
+        match exit.code {
+            Some(0) => vec![InterpreterEvent::Summary {
+                text: "No VirusTotal detections".to_string(),
+            }],
+            Some(1) | Some(2) => vec![InterpreterEvent::Finding {
+                finding: Finding::warning(
+                    "vt.detections_found",
+                    "VirusTotal found one or more detections or warnings.",
+                ),
+            }],
+            Some(16) => vec![InterpreterEvent::KnownError {
+                code: "vt.api_key_missing".to_string(),
+                message: "VirusTotal API key is not configured.".to_string(),
+            }],
+            _ => vec![],
+        }
+    }
 }
 
-/// Run `scoop virustotal <bucket>/<package>` and stream output through the
-/// OperationManager. Returns a structured outcome.
 pub async fn run_scan(
     app: AppHandle,
     package_name: &str,
     bucket: Option<&str>,
-) -> Result<ScanOutcome, String> {
-    let command_str = match bucket {
-        Some(b) => format!("scoop virustotal {}/{}", b, package_name),
-        None => format!("scoop virustotal {}", package_name),
+) -> Result<Outcome, String> {
+    let target = match bucket {
+        Some(b) => format!("{}/{}", b, package_name),
+        None => package_name.to_string(),
     };
-    log::info!("Executing VirusTotal scan: {}", &command_str);
 
-    let mut child = powershell::create_powershell_command(&command_str)
-        .spawn()
-        .map_err(|e| format!("Failed to spawn 'scoop virustotal': {}", e))?;
+    run_operation(
+        app,
+        scoop_cmd(["virustotal".to_string(), target])
+            .label(format!("Scanning {} with VirusTotal", package_name))
+            .interpreter(VirusTotalInterpreter),
+    )
+    .await
+}
 
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or("Child process did not have a handle to stdout")?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or("Child process did not have a handle to stderr")?;
+pub fn scan_warning(outcome: &Outcome) -> Option<ScanWarning> {
+    if outcome.is_success() {
+        return None;
+    }
 
-    let app_stdout = app.clone();
-    let stdout_task = tokio::spawn(async move {
-        let mut reader = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = reader.next_line().await {
-            log::info!("virustotal stdout: {}", &line);
-            operations::append_output(&app_stdout, line, "stdout");
-        }
-    });
-
-    let app_stderr = app.clone();
-    let stderr_task = tokio::spawn(async move {
-        let mut reader = BufReader::new(stderr).lines();
-        while let Ok(Some(line)) = reader.next_line().await {
-            log::error!("virustotal stderr: {}", &line);
-            operations::append_output(&app_stderr, line, "stderr");
-        }
-    });
-
-    let status = child
-        .wait()
-        .await
-        .map_err(|e| format!("Failed to wait on child process: {}", e))?;
-
-    // Make sure the reader tasks drained before we return.
-    let _ = stdout_task.await;
-    let _ = stderr_task.await;
-
-    let exit_code = status.code().unwrap_or(1);
-    let outcome = match exit_code {
-        0 => ScanOutcome::Clean,
-        2 => ScanOutcome::Warning(ScanWarning {
+    let code = nonzero_exit_code(outcome);
+    if code == Some(1) || code == Some(2) {
+        return Some(ScanWarning {
             detections_found: true,
             is_api_key_missing: false,
-            message: "VirusTotal found one or more detections.".to_string(),
-        }),
-        16 => ScanOutcome::Warning(ScanWarning {
+            message: "VirusTotal found one or more detections or warnings.".to_string(),
+        });
+    }
+
+    if known_error_code(outcome, "vt.api_key_missing") || code == Some(16) {
+        return Some(ScanWarning {
             detections_found: false,
             is_api_key_missing: true,
             message: "VirusTotal API key is not configured.".to_string(),
-        }),
-        n => ScanOutcome::Warning(ScanWarning {
-            detections_found: true,
-            is_api_key_missing: false,
-            message: format!(
-                "Scan failed with an unexpected error (exit code {}). Please check the output.",
-                n
-            ),
-        }),
-    };
+        });
+    }
 
-    log::info!("VirusTotal scan finished: {:?}", outcome);
-    Ok(outcome)
+    Some(ScanWarning {
+        detections_found: true,
+        is_api_key_missing: false,
+        message: format!(
+            "Scan failed with an unexpected error ({}). Please check the output.",
+            outcome.message()
+        ),
+    })
+}
+
+fn nonzero_exit_code(outcome: &Outcome) -> Option<i32> {
+    match outcome {
+        Outcome::Failed {
+            reason: FailureReason::NonZeroExit { code },
+            ..
+        } => Some(*code),
+        _ => None,
+    }
+}
+
+fn known_error_code(outcome: &Outcome, expected: &str) -> bool {
+    matches!(
+        outcome,
+        Outcome::Failed {
+            reason: FailureReason::KnownError { code, .. },
+            ..
+        } if code == expected
+    )
 }

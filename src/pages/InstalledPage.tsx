@@ -51,7 +51,9 @@ function InstalledPage(props: InstalledPageProps) {
 
   const handleCheckStatus = async (): Promise<void> => {
     await checkScoopStatus();
-    setShowStatusModal(true);
+    if (!scoopStatus()?.is_everything_ok) {
+      setShowStatusModal(true);
+    }
   };
 
   const filteredPackages = createMemo(() => {

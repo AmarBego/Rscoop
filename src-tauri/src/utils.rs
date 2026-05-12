@@ -250,44 +250,39 @@ pub fn resolve_scoop_root<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, Stri
         .flatten()
         .map(PathBuf::from);
 
-    if let Some(path) = stored_path.as_ref() {
-        if evaluate_scoop_candidate(path.clone()).is_none() {
+    if let Some(path) = stored_path {
+        if evaluate_scoop_candidate(path.clone()).is_some() {
+            log::info!("Using user-defined scoop path: {}", path.display());
+            return Ok(path);
+        } else {
             log::warn!(
-                "Stored scoop path is invalid or inaccessible: {}",
+                "Stored scoop path is invalid or inaccessible: {}. Falling back to auto-detection.",
                 path.display()
             );
         }
     }
 
-    let candidates = build_candidate_list(stored_path.clone().into_iter());
+    let candidates = build_candidate_list(std::iter::empty());
 
-    if let Some(best) = select_best_scoop_root(candidates, stored_path.as_ref()) {
+    if let Some(best) = select_best_scoop_root(candidates, None) {
         let best_path = best.path.clone();
-        let stored_matches = stored_path
-            .as_ref()
-            .map(|p| p == &best_path)
-            .unwrap_or(false);
+        
+        log::info!(
+            "Auto-detected Scoop root: {} (apps_dir={}, buckets_dir={}, installs={})",
+            best_path.display(),
+            best.has_apps_dir,
+            best.has_buckets_dir,
+            best.installed_count
+        );
 
-        if stored_matches {
-            log::info!("Using user-defined scoop path: {}", best_path.display());
-        } else {
-            log::info!(
-                "Auto-detected Scoop root: {} (apps_dir={}, buckets_dir={}, installs={})",
+        if let Err(e) =
+            settings::set_scoop_path(app.clone(), best_path.to_string_lossy().to_string())
+        {
+            log::warn!(
+                "Failed to persist detected Scoop path '{}': {}",
                 best_path.display(),
-                best.has_apps_dir,
-                best.has_buckets_dir,
-                best.installed_count
+                e
             );
-
-            if let Err(e) =
-                settings::set_scoop_path(app.clone(), best_path.to_string_lossy().to_string())
-            {
-                log::warn!(
-                    "Failed to persist detected Scoop path '{}': {}",
-                    best_path.display(),
-                    e
-                );
-            }
         }
 
         return Ok(best_path);

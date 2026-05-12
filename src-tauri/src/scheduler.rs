@@ -1,9 +1,9 @@
-use tauri::AppHandle;
-use tauri::Manager;
 use crate::commands;
 use crate::operations::{self, OperationKind};
 use crate::state;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tauri::AppHandle;
+use tauri::Manager;
 
 pub fn start_background_tasks(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
@@ -48,19 +48,29 @@ pub fn start_background_tasks(app: AppHandle) {
             )
             .ok()
             .flatten();
-            let last_ts = last_ts_val
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0u64);
+            let last_ts = last_ts_val.and_then(|v| v.as_u64()).unwrap_or(0u64);
 
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-            let elapsed = if last_ts == 0 { interval_secs } else { now.saturating_sub(last_ts) };
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let elapsed = if last_ts == 0 {
+                interval_secs
+            } else {
+                now.saturating_sub(last_ts)
+            };
 
             if last_ts == 0 {
                 log::trace!("[scheduler] no previous run recorded; treating as overdue");
             }
 
             if elapsed >= interval_secs {
-                log::info!("Auto bucket update task running (interval='{}', seconds={}, elapsed={})", interval_raw, interval_secs, elapsed);
+                log::info!(
+                    "Auto bucket update task running (interval='{}', seconds={}, elapsed={})",
+                    interval_raw,
+                    interval_secs,
+                    elapsed
+                );
                 let run_started_at = now;
 
                 // Register the auto-update as the current op. If something is
@@ -81,7 +91,7 @@ pub fn start_background_tasks(app: AppHandle) {
                     );
                 }
 
-                match commands::bucket_install::update_all_buckets().await {
+                match commands::bucket_install::update_all_buckets(app.clone()).await {
                     Ok(results) => {
                         let successes = results.iter().filter(|r| r.success).count();
                         log::info!(
@@ -93,10 +103,16 @@ pub fn start_background_tasks(app: AppHandle) {
                         if started {
                             for result in &results {
                                 let (line, source) = if result.success {
-                                    (format!("✓ Updated bucket: {}", result.bucket_name), "stdout")
+                                    (
+                                        format!("✓ Updated bucket: {}", result.bucket_name),
+                                        "stdout",
+                                    )
                                 } else {
                                     (
-                                        format!("✗ Failed to update {}: {}", result.bucket_name, result.message),
+                                        format!(
+                                            "✗ Failed to update {}: {}",
+                                            result.bucket_name, result.message
+                                        ),
                                         "stderr",
                                     )
                                 };
@@ -147,8 +163,20 @@ pub fn start_background_tasks(app: AppHandle) {
                                     "stdout",
                                 );
                             }
-                            match commands::update::update_all_packages_headless(app.clone(), state).await {
-                                Ok(_) => {
+                            let update_outcome = commands::scoop::execute_scoop_outcome(
+                                app.clone(),
+                                commands::scoop::ScoopOp::UpdateAll,
+                                None,
+                                None,
+                            )
+                            .await;
+                            match update_outcome {
+                                Ok(outcome) if outcome.is_success() => {
+                                    commands::auto_cleanup::trigger_auto_cleanup(
+                                        app.clone(),
+                                        state,
+                                    )
+                                    .await;
                                     if started_pkg {
                                         operations::append_output(
                                             &app,
@@ -158,7 +186,24 @@ pub fn start_background_tasks(app: AppHandle) {
                                         operations::finish_synthetic(
                                             &app,
                                             true,
-                                            "Automatic package update completed successfully".to_string(),
+                                            "Automatic package update completed successfully"
+                                                .to_string(),
+                                        );
+                                    }
+                                }
+                                Ok(outcome) => {
+                                    let e = outcome.message();
+                                    log::warn!("Auto package headless update failed: {}", e);
+                                    if started_pkg {
+                                        operations::append_output(
+                                            &app,
+                                            format!("Error: {}", e),
+                                            "stderr",
+                                        );
+                                        operations::finish_synthetic(
+                                            &app,
+                                            false,
+                                            format!("Automatic package update failed: {}", e),
                                         );
                                     }
                                 }
@@ -208,7 +253,10 @@ pub fn start_background_tasks(app: AppHandle) {
             let next_run_at = now + remaining;
             log::trace!(
                 "[scheduler] next run due in {}s (at {}), interval='{}', remaining chunk={}s",
-                remaining, next_run_at, interval_raw, chunk
+                remaining,
+                next_run_at,
+                interval_raw,
+                chunk
             );
             tokio::time::sleep(Duration::from_secs(chunk)).await;
             // After sleep, loop re-evaluates (interval or last_ts may have changed)

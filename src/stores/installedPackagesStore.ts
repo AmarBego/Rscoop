@@ -71,6 +71,30 @@ const fetchInstalledPackages = async () => {
   }
 };
 
+const reload = async () => {
+  setLoading(true);
+  setError(null);
+  try {
+    const installedPackages = await invoke<ScoopPackage[]>("get_installed_packages_full");
+    setPackages(installedPackages);
+    const buckets = new Set<string>(installedPackages.map(p => p.source));
+    setUniqueBuckets(['all', ...Array.from(buckets).sort()]);
+    setIsLoaded(true);
+
+    await Promise.all([
+      heldStore.refetch(),
+      checkForUpdates(),
+      fetchVersionedPackages()
+    ]);
+  } catch (err) {
+    console.error("Failed to reload installed packages:", err);
+    setError("Failed to reload installed packages");
+    setPackages([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 const refetch = async () => {
   setIsLoaded(false);
   setLoading(true);
@@ -110,6 +134,7 @@ const installedPackagesStore = {
   versionedPackages,
   isPackageVersioned,
   fetch: fetchInstalledPackages,
+  reload,
   refetch,
   checkForUpdates,
   fetchVersionedPackages,
