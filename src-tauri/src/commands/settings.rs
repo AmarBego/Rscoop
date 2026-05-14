@@ -107,13 +107,16 @@ pub fn set_config_value<R: Runtime>(
     with_store_mut(app, move |store| store.set(key, value))
 }
 
-/// Gets the VirusTotal API key from Scoop's `config.json`.
+/// Returns whether a VirusTotal API key is configured without exposing it to
+/// the frontend.
 #[tauri::command]
-pub fn get_virustotal_api_key() -> Result<Option<String>, String> {
+pub fn has_virustotal_api_key() -> Result<bool, String> {
     let config = read_scoop_config()?;
     Ok(config
         .get("virustotal_api_key")
-        .and_then(|v| v.as_str().map(String::from)))
+        .and_then(|v| v.as_str())
+        .map(|key| !key.is_empty())
+        .unwrap_or(false))
 }
 
 /// Sets the VirusTotal API key in Scoop's `config.json`.

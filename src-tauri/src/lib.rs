@@ -218,7 +218,7 @@ pub fn run() {
             commands::settings::set_config_value,
             commands::settings::get_scoop_path,
             commands::settings::set_scoop_path,
-            commands::settings::get_virustotal_api_key,
+            commands::settings::has_virustotal_api_key,
             commands::settings::set_virustotal_api_key,
             commands::auto_cleanup::run_auto_cleanup,
             commands::doctor::checkup::run_scoop_checkup,

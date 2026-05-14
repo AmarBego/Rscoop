@@ -11,6 +11,27 @@ export interface ScanWarning {
   message: string;
 }
 
+/// Mirrors `OperationWarning` in `src-tauri/src/operations.rs`. A semantic
+/// warning surfaced by the Execra interpreter — e.g. running-process,
+/// uncommitted-changes, already-installed.
+export interface OperationWarning {
+  code: string;
+  message: string;
+}
+
+/// Mirrors Execra's `Finding` — a structured note/recommendation the
+/// interpreter attached to the op (e.g. a "Notes" block from a scoop
+/// install). `action` is intentionally kept loose; we only render the
+/// message + severity today, but the shape is preserved so a future UI
+/// can offer the suggested command/link.
+export interface OperationFinding {
+  severity: "info" | "recommendation" | "warning" | "error";
+  code: string;
+  message: string;
+  action?: unknown;
+  related?: unknown;
+}
+
 // --- Types ---
 // These mirror the Rust-side DTOs in `src-tauri/src/operations.rs`.
 
@@ -43,6 +64,22 @@ export interface Operation {
   packageName?: string;
   output: OperationOutput[];
   result: OperationResult | null;
+  // Most recent progress phase the Execra interpreter reported
+  // (e.g. "downloading", "verifying"). Used as the modal subtitle fallback
+  // when no real phase is active. UI formats with `formatPhase`.
+  currentPhase: string | null;
+  // Phase stack from Execra's PhaseEntered/Exited events. Rendered as a
+  // breadcrumb ("Installing firefox › Downloading firefox") and takes
+  // precedence over `currentPhase` when non-empty.
+  phaseStack: string[];
+  // Determinate progress fraction (0..=1) for the active phase — e.g.
+  // bytes downloaded out of total. Null = indeterminate (marquee bar).
+  progressFraction: number | null;
+  // All semantic warnings the interpreter raised for this op. Empty when
+  // the op had a clean run.
+  operationWarnings: OperationWarning[];
+  // Interpreter-emitted findings (Notes blocks, recommendations).
+  findings: OperationFinding[];
   // Set by Rust when a VirusTotal scan finishes with detections or a
   // missing API key. Frontend renders the warning + "Install Anyway" path.
   scanWarning: ScanWarning | null;
@@ -64,6 +101,9 @@ export interface CompletedOperation {
   status?: "success" | "warning" | "error";
   output: OperationOutput[];
   message: string;
+  // Wire-omitted when empty (Rust side uses skip_serializing_if = Vec::is_empty).
+  operationWarnings?: OperationWarning[];
+  findings?: OperationFinding[];
 }
 
 export interface QueuedOperation {
@@ -82,6 +122,11 @@ interface StateSnapshot {
     packageName?: string;
     output: OperationOutput[];
     result: OperationResult | null;
+    currentPhase?: string;
+    phaseStack?: string[];
+    progressFraction?: number;
+    operationWarnings?: OperationWarning[];
+    findings?: OperationFinding[];
     scanWarning?: ScanWarning;
     canOverrideScan?: boolean;
     canClearCache?: boolean;
@@ -142,6 +187,11 @@ function createOperationsStore() {
         packageName: snap.current.packageName,
         output: snap.current.output,
         result: snap.current.result,
+        currentPhase: snap.current.currentPhase ?? null,
+        phaseStack: snap.current.phaseStack ?? [],
+        progressFraction: snap.current.progressFraction ?? null,
+        operationWarnings: snap.current.operationWarnings ?? [],
+        findings: snap.current.findings ?? [],
         scanWarning: snap.current.scanWarning ?? null,
         canOverrideScan: snap.current.canOverrideScan ?? false,
         canClearCache: snap.current.canClearCache ?? false,
@@ -201,6 +251,10 @@ function createOperationsStore() {
       });
     }));
 
+    // Notification toast body-click → unminimize so the result modal is visible.
+    unlistens.push(await listen("operation-restore", () => {
+      setIsMinimized(false);
+    }));
   }
 
   setupListeners();
@@ -260,6 +314,10 @@ function createOperationsStore() {
   async function handleInstallConfirm() {
     // Rust extracts the install params from the current scan op's chain
     // and enqueues a plain install, archiving the scan op.
+    const { settings } = settingsStore;
+    if (settings.operations.backgroundByDefault) {
+      setIsMinimized(true);
+    }
     try {
       await invoke("confirm_install_anyway");
     } catch (e) {

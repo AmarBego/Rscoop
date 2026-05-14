@@ -9,6 +9,7 @@ use crate::commands::scoop::{self, ScoopOp};
 use crate::commands::virustotal::{self, ScanWarning};
 use crate::state::AppState;
 use execra::tauri::ExecraExt;
+use execra::Finding;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -20,6 +21,7 @@ const COMPLETED_HISTORY_CAP: usize = 20;
 pub const EVENT_OUTPUT: &str = "operation-output";
 pub const EVENT_FINISHED: &str = "operation-finished";
 pub const EVENT_STATE_CHANGED: &str = "operation-state-changed";
+pub const EVENT_RESTORE: &str = "operation-restore";
 
 // --- Public DTOs -------------------------------------------------------------
 
@@ -66,8 +68,33 @@ pub struct CurrentOperation {
     pub package_name: Option<String>,
     pub output: Vec<OutputLine>,
     pub result: Option<CommandResult>,
-    #[serde(rename = "operationWarning", skip_serializing_if = "Option::is_none")]
-    pub operation_warning: Option<OperationWarning>,
+    /// Most recent progress-phase hint emitted by the interpreter
+    /// (e.g. "downloading", "verifying"). Cleared on finalize and on
+    /// chain transitions. Frontend formats for display.
+    ///
+    /// When `phase_stack` is non-empty, that takes precedence in the UI.
+    /// This field remains the fallback for progress hints emitted outside
+    /// of a phase.
+    #[serde(rename = "currentPhase", skip_serializing_if = "Option::is_none")]
+    pub current_phase: Option<String>,
+    /// Phase labels in nesting order — UI renders these as a breadcrumb
+    /// ("Installing firefox › Downloading firefox").
+    #[serde(rename = "phaseStack", skip_serializing_if = "Vec::is_empty")]
+    pub phase_stack: Vec<String>,
+    /// Determinate progress for the active phase, when the interpreter
+    /// emitted a `Progress::Determinate` (e.g. byte progress during a
+    /// download). Range 0..=1. `None` means indeterminate — the UI falls
+    /// back to a marquee animation.
+    #[serde(rename = "progressFraction", skip_serializing_if = "Option::is_none")]
+    pub progress_fraction: Option<f32>,
+    /// All warnings the interpreter raised for this op, in order. An empty
+    /// vector is omitted from the wire format.
+    #[serde(rename = "operationWarnings", skip_serializing_if = "Vec::is_empty")]
+    pub operation_warnings: Vec<OperationWarning>,
+    /// Findings the interpreter emitted (`Notes` blocks, recommendations,
+    /// etc.). Empty vector is omitted from the wire format.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub findings: Vec<Finding>,
     /// Populated when a VirusTotal scan produced a warning — frontend shows
     /// the warning banner + "Install Anyway" button.
     #[serde(rename = "scanWarning", skip_serializing_if = "Option::is_none")]
@@ -104,8 +131,10 @@ pub struct CompletedOperation {
     pub status: String,
     #[serde(rename = "scanWarning", skip_serializing_if = "Option::is_none")]
     pub scan_warning: Option<ScanWarning>,
-    #[serde(rename = "operationWarning", skip_serializing_if = "Option::is_none")]
-    pub operation_warning: Option<OperationWarning>,
+    #[serde(rename = "operationWarnings", skip_serializing_if = "Vec::is_empty")]
+    pub operation_warnings: Vec<OperationWarning>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub findings: Vec<Finding>,
 }
 
 #[derive(Serialize, Clone, Debug, Default)]
@@ -231,7 +260,35 @@ struct ActiveOp {
     /// (b) the user explicitly dismisses it via `dismiss_current_result`.
     result: Option<CommandResult>,
     scan_warning: Option<ScanWarning>,
-    operation_warning: Option<OperationWarning>,
+    /// All interpreter warnings raised during this op. First entry drives
+    /// the result-status downgrade ("warning") and is shown verbatim in the
+    /// toast / bar; the rest render in a list inside the modal.
+    operation_warnings: Vec<OperationWarning>,
+    /// `Finding`s emitted by the interpreter — Notes blocks, recommendations,
+    /// post-install hints. Surfaced in the modal/completed-op viewer.
+    findings: Vec<Finding>,
+    /// Set by the Execra interpreter via `KnownError` events. Surfaces a
+    /// diagnostic message over the generic "process exited with code N".
+    known_error: Option<String>,
+    /// Set by the Execra interpreter via `Summary` events. Used as the
+    /// success message in lieu of the generic "X completed successfully".
+    summary: Option<String>,
+    /// Latest indeterminate-progress hint from the interpreter. Drives the
+    /// modal subtitle ("Downloading…", "Verifying…") when no phase is
+    /// active. Reset between chained steps and cleared on finalize.
+    current_phase: Option<String>,
+    /// Phase stack maintained from `PhaseEntered` / `PhaseUpdated` /
+    /// `PhaseExited` events. Top of stack is the deepest phase.
+    phase_stack: Vec<String>,
+    /// Determinate fraction for the active phase (0..=1) when the
+    /// interpreter emits `Progress::Determinate`. Reset on phase
+    /// transitions so each new phase gets its own bar.
+    progress_fraction: Option<f32>,
+    /// Monotonic counter incremented every time a creep ticker is
+    /// started or stopped. The ticker captures the value at spawn time
+    /// and bails out on every tick if the stored counter has moved —
+    /// no JoinHandle/Notify/Mutex needed.
+    creep_generation: u64,
 }
 
 pub struct OperationManager {
@@ -266,7 +323,11 @@ impl OperationManager {
                 package_name: s.pending.package_name.clone(),
                 output: s.output.iter().cloned().collect(),
                 result: s.result.clone(),
-                operation_warning: s.operation_warning.clone(),
+                current_phase: s.current_phase.clone(),
+                phase_stack: s.phase_stack.clone(),
+                progress_fraction: s.progress_fraction,
+                operation_warnings: s.operation_warnings.clone(),
+                findings: s.findings.clone(),
                 scan_warning: s.scan_warning.clone(),
                 can_override_scan: matches!(
                     s.pending.chain.as_deref(),
@@ -334,14 +395,18 @@ enum PendingDecision {
 }
 
 /// Fire a Windows toast notifying the user an operation finished.
-/// Skipped when the main webview window still exists (the user will see the
-/// result in the in-app modal/bar, so a toast is redundant).
+/// Skipped only when the main window is focused and visible (the user can
+/// see the in-app result). Fires when the window is closed, minimized, or
+/// behind other windows — so the user never misses a VT warning, failure,
+/// or "already installed" result.
 #[cfg(windows)]
 fn notify_result(app: &AppHandle, title: &str, success: bool, status: &str, message: &str) {
     use tauri_winrt_notification::{Duration, Toast};
 
-    if app.get_webview_window("main").is_some() {
-        return;
+    if let Some(window) = app.get_webview_window("main") {
+        if window.is_focused().unwrap_or(false) {
+            return;
+        }
     }
 
     // Inspect the current op to decide which action buttons (if any) to
@@ -411,18 +476,25 @@ fn notify_result(app: &AppHandle, title: &str, success: bool, status: &str, mess
                     if let Err(e) = run_pending_chain(&app) {
                         log::warn!("toast clear-cache failed: {}", e);
                     }
+                    crate::tray::show_or_create_main_window(&app);
+                    let _ = app.emit(EVENT_RESTORE, ());
                 }
                 Some("install-anyway") => {
                     if let Err(e) = confirm_install_anyway(&app) {
                         log::warn!("toast install-anyway failed: {}", e);
                     }
+                    crate::tray::show_or_create_main_window(&app);
+                    let _ = app.emit(EVENT_RESTORE, ());
                 }
                 Some("dismiss") => {
                     // No-op: let Windows hide the toast.
                 }
                 _ => {
-                    // Body click or unknown action → restore the app.
+                    // Body click or unknown action → restore the app and
+                    // force the frontend to unminimize the operation modal
+                    // so the user sees the result immediately.
                     crate::tray::show_or_create_main_window(&app);
+                    let _ = app.emit(EVENT_RESTORE, ());
                 }
             }
         });
@@ -465,31 +537,21 @@ fn notify_result(_app: &AppHandle, _title: &str, _success: bool, _status: &str, 
     // rscoop is Windows-only; no-op elsewhere.
 }
 
-fn detect_operation_warning(line: &str) -> Option<OperationWarning> {
-    let lower = line.to_ascii_lowercase();
-    if lower.contains("running process detected") && lower.contains("skip updating") {
-        Some(OperationWarning {
-            code: "scoop.update.running_process".to_string(),
-            message: "Scoop skipped one or more updates because related processes are still running. Close the listed processes and run the update again.".to_string(),
-        })
-    } else {
-        None
-    }
-}
-
 /// Append one output line to the current operation and emit to the frontend.
+///
+/// This is a pure transcript append — `line`/`source` are preserved verbatim.
+/// Any semantic classification (warning, error, success, progress) must come
+/// through the Execra interpreter event path (see [`push_operation_warning`],
+/// [`set_known_error`], etc.).
 pub fn append_output(app: &AppHandle, line: String, source: &str) {
     let out = OutputLine {
-        line: line.clone(),
+        line,
         source: source.to_string(),
     };
     {
         let state = manager(app);
         let mut m = state.lock().unwrap();
         if let Some(active) = m.current.as_mut() {
-            if active.operation_warning.is_none() {
-                active.operation_warning = detect_operation_warning(&line);
-            }
             if active.output.len() >= OUTPUT_BUFFER_CAP {
                 active.output.pop_front();
             }
@@ -497,6 +559,248 @@ pub fn append_output(app: &AppHandle, line: String, source: &str) {
         }
     }
     let _ = app.emit(EVENT_OUTPUT, out);
+}
+
+/// Append a semantic warning surfaced by the interpreter (e.g. "running
+/// processes prevented an update"). Duplicates by `(code, message)` are
+/// suppressed so a chatty interpreter doesn't spam the UI.
+pub fn push_operation_warning(app: &AppHandle, warning: OperationWarning) {
+    let state = manager(app);
+    let mut m = state.lock().unwrap();
+    if let Some(active) = m.current.as_mut() {
+        let dup = active
+            .operation_warnings
+            .iter()
+            .any(|w| w.code == warning.code && w.message == warning.message);
+        if !dup {
+            active.operation_warnings.push(warning);
+        }
+    }
+}
+
+/// Stash a semantic known-error surfaced by the interpreter. Used so the
+/// runner can report the interpreter's diagnostic instead of a generic
+/// "process exited with code N".
+pub fn set_known_error(app: &AppHandle, message: String) {
+    let state = manager(app);
+    let mut m = state.lock().unwrap();
+    if let Some(active) = m.current.as_mut() {
+        if active.known_error.is_none() {
+            active.known_error = Some(message);
+        }
+    }
+}
+
+/// Stash an interpreter-provided summary line (e.g. "Installed firefox 1.2.3").
+/// Used in place of the generic "X completed successfully" when present.
+pub fn set_summary(app: &AppHandle, summary: String) {
+    let state = manager(app);
+    let mut m = state.lock().unwrap();
+    if let Some(active) = m.current.as_mut() {
+        active.summary = Some(summary);
+    }
+}
+
+/// Append a [`Finding`] surfaced by the interpreter (Notes block,
+/// recommendation, etc.). Triggers a state-changed emit so the modal can
+/// render new findings without waiting for finalize.
+pub fn push_finding(app: &AppHandle, finding: Finding) {
+    let changed = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) => {
+                active.findings.push(finding);
+                true
+            }
+            None => false,
+        }
+    };
+    if changed {
+        emit_state(app);
+    }
+}
+
+/// Push a phase label onto the active op's phase stack.
+pub fn push_phase(app: &AppHandle, label: String) {
+    let changed = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) => {
+                active.phase_stack.push(label);
+                true
+            }
+            None => false,
+        }
+    };
+    if changed {
+        emit_state(app);
+    }
+}
+
+/// Replace the label at the top of the phase stack. No-op when the stack
+/// is empty.
+pub fn update_top_phase(app: &AppHandle, label: String) {
+    let changed = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) if !active.phase_stack.is_empty() => {
+                let last = active.phase_stack.len() - 1;
+                active.phase_stack[last] = label;
+                true
+            }
+            _ => false,
+        }
+    };
+    if changed {
+        emit_state(app);
+    }
+}
+
+/// Pop the top phase off the active op's phase stack. No-op when empty.
+pub fn pop_phase(app: &AppHandle) {
+    let changed = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) => active.phase_stack.pop().is_some(),
+            None => false,
+        }
+    };
+    if changed {
+        emit_state(app);
+    }
+}
+
+/// Start a creep ticker for the active op. While running, the ticker
+/// bumps `progress_fraction` by 2% of the remaining distance every
+/// 500 ms, capped at 95% of (end − start) so real signals (next phase
+/// boundary, byte progress) have somewhere to take over.
+///
+/// Any previous creep is implicitly cancelled — incrementing the
+/// generation counter is the cancellation signal. The new ticker reads
+/// its own generation at spawn time and bails out as soon as the
+/// counter moves.
+pub fn start_creep(app: &AppHandle, start: f32, end: f32) {
+    if !(end > start) {
+        return;
+    }
+    let gen = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) => {
+                active.creep_generation = active.creep_generation.wrapping_add(1);
+                // Snap to phase start so byte progress / boundary
+                // Progress events line up with the bar.
+                if active.progress_fraction != Some(start) {
+                    active.progress_fraction = Some(start);
+                }
+                active.creep_generation
+            }
+            None => return,
+        }
+    };
+    emit_state(app);
+
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let span = end - start;
+        // Stop just shy of the end so the next phase boundary has
+        // somewhere to advance to. Otherwise the bar would touch the
+        // boundary and the boundary Progress event would be a no-op.
+        let cap = start + 0.95 * span;
+        let mut ticker = tokio::time::interval(std::time::Duration::from_millis(500));
+        // First `tick()` fires immediately; skip it so the first real
+        // bump happens 500 ms after spawn.
+        ticker.tick().await;
+        loop {
+            ticker.tick().await;
+            let should_emit = {
+                let state = manager(&app);
+                let mut m = state.lock().unwrap();
+                let Some(active) = m.current.as_mut() else {
+                    return;
+                };
+                if active.creep_generation != gen {
+                    return;
+                }
+                let cur = active.progress_fraction.unwrap_or(start);
+                if cur + 0.0001 >= cap {
+                    return;
+                }
+                let new = (cur + (cap - cur) * 0.02).min(cap);
+                // Only push a state event when the rounded percent
+                // changes — sub-percent bumps don't move pixels.
+                let old_pct = (cur * 100.0).round() as i32;
+                let new_pct = (new * 100.0).round() as i32;
+                active.progress_fraction = Some(new);
+                new_pct != old_pct
+            };
+            if should_emit {
+                emit_state(&app);
+            }
+        }
+    });
+}
+
+/// Cancel the active creep ticker, if any. Cheap when there's nothing
+/// to cancel.
+pub fn stop_creep(app: &AppHandle) {
+    let state = manager(app);
+    let mut m = state.lock().unwrap();
+    if let Some(active) = m.current.as_mut() {
+        active.creep_generation = active.creep_generation.wrapping_add(1);
+    }
+}
+
+/// Update determinate progress for the active op (0..=1). Pass `None` to
+/// switch back to indeterminate. Throttled to whole-percent changes — we
+/// don't need to emit state on every byte of stdout; the wire savings are
+/// large during big downloads.
+pub fn set_progress_fraction(app: &AppHandle, fraction: Option<f32>) {
+    let changed = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) => {
+                let new_pct = fraction.map(|f| (f * 100.0).round() as i32);
+                let old_pct = active.progress_fraction.map(|f| (f * 100.0).round() as i32);
+                if new_pct != old_pct {
+                    active.progress_fraction = fraction;
+                    true
+                } else {
+                    false
+                }
+            }
+            None => false,
+        }
+    };
+    if changed {
+        emit_state(app);
+    }
+}
+
+/// Update the active op's current progress phase. Pass `None` to clear
+/// (e.g. on finalize). Triggers a state-changed emit so the modal subtitle
+/// stays in sync without per-output round-trips.
+pub fn set_current_phase(app: &AppHandle, phase: Option<String>) {
+    let changed = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) if active.current_phase != phase => {
+                active.current_phase = phase;
+                true
+            }
+            _ => false,
+        }
+    };
+    if changed {
+        emit_state(app);
+    }
 }
 
 pub fn set_current_job(app: &AppHandle, job_id: Option<execra::JobId>) {
@@ -553,7 +857,14 @@ pub fn enqueue(app: &AppHandle, action: EnqueueAction) -> String {
                 output: VecDeque::new(),
                 result: None,
                 scan_warning: None,
-                operation_warning: None,
+                operation_warnings: Vec::new(),
+                findings: Vec::new(),
+                known_error: None,
+                summary: None,
+                current_phase: None,
+                phase_stack: Vec::new(),
+                progress_fraction: None,
+                creep_generation: 0,
             });
             (id, Some(pending))
         } else {
@@ -653,7 +964,8 @@ fn archive_finished_current(m: &mut OperationManager) -> bool {
             output: active.output.into_iter().collect(),
             status: result.status,
             scan_warning: active.scan_warning,
-            operation_warning: active.operation_warning,
+            operation_warnings: active.operation_warnings,
+            findings: active.findings,
         };
         if m.completed.len() >= COMPLETED_HISTORY_CAP {
             m.completed.pop_front();
@@ -750,7 +1062,14 @@ pub fn start_synthetic(
             output: VecDeque::new(),
             result: None,
             scan_warning: None,
-            operation_warning: None,
+            operation_warnings: Vec::new(),
+            findings: Vec::new(),
+            known_error: None,
+            summary: None,
+            current_phase: None,
+            phase_stack: Vec::new(),
+            progress_fraction: None,
+            creep_generation: 0,
         });
         id
     };
@@ -795,7 +1114,14 @@ pub fn finish_synthetic(app: &AppHandle, success: bool, message: String) {
                     output: VecDeque::new(),
                     result: None,
                     scan_warning: None,
-                    operation_warning: None,
+                    operation_warnings: Vec::new(),
+                    findings: Vec::new(),
+                    known_error: None,
+                    summary: None,
+                    current_phase: None,
+                    phase_stack: Vec::new(),
+                    progress_fraction: None,
+                    creep_generation: 0,
                 });
             }
             next
@@ -836,38 +1162,50 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
         // Emit a visual separator and flip the title to reflect the new phase.
         append_output(&app, format!("\n--- {} ---", chain_title), "stdout");
         update_current_title(&app, chain_title);
+        // Wipe interpreter-derived state so the chain's outcome is reported
+        // on its own — not contaminated by the primary action's summary/etc.
+        reset_semantic_state(&app);
         emit_state(&app);
         execute_action(&app, chain_ref).await
     } else {
         primary_result
     };
 
-    let has_scan_warning = {
+    let (has_scan_warning, first_warning, warning_count, summary, known_error) = {
         let state = manager(&app);
         let m = state.lock().unwrap();
-        m.current
-            .as_ref()
-            .and_then(|a| a.scan_warning.as_ref())
-            .is_some()
-    };
-    let operation_warning = {
-        let state = manager(&app);
-        let m = state.lock().unwrap();
-        m.current
-            .as_ref()
-            .and_then(|a| a.operation_warning.clone())
+        let active = m.current.as_ref();
+        let warnings = active
+            .map(|a| a.operation_warnings.as_slice())
+            .unwrap_or(&[]);
+        (
+            active.and_then(|a| a.scan_warning.as_ref()).is_some(),
+            warnings.first().cloned(),
+            warnings.len(),
+            active.and_then(|a| a.summary.clone()),
+            active.and_then(|a| a.known_error.clone()),
+        )
     };
 
-    // Build result message
+    // Build result message. Interpreter-provided summary/known-error take
+    // precedence over generic strings; warnings flip status without flipping
+    // success. When multiple warnings fired, the first carries the message
+    // and the count is appended ("…and 2 more") so the toast/bar stays
+    // single-line while the modal renders the full list.
     let result = match &final_result {
-        Ok(()) if let Some(warning) = operation_warning => CommandResult {
+        Ok(()) if let Some(warning) = first_warning => CommandResult {
             success: true,
-            message: warning.message,
+            message: if warning_count > 1 {
+                format!("{} (+{} more)", warning.message, warning_count - 1)
+            } else {
+                warning.message
+            },
             status: "warning".to_string(),
         },
         Ok(()) => CommandResult {
             success: true,
-            message: format!("{} completed successfully", pending.title),
+            message: summary
+                .unwrap_or_else(|| format!("{} completed successfully", pending.title)),
             status: "success".to_string(),
         },
         Err(e) if has_scan_warning => CommandResult {
@@ -877,7 +1215,7 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
         },
         Err(e) => CommandResult {
             success: false,
-            message: e.clone(),
+            message: known_error.unwrap_or_else(|| e.clone()),
             status: "error".to_string(),
         },
     };
@@ -928,7 +1266,14 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
                     output: VecDeque::new(),
                     result: None,
                     scan_warning: None,
-                    operation_warning: None,
+                    operation_warnings: Vec::new(),
+                    findings: Vec::new(),
+                    known_error: None,
+                    summary: None,
+                    current_phase: None,
+                    phase_stack: Vec::new(),
+                    progress_fraction: None,
+                    creep_generation: 0,
                 });
             }
             next
@@ -955,6 +1300,24 @@ fn set_scan_warning(app: &AppHandle, warning: ScanWarning) {
     let mut m = state.lock().unwrap();
     if let Some(active) = m.current.as_mut() {
         active.scan_warning = Some(warning);
+    }
+}
+
+/// Reset semantic state captured by the previous step in a chained operation.
+/// Each step gets its own clean slate for summary/warning/known-error.
+fn reset_semantic_state(app: &AppHandle) {
+    let state = manager(app);
+    let mut m = state.lock().unwrap();
+    if let Some(active) = m.current.as_mut() {
+        active.operation_warnings.clear();
+        active.findings.clear();
+        active.known_error = None;
+        active.summary = None;
+        active.current_phase = None;
+        active.phase_stack.clear();
+        active.progress_fraction = None;
+        // Bump the generation so any in-flight creep ticker bails out.
+        active.creep_generation = active.creep_generation.wrapping_add(1);
     }
 }
 

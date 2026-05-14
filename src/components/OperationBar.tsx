@@ -1,5 +1,5 @@
 import { Show, For, createSignal } from "solid-js";
-import { Maximize2, ShieldAlert, CircleCheck, CircleX, TriangleAlert } from "lucide-solid";
+import { Maximize2, ShieldAlert, CircleCheck, CircleX, TriangleAlert, Info } from "lucide-solid";
 import operationsStore, { CompletedOperation } from "../stores/operations";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
@@ -56,12 +56,25 @@ function OperationBar() {
   const hasCompletedWarnings = () => warningCount() > 0;
   const latestWarningMessage = () => operationsStore.completed().find(completedIsWarning)?.message;
 
+  // Mirrors `formatPhase` in OperationModal.
+  const formatPhase = (hint: string): string => {
+    const words = hint.replace(/_/g, " ").split(" ").filter(Boolean);
+    if (words.length === 0) return "";
+    const head = words[0].charAt(0).toUpperCase() + words[0].slice(1);
+    return [head, ...words.slice(1)].join(" ") + "…";
+  };
+
   const barText = () => {
     const c = operationsStore.completed();
 
     if (op()?.scanWarning || op()?.canClearCache) return t("operationbar.actionRequired");
     if (isWarning()) return op()?.result?.message ?? op()?.title;
-    if (isRunning()) return op()?.title;
+    if (isRunning()) {
+      const stack = op()?.phaseStack ?? [];
+      if (stack.length > 0) return `${op()!.title} — ${stack[stack.length - 1]}`;
+      const phase = op()?.currentPhase;
+      return phase ? `${op()!.title} — ${formatPhase(phase)}` : op()!.title;
+    }
 
     // Single completed op still in current (no batch history)
     if (isDone()) return formatTitle(op()!.title, isSuccess());
@@ -90,10 +103,19 @@ function OperationBar() {
             if (op()) operationsStore.restore();
           }}
         >
-          {/* Progress indicator */}
+          {/* Progress indicator — determinate when the interpreter has
+              byte progress, marquee otherwise. */}
           <Show when={isRunning()}>
             <div class="h-0.5 w-full bg-base-300 overflow-hidden">
-              <div class="h-full w-1/3 bg-primary animate-slide-lr" />
+              <Show
+                when={op()?.progressFraction != null}
+                fallback={<div class="h-full w-1/3 bg-primary animate-slide-lr" />}
+              >
+                <div
+                  class="h-full bg-primary transition-[width] duration-150 ease-out"
+                  style={{ width: `${Math.round((op()!.progressFraction ?? 0) * 100)}%` }}
+                />
+              </Show>
             </div>
           </Show>
           <Show when={isDone() && !needsAttention()}>
@@ -215,10 +237,42 @@ function OperationBar() {
           </div>
         }
       >
+        <Show when={(viewingLog()?.operationWarnings?.length ?? 0) > 0}>
+          <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1">
+            <div class="flex items-center gap-2 text-warning font-medium">
+              <TriangleAlert class="w-4 h-4 shrink-0" />
+              <span>
+                {viewingLog()!.operationWarnings!.length === 1
+                  ? t("operation.warningsOne")
+                  : t("operation.warningsMany", { count: String(viewingLog()!.operationWarnings!.length) })}
+              </span>
+            </div>
+            <ul class="ml-6 list-disc text-base-content/80">
+              <For each={viewingLog()?.operationWarnings ?? []}>
+                {(w) => <li>{w.message}</li>}
+              </For>
+            </ul>
+          </div>
+        </Show>
+        <Show when={(viewingLog()?.findings?.length ?? 0) > 0}>
+          <div class="mb-3 rounded-lg border border-info/40 bg-info/5 p-3 text-sm space-y-2">
+            <div class="flex items-center gap-2 text-info font-medium">
+              <Info class="w-4 h-4 shrink-0" />
+              <span>
+                {viewingLog()!.findings!.length === 1
+                  ? t("operation.findingsOne")
+                  : t("operation.findingsMany", { count: String(viewingLog()!.findings!.length) })}
+              </span>
+            </div>
+            <For each={viewingLog()?.findings ?? []}>
+              {(f) => <div class="ml-6 whitespace-pre-wrap text-base-content/80">{f.message}</div>}
+            </For>
+          </div>
+        </Show>
         <div class="bg-base-100 font-mono text-sm p-4 rounded-lg max-h-96 overflow-y-auto border border-base-content/5">
           <For each={viewingLog()?.output ?? []}>
             {(line) => (
-              <p classList={{ "text-red-400": line.source === "stderr" }}>
+              <p class="text-base-content/80">
                 <LineWithLinks line={line.line} />
               </p>
             )}

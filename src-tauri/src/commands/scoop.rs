@@ -1,8 +1,9 @@
 use execra::tauri::ExecraExt;
-use execra::{Context, ExitCode, Interpreter, InterpreterEvent, Line, Outcome};
+use execra::Outcome;
 use tauri::AppHandle;
 
-use crate::operations;
+use crate::commands::scoop_interpreter::{is_creep_phase, phase_range, ScoopInterpreter};
+use crate::operations::{self, OperationWarning};
 
 fn ps_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
@@ -19,59 +20,10 @@ where
         .collect::<Vec<_>>()
         .join(" ");
     let inner = format!(
-        "Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {} 2>&1",
+        "Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
         args
     );
-    execra::Command::new("powershell")
-        .args(["-NoLogo", "-NoProfile", "-Command", &inner])
-        .tags(["scoop".to_string()])
-}
-
-#[derive(Default)]
-pub struct ScoopInterpreter {
-    last_error: Option<String>,
-}
-
-impl Interpreter for ScoopInterpreter {
-    fn on_line(&mut self, _ctx: &Context, line: &Line) -> Vec<InterpreterEvent> {
-        let lower = line.text.to_lowercase();
-        if lower.contains("completed successfully") || lower.contains("was uninstalled") {
-            return vec![];
-        }
-        if lower.contains("error") || lower.contains("failed") {
-            self.last_error = Some(line.text.clone());
-            return vec![InterpreterEvent::KnownError {
-                code: "scoop.command_error".into(),
-                message: line.text.clone(),
-            }];
-        }
-        if lower.contains("downloading") {
-            return vec![InterpreterEvent::Progress {
-                progress: execra::Progress::indeterminate("downloading"),
-            }];
-        }
-        if lower.contains("extracting") {
-            return vec![InterpreterEvent::Progress {
-                progress: execra::Progress::indeterminate("extracting"),
-            }];
-        }
-        vec![]
-    }
-
-    fn on_exit(&mut self, _ctx: &Context, exit: &ExitCode) -> Vec<InterpreterEvent> {
-        if exit.is_success() {
-            return vec![];
-        }
-        self.last_error
-            .take()
-            .map(|message| {
-                vec![InterpreterEvent::KnownError {
-                    code: "scoop.command_error".into(),
-                    message,
-                }]
-            })
-            .unwrap_or_default()
-    }
+    execra::Command::powershell(inner).tags(["scoop".to_string()])
 }
 
 /// Supported Scoop operations.
@@ -126,7 +78,10 @@ fn operation_name(op: ScoopOp, package: Option<&str>) -> Result<String, String> 
 }
 
 /// Spawn a scoop command and stream its output through `OperationManager`,
-/// awaiting the outcome.
+/// awaiting the outcome. Interpreter-emitted semantic events (warnings,
+/// known errors, summary) are routed into the operation state via
+/// `.observe(...)` so the frontend renders status from semantics rather than
+/// from per-line coloring.
 pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<Outcome, String> {
     let outcome = app
         .execra()
@@ -134,6 +89,67 @@ pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<O
         .on_created(|app, job| operations::set_current_job(app, Some(job)))
         .on_output(|app, stream, line| {
             operations::append_output(app, line.to_string(), stream.as_str());
+        })
+        .observe(|app, event| match event {
+            execra::Event::WarningDetected { code, message, .. } => {
+                operations::push_operation_warning(
+                    app,
+                    OperationWarning {
+                        code: code.clone().unwrap_or_else(|| "interpreter.warning".into()),
+                        message: message.clone(),
+                    },
+                );
+            }
+            execra::Event::KnownErrorDetected { message, .. } => {
+                operations::set_known_error(app, message.clone());
+            }
+            execra::Event::ProgressUpdated { progress, .. } => match progress {
+                execra::Progress::Indeterminate { hint: Some(hint) } => {
+                    operations::set_current_phase(app, Some(hint.clone()));
+                    // Indeterminate hints don't speak to overall fill —
+                    // the phase pipeline drives that. Leave the bar
+                    // wherever the last determinate signal left it.
+                }
+                execra::Progress::Determinate(_) => {
+                    operations::set_progress_fraction(app, progress.as_fraction());
+                }
+                _ => {}
+            },
+            execra::Event::PhaseEntered { label, name, .. } => {
+                // The interpreter has already emitted a boundary
+                // Progress(start-of-this-phase) event right after this
+                // PhaseEntered, so we deliberately don't clear the
+                // fraction here — that would cause a 0%→start flicker.
+                operations::push_phase(
+                    app,
+                    label.clone().unwrap_or_else(|| name.clone()),
+                );
+                // Phases with no determinate signal (install, verify,
+                // extract, uninstall, scoop-self-update stages) creep
+                // the bar so the user sees motion. Phases with byte
+                // progress (download) explicitly stop any creep so the
+                // real signal can take over.
+                if is_creep_phase(name) {
+                    if let Some((start, end)) = phase_range(name) {
+                        operations::start_creep(app, start, end);
+                    }
+                } else {
+                    operations::stop_creep(app);
+                }
+            }
+            execra::Event::PhaseUpdated { label, .. } => {
+                operations::update_top_phase(app, label.clone());
+            }
+            execra::Event::PhaseExited { .. } => {
+                // Same reasoning: a Progress(end-of-prev-phase) event
+                // precedes this in the stream.
+                operations::pop_phase(app);
+                operations::stop_creep(app);
+            }
+            execra::Event::FindingEmitted { finding, .. } => {
+                operations::push_finding(app, finding.clone());
+            }
+            _ => {}
         })
         .on_interpreter_error(|_app, interpreter, error, line| {
             log::warn!(
@@ -143,9 +159,26 @@ pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<O
                 line
             );
         })
-        .on_finalized(|app, _outcome| operations::set_current_job(app, None))
+        .on_finalized(|app, outcome| {
+            if let Some(summary) = outcome_summary(outcome) {
+                operations::set_summary(app, summary);
+            }
+            // Op is done — kill any creep ticker, drop the live phase
+            // indicator + progress bar.
+            operations::stop_creep(app);
+            operations::set_current_phase(app, None);
+            operations::set_progress_fraction(app, None);
+            operations::set_current_job(app, None);
+        })
         .await;
     Ok(outcome)
+}
+
+fn outcome_summary(outcome: &Outcome) -> Option<String> {
+    match outcome {
+        Outcome::Succeeded { summary, .. } | Outcome::Failed { summary, .. } => summary.clone(),
+        Outcome::Cancelled { .. } => None,
+    }
 }
 
 pub async fn execute_scoop_outcome(

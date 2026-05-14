@@ -20,10 +20,10 @@ export default function VirusTotalSettings() {
         setIsLoading(true);
         setError(null);
         try {
-            const key = await invoke<string | null>("get_virustotal_api_key");
-            setApiKey(key ?? "");
-            setHasKey(!!key);
-            if (key && !settings.virustotal.enabled) {
+            const configured = await invoke<boolean>("has_virustotal_api_key");
+            setHasKey(configured);
+            setApiKey("");
+            if (configured && !settings.virustotal.enabled) {
                 setVirusTotalSettings({ enabled: true });
             }
         } catch (err) {
@@ -44,15 +44,20 @@ export default function VirusTotalSettings() {
         setError(null);
         setSaved(false);
 
-        if (!validateApiKey(apiKey())) {
+        const key = apiKey().trim();
+        if (key === "") return;
+
+        if (!validateApiKey(key)) {
             setError(t("settings.virustotal.errorInvalid"));
             return;
         }
 
         try {
-            await invoke("set_virustotal_api_key", { key: apiKey() });
-            setHasKey(!!apiKey());
-            if (apiKey() && !settings.virustotal.enabled) {
+            await invoke("set_virustotal_api_key", { key });
+            setApiKey("");
+            setHasKey(true);
+            setShowKey(false);
+            if (!settings.virustotal.enabled) {
                 setVirusTotalSettings({ enabled: true });
             }
             setSaved(true);
@@ -60,6 +65,24 @@ export default function VirusTotalSettings() {
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to save API key:", errorMsg);
+            setError(t("settings.virustotal.errorSave"));
+        }
+    };
+
+    const handleClear = async () => {
+        setError(null);
+        setSaved(false);
+        try {
+            await invoke("set_virustotal_api_key", { key: "" });
+            setApiKey("");
+            setHasKey(false);
+            setShowKey(false);
+            setVirusTotalSettings({ enabled: false });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error("Failed to clear API key:", errorMsg);
             setError(t("settings.virustotal.errorSave"));
         }
     };
@@ -98,30 +121,43 @@ export default function VirusTotalSettings() {
             <div class="flex items-center gap-2 max-w-lg">
                 <input
                     type={showKey() ? "text" : "password"}
-                    placeholder={isLoading() ? t("common.loading") : t("settings.virustotal.placeholder")}
+                    placeholder={isLoading() ? t("common.loading") : hasKey() ? t("settings.virustotal.savedPlaceholder") : t("settings.virustotal.placeholder")}
                     class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-sm"
                     value={apiKey()}
                     onInput={(e) => setApiKey(e.currentTarget.value)}
                     onKeyDown={handleKeyDown}
                     disabled={isLoading()}
                     spellcheck={false}
-                    autocomplete="off"
+                    autocomplete="new-password"
                 />
                 <button
                     class="btn btn-ghost btn-xs opacity-50 hover:opacity-100"
                     onClick={() => setShowKey(!showKey())}
                     tabIndex={-1}
+                    disabled={isLoading() || !apiKey()}
                 >
                     {showKey() ? t("common.hide") : t("common.show")}
                 </button>
                 <button
                     class="btn btn-primary btn-sm"
                     onClick={handleSave}
-                    disabled={isLoading()}
+                    disabled={isLoading() || !apiKey()}
                 >
                     {saved() ? t("common.saved") : t("common.save")}
                 </button>
+                <Show when={hasKey()}>
+                    <button
+                        class="btn btn-ghost btn-sm"
+                        onClick={handleClear}
+                        disabled={isLoading()}
+                    >
+                        {t("common.remove")}
+                    </button>
+                </Show>
             </div>
+            <Show when={hasKey()}>
+                <p class="text-success text-xs mt-1">{t("settings.virustotal.configured")}</p>
+            </Show>
 
             <Show when={error()}>
                 <p class="text-error text-xs mt-1">{error()}</p>
