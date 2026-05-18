@@ -1250,13 +1250,14 @@ dependencies = [
 
 [[package]]
 name = "execra"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb9eb8dbd4e81ecf9979b3fddb58da847f83fcc950ef46d63885ea9f05e72c5d"
+checksum = "af8e80c239f2145fb3430d4de6013e6bcb549f2c124653e34c283d56b6490443"
 dependencies = [
  "flate2",
  "futures-core",
  "libc",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
@@ -4049,7 +4050,7 @@ dependencies = [
 
 [[package]]
 name = "rscoop"
-version = "1.8.1"
+version = "1.8.2"
 dependencies = [
  "chrono",
  "csv",

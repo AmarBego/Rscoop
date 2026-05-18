@@ -2,7 +2,7 @@ use execra::tauri::ExecraExt;
 use execra::Outcome;
 use tauri::AppHandle;
 
-use crate::commands::scoop_interpreter::{is_creep_phase, phase_range, ScoopInterpreter};
+use crate::commands::scoop_interpreter::{is_creep_phase, phase_range, scoop_interpreter};
 use crate::operations::{self, OperationWarning};
 
 fn ps_quote(value: &str) -> String {
@@ -86,6 +86,17 @@ pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<O
     let outcome = app
         .execra()
         .task(command)
+        // Phases with no determinate signal of their own creep toward
+        // their slice end so the bar shows motion. Phases with a real
+        // signal (download → byte progress) return `None` so the ticker
+        // stays out of the way.
+        .creep(|name| {
+            if is_creep_phase(name) {
+                phase_range(name)
+            } else {
+                None
+            }
+        })
         .on_created(|app, job| operations::set_current_job(app, Some(job)))
         .on_output(|app, stream, line| {
             operations::append_output(app, line.to_string(), stream.as_str());
@@ -120,31 +131,23 @@ pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<O
                 // Progress(start-of-this-phase) event right after this
                 // PhaseEntered, so we deliberately don't clear the
                 // fraction here — that would cause a 0%→start flicker.
+                // The creep ticker is driven by `TaskBuilder::creep`
+                // (it emits synthetic ProgressUpdated handled above), so
+                // there's nothing phase-specific to do here beyond the
+                // breadcrumb.
                 operations::push_phase(
                     app,
                     label.clone().unwrap_or_else(|| name.clone()),
                 );
-                // Phases with no determinate signal (install, verify,
-                // extract, uninstall, scoop-self-update stages) creep
-                // the bar so the user sees motion. Phases with byte
-                // progress (download) explicitly stop any creep so the
-                // real signal can take over.
-                if is_creep_phase(name) {
-                    if let Some((start, end)) = phase_range(name) {
-                        operations::start_creep(app, start, end);
-                    }
-                } else {
-                    operations::stop_creep(app);
-                }
             }
             execra::Event::PhaseUpdated { label, .. } => {
                 operations::update_top_phase(app, label.clone());
             }
             execra::Event::PhaseExited { .. } => {
                 // Same reasoning: a Progress(end-of-prev-phase) event
-                // precedes this in the stream.
+                // precedes this in the stream. Execra's creep ticker
+                // self-cancels on PhaseExited.
                 operations::pop_phase(app);
-                operations::stop_creep(app);
             }
             execra::Event::FindingEmitted { finding, .. } => {
                 operations::push_finding(app, finding.clone());
@@ -163,9 +166,8 @@ pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<O
             if let Some(summary) = outcome_summary(outcome) {
                 operations::set_summary(app, summary);
             }
-            // Op is done — kill any creep ticker, drop the live phase
-            // indicator + progress bar.
-            operations::stop_creep(app);
+            // Op is done — drop the live phase indicator + progress bar.
+            // (Execra's creep ticker self-cancels on Finalized.)
             operations::set_current_phase(app, None);
             operations::set_progress_fraction(app, None);
             operations::set_current_job(app, None);
@@ -193,7 +195,7 @@ pub async fn execute_scoop_outcome(
         app,
         scoop_cmd(args)
             .label(label)
-            .interpreter(ScoopInterpreter::default()),
+            .interpreter(scoop_interpreter()),
     )
     .await
 }
@@ -223,7 +225,7 @@ pub async fn run_scoop_operation(
         app,
         scoop_cmd(args)
             .label(label.into())
-            .interpreter(ScoopInterpreter::default()),
+            .interpreter(scoop_interpreter()),
     )
     .await
 }

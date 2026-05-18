@@ -280,15 +280,33 @@ struct ActiveOp {
     /// Phase stack maintained from `PhaseEntered` / `PhaseUpdated` /
     /// `PhaseExited` events. Top of stack is the deepest phase.
     phase_stack: Vec<String>,
-    /// Determinate fraction for the active phase (0..=1) when the
-    /// interpreter emits `Progress::Determinate`. Reset on phase
-    /// transitions so each new phase gets its own bar.
+    /// Determinate fraction for the active phase (0..=1), driven by
+    /// interpreter byte progress and Execra's creep ticker (both arrive
+    /// as `Progress::Determinate`). Reset on phase transitions.
     progress_fraction: Option<f32>,
-    /// Monotonic counter incremented every time a creep ticker is
-    /// started or stopped. The ticker captures the value at spawn time
-    /// and bails out on every tick if the stored counter has moved —
-    /// no JoinHandle/Notify/Mutex needed.
-    creep_generation: u64,
+}
+
+impl ActiveOp {
+    /// A fresh active op wrapping `pending` — all interpreter-derived
+    /// state empty. The single place the field list is spelled out, so
+    /// the four start sites (enqueue, synthetic, queue-advance ×2) can't
+    /// drift apart.
+    fn new(pending: PendingOp) -> Self {
+        Self {
+            pending,
+            job_id: None,
+            output: VecDeque::new(),
+            result: None,
+            scan_warning: None,
+            operation_warnings: Vec::new(),
+            findings: Vec::new(),
+            known_error: None,
+            summary: None,
+            current_phase: None,
+            phase_stack: Vec::new(),
+            progress_fraction: None,
+        }
+    }
 }
 
 pub struct OperationManager {
@@ -371,6 +389,26 @@ fn emit_state(app: &AppHandle) {
     if let Err(e) = app.emit(EVENT_STATE_CHANGED, snap) {
         log::warn!("failed to emit state change: {}", e);
     }
+}
+
+/// Lock the manager, apply `f` to the current op (if any), and emit a
+/// state-changed event iff `f` reports a visible change. Returns `f`'s
+/// verdict (`false` when there is no current op). This collapses the
+/// "lock → mutate current → maybe emit" boilerplate that every setter
+/// below would otherwise repeat.
+fn with_current_mut(app: &AppHandle, f: impl FnOnce(&mut ActiveOp) -> bool) -> bool {
+    let changed = {
+        let state = manager(app);
+        let mut m = state.lock().unwrap();
+        match m.current.as_mut() {
+            Some(active) => f(active),
+            None => false,
+        }
+    };
+    if changed {
+        emit_state(app);
+    }
+    changed
 }
 
 /// Whether an operation is currently running (either active or queued).
@@ -565,9 +603,7 @@ pub fn append_output(app: &AppHandle, line: String, source: &str) {
 /// processes prevented an update"). Duplicates by `(code, message)` are
 /// suppressed so a chatty interpreter doesn't spam the UI.
 pub fn push_operation_warning(app: &AppHandle, warning: OperationWarning) {
-    let state = manager(app);
-    let mut m = state.lock().unwrap();
-    if let Some(active) = m.current.as_mut() {
+    with_current_mut(app, |active| {
         let dup = active
             .operation_warnings
             .iter()
@@ -575,232 +611,100 @@ pub fn push_operation_warning(app: &AppHandle, warning: OperationWarning) {
         if !dup {
             active.operation_warnings.push(warning);
         }
-    }
+        // Surfaced at finalize, not live — no emit needed.
+        false
+    });
 }
 
 /// Stash a semantic known-error surfaced by the interpreter. Used so the
 /// runner can report the interpreter's diagnostic instead of a generic
 /// "process exited with code N".
 pub fn set_known_error(app: &AppHandle, message: String) {
-    let state = manager(app);
-    let mut m = state.lock().unwrap();
-    if let Some(active) = m.current.as_mut() {
+    with_current_mut(app, |active| {
         if active.known_error.is_none() {
             active.known_error = Some(message);
         }
-    }
+        false
+    });
 }
 
 /// Stash an interpreter-provided summary line (e.g. "Installed firefox 1.2.3").
 /// Used in place of the generic "X completed successfully" when present.
 pub fn set_summary(app: &AppHandle, summary: String) {
-    let state = manager(app);
-    let mut m = state.lock().unwrap();
-    if let Some(active) = m.current.as_mut() {
+    with_current_mut(app, |active| {
         active.summary = Some(summary);
-    }
+        false
+    });
 }
 
 /// Append a [`Finding`] surfaced by the interpreter (Notes block,
 /// recommendation, etc.). Triggers a state-changed emit so the modal can
 /// render new findings without waiting for finalize.
 pub fn push_finding(app: &AppHandle, finding: Finding) {
-    let changed = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        match m.current.as_mut() {
-            Some(active) => {
-                active.findings.push(finding);
-                true
-            }
-            None => false,
-        }
-    };
-    if changed {
-        emit_state(app);
-    }
+    with_current_mut(app, |active| {
+        active.findings.push(finding);
+        true
+    });
 }
 
 /// Push a phase label onto the active op's phase stack.
 pub fn push_phase(app: &AppHandle, label: String) {
-    let changed = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        match m.current.as_mut() {
-            Some(active) => {
-                active.phase_stack.push(label);
-                true
-            }
-            None => false,
-        }
-    };
-    if changed {
-        emit_state(app);
-    }
+    with_current_mut(app, |active| {
+        active.phase_stack.push(label);
+        true
+    });
 }
 
 /// Replace the label at the top of the phase stack. No-op when the stack
 /// is empty.
 pub fn update_top_phase(app: &AppHandle, label: String) {
-    let changed = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        match m.current.as_mut() {
-            Some(active) if !active.phase_stack.is_empty() => {
-                let last = active.phase_stack.len() - 1;
-                active.phase_stack[last] = label;
-                true
-            }
-            _ => false,
+    with_current_mut(app, |active| match active.phase_stack.last_mut() {
+        Some(top) => {
+            *top = label;
+            true
         }
-    };
-    if changed {
-        emit_state(app);
-    }
+        None => false,
+    });
 }
 
 /// Pop the top phase off the active op's phase stack. No-op when empty.
 pub fn pop_phase(app: &AppHandle) {
-    let changed = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        match m.current.as_mut() {
-            Some(active) => active.phase_stack.pop().is_some(),
-            None => false,
-        }
-    };
-    if changed {
-        emit_state(app);
-    }
-}
-
-/// Start a creep ticker for the active op. While running, the ticker
-/// bumps `progress_fraction` by 2% of the remaining distance every
-/// 500 ms, capped at 95% of (end − start) so real signals (next phase
-/// boundary, byte progress) have somewhere to take over.
-///
-/// Any previous creep is implicitly cancelled — incrementing the
-/// generation counter is the cancellation signal. The new ticker reads
-/// its own generation at spawn time and bails out as soon as the
-/// counter moves.
-pub fn start_creep(app: &AppHandle, start: f32, end: f32) {
-    if !(end > start) {
-        return;
-    }
-    let gen = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        match m.current.as_mut() {
-            Some(active) => {
-                active.creep_generation = active.creep_generation.wrapping_add(1);
-                // Snap to phase start so byte progress / boundary
-                // Progress events line up with the bar.
-                if active.progress_fraction != Some(start) {
-                    active.progress_fraction = Some(start);
-                }
-                active.creep_generation
-            }
-            None => return,
-        }
-    };
-    emit_state(app);
-
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        let span = end - start;
-        // Stop just shy of the end so the next phase boundary has
-        // somewhere to advance to. Otherwise the bar would touch the
-        // boundary and the boundary Progress event would be a no-op.
-        let cap = start + 0.95 * span;
-        let mut ticker = tokio::time::interval(std::time::Duration::from_millis(500));
-        // First `tick()` fires immediately; skip it so the first real
-        // bump happens 500 ms after spawn.
-        ticker.tick().await;
-        loop {
-            ticker.tick().await;
-            let should_emit = {
-                let state = manager(&app);
-                let mut m = state.lock().unwrap();
-                let Some(active) = m.current.as_mut() else {
-                    return;
-                };
-                if active.creep_generation != gen {
-                    return;
-                }
-                let cur = active.progress_fraction.unwrap_or(start);
-                if cur + 0.0001 >= cap {
-                    return;
-                }
-                let new = (cur + (cap - cur) * 0.02).min(cap);
-                // Only push a state event when the rounded percent
-                // changes — sub-percent bumps don't move pixels.
-                let old_pct = (cur * 100.0).round() as i32;
-                let new_pct = (new * 100.0).round() as i32;
-                active.progress_fraction = Some(new);
-                new_pct != old_pct
-            };
-            if should_emit {
-                emit_state(&app);
-            }
-        }
-    });
-}
-
-/// Cancel the active creep ticker, if any. Cheap when there's nothing
-/// to cancel.
-pub fn stop_creep(app: &AppHandle) {
-    let state = manager(app);
-    let mut m = state.lock().unwrap();
-    if let Some(active) = m.current.as_mut() {
-        active.creep_generation = active.creep_generation.wrapping_add(1);
-    }
+    with_current_mut(app, |active| active.phase_stack.pop().is_some());
 }
 
 /// Update determinate progress for the active op (0..=1). Pass `None` to
 /// switch back to indeterminate. Throttled to whole-percent changes — we
-/// don't need to emit state on every byte of stdout; the wire savings are
-/// large during big downloads.
+/// don't need to emit state on every byte of stdout (or every creep tick);
+/// the wire savings are large during big downloads.
+///
+/// The creep ticker that fills opaque phases now lives in Execra
+/// (`TaskBuilder::creep`); it arrives here as synthetic `ProgressUpdated`
+/// events routed through this same setter.
 pub fn set_progress_fraction(app: &AppHandle, fraction: Option<f32>) {
-    let changed = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        match m.current.as_mut() {
-            Some(active) => {
-                let new_pct = fraction.map(|f| (f * 100.0).round() as i32);
-                let old_pct = active.progress_fraction.map(|f| (f * 100.0).round() as i32);
-                if new_pct != old_pct {
-                    active.progress_fraction = fraction;
-                    true
-                } else {
-                    false
-                }
-            }
-            None => false,
+    with_current_mut(app, |active| {
+        let new_pct = fraction.map(|f| (f * 100.0).round() as i32);
+        let old_pct = active.progress_fraction.map(|f| (f * 100.0).round() as i32);
+        if new_pct != old_pct {
+            active.progress_fraction = fraction;
+            true
+        } else {
+            false
         }
-    };
-    if changed {
-        emit_state(app);
-    }
+    });
 }
 
 /// Update the active op's current progress phase. Pass `None` to clear
 /// (e.g. on finalize). Triggers a state-changed emit so the modal subtitle
 /// stays in sync without per-output round-trips.
 pub fn set_current_phase(app: &AppHandle, phase: Option<String>) {
-    let changed = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        match m.current.as_mut() {
-            Some(active) if active.current_phase != phase => {
-                active.current_phase = phase;
-                true
-            }
-            _ => false,
+    with_current_mut(app, |active| {
+        if active.current_phase != phase {
+            active.current_phase = phase;
+            true
+        } else {
+            false
         }
-    };
-    if changed {
-        emit_state(app);
-    }
+    });
 }
 
 pub fn set_current_job(app: &AppHandle, job_id: Option<execra::JobId>) {
@@ -851,21 +755,7 @@ pub fn enqueue(app: &AppHandle, action: EnqueueAction) -> String {
             auto_chain,
         };
         if m.current.is_none() {
-            m.current = Some(ActiveOp {
-                pending: pending.clone(),
-                job_id: None,
-                output: VecDeque::new(),
-                result: None,
-                scan_warning: None,
-                operation_warnings: Vec::new(),
-                findings: Vec::new(),
-                known_error: None,
-                summary: None,
-                current_phase: None,
-                phase_stack: Vec::new(),
-                progress_fraction: None,
-                creep_generation: 0,
-            });
+            m.current = Some(ActiveOp::new(pending.clone()));
             (id, Some(pending))
         } else {
             m.queue.push_back(pending);
@@ -975,6 +865,30 @@ fn archive_finished_current(m: &mut OperationManager) -> bool {
     true
 }
 
+/// Tag the finished current op with `result`, then decide what's next:
+/// if the queue is non-empty, archive the finished op and promote the
+/// queue head to current (returning it so the caller can spawn a runner);
+/// otherwise leave the finished op as current so the user can see the
+/// outcome until they dismiss it or enqueue something new.
+///
+/// The post-completion bookkeeping was duplicated verbatim in
+/// `run_action` and `finish_synthetic` — this is the single copy.
+fn advance_or_linger(m: &mut OperationManager, result: CommandResult) -> Option<PendingOp> {
+    if let Some(active) = m.current.as_mut() {
+        active.result = Some(result);
+    }
+    if m.queue.is_empty() {
+        return None;
+    }
+    // `result` is set above, so this moves the finished op into history.
+    archive_finished_current(m);
+    let next = m.queue.pop_front();
+    if let Some(p) = next.clone() {
+        m.current = Some(ActiveOp::new(p));
+    }
+    next
+}
+
 /// Runs the current op's deferred chain (e.g. the cache-clear after an
 /// uninstall when auto-clear was off). Extracts the chain action and
 /// enqueues it as a fresh op; the original finished op is archived.
@@ -1047,30 +961,16 @@ pub fn start_synthetic(
             return None;
         }
         let id = m.gen_id();
-        m.current = Some(ActiveOp {
-            pending: PendingOp {
-                id: id.clone(),
-                title,
-                kind,
-                package_name,
-                // Sentinel — never executed because no runner is spawned.
-                action: EnqueueAction::UpdateAll,
-                chain: None,
-                auto_chain: true,
-            },
-            job_id: None,
-            output: VecDeque::new(),
-            result: None,
-            scan_warning: None,
-            operation_warnings: Vec::new(),
-            findings: Vec::new(),
-            known_error: None,
-            summary: None,
-            current_phase: None,
-            phase_stack: Vec::new(),
-            progress_fraction: None,
-            creep_generation: 0,
-        });
+        m.current = Some(ActiveOp::new(PendingOp {
+            id: id.clone(),
+            title,
+            kind,
+            package_name,
+            // Sentinel — never executed because no runner is spawned.
+            action: EnqueueAction::UpdateAll,
+            chain: None,
+            auto_chain: true,
+        }));
         id
     };
     emit_state(app);
@@ -1100,37 +1000,7 @@ pub fn finish_synthetic(app: &AppHandle, success: bool, message: String) {
     let next = {
         let state = manager(app);
         let mut m = state.lock().unwrap();
-        let has_queued = !m.queue.is_empty();
-        if has_queued {
-            if let Some(active) = m.current.as_mut() {
-                active.result = Some(result.clone());
-            }
-            archive_finished_current(&mut m);
-            let next = m.queue.pop_front();
-            if let Some(p) = next.clone() {
-                m.current = Some(ActiveOp {
-                    pending: p,
-                    job_id: None,
-                    output: VecDeque::new(),
-                    result: None,
-                    scan_warning: None,
-                    operation_warnings: Vec::new(),
-                    findings: Vec::new(),
-                    known_error: None,
-                    summary: None,
-                    current_phase: None,
-                    phase_stack: Vec::new(),
-                    progress_fraction: None,
-                    creep_generation: 0,
-                });
-            }
-            next
-        } else {
-            if let Some(active) = m.current.as_mut() {
-                active.result = Some(result.clone());
-            }
-            None
-        }
+        advance_or_linger(&mut m, result.clone())
     };
 
     emit_state(app);
@@ -1251,39 +1121,7 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
     let next = {
         let state = manager(&app);
         let mut m = state.lock().unwrap();
-        let has_queued = !m.queue.is_empty();
-        if has_queued {
-            // Stash the result on current so archive_finished_current sees it.
-            if let Some(active) = m.current.as_mut() {
-                active.result = Some(result.clone());
-            }
-            archive_finished_current(&mut m);
-            let next = m.queue.pop_front();
-            if let Some(p) = next.clone() {
-                m.current = Some(ActiveOp {
-                    pending: p,
-                    job_id: None,
-                    output: VecDeque::new(),
-                    result: None,
-                    scan_warning: None,
-                    operation_warnings: Vec::new(),
-                    findings: Vec::new(),
-                    known_error: None,
-                    summary: None,
-                    current_phase: None,
-                    phase_stack: Vec::new(),
-                    progress_fraction: None,
-                    creep_generation: 0,
-                });
-            }
-            next
-        } else {
-            // No queue: keep the op as current, just tag the result.
-            if let Some(active) = m.current.as_mut() {
-                active.result = Some(result.clone());
-            }
-            None
-        }
+        advance_or_linger(&mut m, result.clone())
     };
 
     emit_state(&app);
@@ -1296,19 +1134,16 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
 /// Stash a scan warning on the currently-active op. Called from the Scan
 /// execute path so the frontend can render the warning UI after state sync.
 fn set_scan_warning(app: &AppHandle, warning: ScanWarning) {
-    let state = manager(app);
-    let mut m = state.lock().unwrap();
-    if let Some(active) = m.current.as_mut() {
+    with_current_mut(app, |active| {
         active.scan_warning = Some(warning);
-    }
+        false
+    });
 }
 
 /// Reset semantic state captured by the previous step in a chained operation.
 /// Each step gets its own clean slate for summary/warning/known-error.
 fn reset_semantic_state(app: &AppHandle) {
-    let state = manager(app);
-    let mut m = state.lock().unwrap();
-    if let Some(active) = m.current.as_mut() {
+    with_current_mut(app, |active| {
         active.operation_warnings.clear();
         active.findings.clear();
         active.known_error = None;
@@ -1316,19 +1151,17 @@ fn reset_semantic_state(app: &AppHandle) {
         active.current_phase = None;
         active.phase_stack.clear();
         active.progress_fraction = None;
-        // Bump the generation so any in-flight creep ticker bails out.
-        active.creep_generation = active.creep_generation.wrapping_add(1);
-    }
+        false
+    });
 }
 
 /// Update the title of the current op in-place. Used when the op transitions
 /// phases (e.g. "Scanning firefox" → "Installing firefox" after a clean scan).
 fn update_current_title(app: &AppHandle, new_title: String) {
-    let state = manager(app);
-    let mut m = state.lock().unwrap();
-    if let Some(active) = m.current.as_mut() {
+    with_current_mut(app, |active| {
         active.pending.title = new_title;
-    }
+        false
+    });
 }
 
 async fn execute_action(app: &AppHandle, action: &EnqueueAction) -> Result<(), String> {
