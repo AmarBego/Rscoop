@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="pics/logo.png" alt="Rscoop" width="280">
+<img src="pics/logo.png" alt="rScoop" width="280">
 
-A desktop GUI for [Scoop](https://scoop.sh), search, install, update and manage Windows packages without touching the terminal.
+A desktop app for [Scoop](https://scoop.sh). Search, install, update, and manage Windows packages without dropping into a terminal.
 
 [![GitHub release](https://img.shields.io/github/v/release/AmarBego/Rscoop)](https://github.com/AmarBego/Rscoop/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -17,29 +17,45 @@ A desktop GUI for [Scoop](https://scoop.sh), search, install, update and manage 
 
 ## What is rScoop?
 
-rScoop is a native Windows app that wraps the [Scoop](https://scoop.sh) CLI. It doesn't replace Scoop rather it gives you a proper interface for it. Search across all your buckets at once, install and update packages, manage buckets, clean up disk space, and optionally scan downloads through VirusTotal, all from one window.
+rScoop is a native Windows GUI for the [Scoop](https://scoop.sh) package manager. It does not try to replace Scoop; it gives the CLI a faster, easier interface for everyday work.
 
-Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Runs in your system tray with desktop notifications, so it stays out of the way without losing track of what's running.
+Use it to search across buckets, install and update apps, manage installed packages, inspect manifests, clean old versions and caches, and keep an eye on package operations while they run in the background. Optional VirusTotal support can scan downloads before install.
+
+The app is built with Rust, SolidJS, and [Tauri 2](https://v2.tauri.app). It can stay in the system tray, send Windows notifications, and keep long-running installs or updates moving even after the main window is closed.
 
 ## Features
 
-**Search**: Type a query, get results from every added bucket instantly. Results show the bucket, version, and whether you already have it installed. Click to view the full manifest or install directly.
+**Package search**
 
-**Installed Packages**: Grid view of everything Scoop has installed. Filter by name or bucket, see what has updates available, hold versions, uninstall, or switch to a specific version.
+Search every added bucket at once. Results show the bucket, version, and install state, with quick actions for viewing the manifest or starting an install.
 
-**Buckets**: Browse your current buckets, see last-updated timestamps, or search GitHub for community buckets by stars/forks. Add or remove buckets from the UI.
+**Installed packages**
 
-**System Doctor**: Checks for missing dependencies (Git, 7-Zip), broken shims, and other common issues. One-click cleanup for old package versions and stale download caches. Full cache and shim manager with per-file sizes.
+Browse installed apps in a grid or list, filter by name or bucket, check which packages have updates, hold versions, uninstall apps, or switch versions.
 
-**VirusTotal Integration**: Paste your API key in settings and rScoop will scan packages before install. Configurable threat threshold blocks anything above it.
+**Bucket management**
 
-**Background Operations**: Install, update, and uninstall run in the background. Close the window to the tray and operations keep going. Windows notifications tell you when something finishes, with action buttons on the toast so you can respond without reopening the app. Queue up five installs, minimize, come back to find them all done.
+View your current buckets, check when they were last updated, search GitHub for community buckets, and add or remove buckets from the UI.
 
-**Tray Menu**: Pin your favorite Scoop apps to the top of the tray menu, hide the ones you never launch from there, see your full app list laid out at a glance. Real icons extracted from each exe, so the tray reads like a proper launcher.
+**System Doctor**
 
-**Profile Export & Import**: Export your entire rScoop + Scoop setup (apps, buckets, holds, config, preferences) to a portable JSON file. Import on a new machine to replicate your environment — buckets are cloned, apps are queued for background install, and settings are merged. Pluggable group system lets you export exactly what you need (full profile, scoop-compatible, or just preferences). Files are plain JSON with a versioned schema, safe to check into dotfiles repos.
+Check for missing dependencies such as Git and 7-Zip, broken shims, stale caches, and other common Scoop problems. Cleanup tools include old-version removal, cache management, and a shim manager with per-file details.
 
-**Settings**: Dark/light theme, tray behavior, auto-cleanup, auto-updates, background operations, security preferences.
+**Background operations**
+
+Install, update, uninstall, cleanup, and scan jobs run through a background operation system. Queue several tasks, minimize the app, and get a Windows notification when each one finishes.
+
+**Tray launcher**
+
+Launch installed Scoop apps from the tray menu. Pin favorites, hide entries you do not use there, and see real icons extracted from each executable.
+
+**Profile export and import**
+
+Export apps, buckets, holds, Scoop config, and rScoop preferences to a portable JSON profile. Import it on another machine to clone buckets, queue app installs, and merge settings. Profiles use a versioned schema and can be checked into a dotfiles repo.
+
+**Settings and security**
+
+Configure theme, startup behavior, tray behavior, auto-cleanup, bucket auto-updates, background jobs, and VirusTotal scanning.
 
 ## Screenshots
 
@@ -53,17 +69,19 @@ Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). Runs in your sys
 
 ## Install
 
-**Prerequisites:** [Scoop](https://scoop.sh) must be installed and working.
+**Prerequisite:** [Scoop](https://scoop.sh) must already be installed and working.
 
-1. Go to [Releases](https://github.com/AmarBego/Rscoop/releases) and download the `.msi` installer or portable `.exe`
-2. Run it. SmartScreen may prompt you, click *More info* → *Run anyway*
-3. On first launch, rScoop caches your bucket metadata. Use the Doctor page to verify your Scoop setup is healthy
+1. Open the [Releases](https://github.com/AmarBego/Rscoop/releases) page.
+2. Download the `.msi` installer or the portable `.exe`.
+3. Run the app. If SmartScreen appears, choose **More info** and then **Run anyway**.
+4. On first launch, let rScoop cache your bucket metadata.
+5. Open the Doctor page to check that your Scoop setup is healthy.
 
-rScoop includes built-in auto-updates, you'll be notified when a new version is available.
+rScoop includes built-in update checks and will notify you when a new release is available.
 
 ## Translations
 
-rScoop is available in multiple languages. Translations are community-driven via [Crowdin](https://crowdin.com/project/rscoop), no coding needed, just an eye for good phrasing.
+rScoop supports multiple languages through [Crowdin](https://crowdin.com/project/rscoop). Translation work is community-driven and does not require coding.
 
 | Language | Status | Contributor |
 |---|---|---|
@@ -77,18 +95,21 @@ rScoop is available in multiple languages. Translations are community-driven via
 | Russian | 🔄 Looking for contributors | — |
 | Spanish | 🔄 Looking for contributors | — |
 
-Want to help? [Jump in on Crowdin](https://crowdin.com/project/rscoop).
+Want to help? [Join the project on Crowdin](https://crowdin.com/project/rscoop).
+
 ## Tech Stack
 
 | Layer | Tech |
 |---|---|
 | Backend | Rust, Tauri 2 |
 | Frontend | SolidJS, TypeScript, Vite |
-| Runtime | [Execra](https://crates.io/crates/execra) for long-running jobs, cancellation, and operation status |
-| Package ops | Scoop CLI for package installs/updates/uninstalls; Rust-native rScoop logic for indexing, cache, doctor, profiles, shims, scheduling, and app state |
-| Native | System tray, single instance, auto-updater, file dialogs |
+| Runtime | [Execra](https://crates.io/crates/execra) for long-running jobs, cancellation, progress, and operation status |
+| Package operations | Scoop CLI for installs, updates, and uninstalls; Rust-native logic for indexing, cache cleanup, Doctor checks, profiles, shims, scheduling, and app state |
+| Native features | System tray, single instance, auto-updater, file dialogs, Windows notifications |
 
-The Rust backend exposes 30+ [commands](src-tauri/src/commands/) for search, install, uninstall, update, hold, bucket management, VirusTotal scanning, doctor checks, cache cleanup, shim management, profile export/import, scheduling, and more. rScoop uses Scoop where Scoop should remain the source of truth, especially package install/update/uninstall behavior, but much of the surrounding logic is implemented directly in Rust for speed, safer filesystem handling, richer UI state, and better cancellation.
+The Rust backend exposes 30+ [commands](src-tauri/src/commands/) for package search, install, uninstall, update, hold, bucket management, VirusTotal scanning, Doctor checks, cache cleanup, shim management, profile export/import, scheduling, and more.
+
+Scoop remains the source of truth for package installs, updates, and uninstalls. rScoop handles the surrounding workflow in Rust so the app can provide faster indexing, safer filesystem handling, richer UI state, cancellation, and clearer progress reporting.
 
 ## Docs
 
@@ -98,7 +119,7 @@ The Rust backend exposes 30+ [commands](src-tauri/src/commands/) for search, ins
 
 ## Contributing
 
-Issues and PRs welcome. See the [Developer Guide](https://amarbego.github.io/Rscoop/developer-guide.html) for setup instructions.
+Issues and PRs are welcome. See the [Developer Guide](https://amarbego.github.io/Rscoop/developer-guide.html) for local setup instructions.
 
 ## License
 
