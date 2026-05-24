@@ -4,6 +4,8 @@ import { ScoopPackage } from "../types/scoop";
 import { usePackageInfo } from "./usePackageInfo";
 import operationsStore from "../stores/operations";
 
+const MIN_SEARCH_TERM_LENGTH = 2;
+
 export function useSearch() {
     const [searchTerm, setSearchTerm] = createSignal("");
     const [results, setResults] = createSignal<ScoopPackage[]>([]);
@@ -15,15 +17,18 @@ export function useSearch() {
     let debounceTimer: number;
 
     const handleSearch = async () => {
-        if (searchTerm().trim() === "") {
+        const term = searchTerm().trim();
+
+        if (term.length < MIN_SEARCH_TERM_LENGTH) {
             setResults([]);
+            setLoading(false);
             return;
         }
 
         setLoading(true);
         try {
             const response = await invoke<{ packages: ScoopPackage[], is_cold: boolean }>("search_scoop", {
-                term: searchTerm(),
+                term,
             });
             setResults(response.packages);
         } catch (error) {
@@ -34,7 +39,7 @@ export function useSearch() {
     };
 
     const refreshAfterOperation = async () => {
-        if (searchTerm().trim() !== "") {
+        if (searchTerm().trim().length >= MIN_SEARCH_TERM_LENGTH) {
             await handleSearch();
         }
         const currentSelected = packageInfo.selectedPackage();

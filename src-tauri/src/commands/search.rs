@@ -92,7 +92,10 @@ fn parse_package_from_manifest(path: &Path) -> Option<CachedManifest> {
         }
     }
 
-    Some(CachedManifest { package, bin_strings })
+    Some(CachedManifest {
+        package,
+        bin_strings,
+    })
 }
 
 /// Scans all bucket directories to find package manifests and populates the cache.

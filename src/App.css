@@ -7,51 +7,69 @@
   prefersdark: true;
   color-scheme: "dark";
 
-  /* Base surfaces */
-  --color-base-100: #222226;
+  /* Base surfaces — GNOME-inspired greys tinted toward primary hue */
+  --color-base-100: oklch(23% 0.005 270);
   /* main background */
-  --color-base-200: #2e2e32;
+  --color-base-200: oklch(30% 0.005 270);
   /* header/toolbar */
-  --color-base-300: #343437;
+  --color-base-300: oklch(34% 0.004 270);
   /* elevated surfaces (Dark 3) */
-  --color-base-400: #3a3a3d;
+  --color-base-400: oklch(38% 0.004 270);
   /* elevated surfaces (Hover) */
-  --color-base-content: #f6f5f4;
-  /* light text (Light 2) */
+  --color-base-content: oklch(97% 0.003 90);
+  /* light text (Light 2), warm to soften pure white */
 
-  /* Brand & accents */
-  --color-primary: #3584e4;
+  /* Brand & accents (GNOME palette in OKLCH) */
+  --color-primary: oklch(60% 0.17 254);
   /* Blue 3 */
-  --color-primary-content: #ffffff;
+  --color-primary-content: oklch(99% 0.005 250);
 
-  --color-secondary: #9141ac;
+  --color-secondary: oklch(46% 0.17 318);
   /* Purple 3 */
-  --color-secondary-content: #ffffff;
+  --color-secondary-content: oklch(99% 0.005 250);
 
-  --color-accent: #62a0ea;
+  --color-accent: oklch(70% 0.14 252);
   /* Blue 2 */
-  --color-accent-content: #ffffff;
+  --color-accent-content: oklch(99% 0.005 250);
 
   /* Neutral */
-  --color-neutral: #222226;
-  --color-neutral-content: #f6f5f4;
+  --color-neutral: oklch(23% 0.005 270);
+  --color-neutral-content: oklch(97% 0.003 90);
 
   /* Status colors from HIG */
-  --color-info: #62a0ea;
+  --color-info: oklch(70% 0.14 252);
   /* Blue 2 */
-  --color-info-content: #ffffff;
+  --color-info-content: oklch(99% 0.005 250);
 
-  --color-success: #57e389;
+  --color-success: oklch(82% 0.18 145);
   /* Green 2 */
-  --color-success-content: #0d0d0d;
+  --color-success-content: oklch(15% 0.005 270);
 
-  --color-warning: #ff7800;
+  --color-warning: oklch(70% 0.18 53);
   /* Yellow 3 */
-  --color-warning-content: #0d0d0d;
+  --color-warning-content: oklch(15% 0.005 270);
 
-  --color-error: #e01b24;
+  --color-error: oklch(56% 0.22 28);
   /* Red 3 */
-  --color-error-content: #ffffff;
+  --color-error-content: oklch(99% 0.005 250);
+
+  /* Code surface — cooler than base, paired with Atom One Dark syntax theme */
+  --color-code-bg: oklch(28% 0.012 252);
+
+  /* Semantic: "versioned install" — distinct from primary blue, leans cyan */
+  --color-versioned: oklch(74% 0.13 215);
+
+  /* Tray preview, tokenized native menu colors */
+  --color-tray-preview-chrome: oklch(26% 0.012 254);
+  --color-tray-preview-menu: oklch(31% 0.006 270);
+  --color-tray-preview-border: oklch(43% 0.006 270);
+  --color-tray-preview-text: oklch(93% 0.004 90);
+  --color-tray-preview-muted: oklch(73% 0.006 270);
+  --color-tray-preview-separator: oklch(42% 0.006 270);
+  --color-tray-preview-pin: oklch(78% 0.16 73);
+  --color-tray-preview-overlay: oklch(84% 0.004 270 / 0.62);
+  --shadow-tray-preview-menu: 0 8px 22px oklch(10% 0.006 270 / 0.42);
+  --color-app-swatch-content: oklch(99% 0.005 250);
 
   /* GNOME's rounded + clean style */
   --radius-selector: 0.375rem;
@@ -72,51 +90,69 @@
   prefersdark: false;
   color-scheme: "light";
 
-  /* Base surfaces - inverted: gray background, white cards */
-  --color-base-100: #f0f4f9;
-  /* main background - medium gray */
-  --color-base-200: #FAFAF9;
-  /* header/toolbar - slightly darker gray */
-  --color-base-300: #ffffff;
-  /* elevated surfaces (cards) - white */
-  --color-base-400: #fafafa;
-  /* elevated surfaces (Hover) - very light gray */
-  --color-base-content: #18181b;
-  /* dark text - very dark for good contrast */
+  /* Base surfaces — tinted neutrals, cards lift slightly above page */
+  --color-base-100: oklch(96% 0.008 250);
+  /* main background — soft blue-tinted off-white */
+  --color-base-200: oklch(98% 0.003 90);
+  /* header/toolbar — warm near-white */
+  --color-base-300: oklch(99% 0.005 250);
+  /* elevated surfaces (cards) — tinted near-white, not pure white */
+  --color-base-400: oklch(98% 0.003 250);
+  /* elevated surfaces (Hover) */
+  --color-base-content: oklch(18% 0.005 270);
+  /* dark text */
 
-  /* Brand & accents */
-  --color-primary: #3584E4;
+  /* Brand & accents (GNOME palette in OKLCH) */
+  --color-primary: oklch(60% 0.17 254);
   /* Blue 3 */
-  --color-primary-content: #ffffff;
+  --color-primary-content: oklch(99% 0.005 250);
 
-  --color-secondary: #9141AC;
+  --color-secondary: oklch(46% 0.17 318);
   /* Purple 3 */
-  --color-secondary-content: #ffffff;
+  --color-secondary-content: oklch(99% 0.005 250);
 
-  --color-accent: #62a0ea;
+  --color-accent: oklch(70% 0.14 252);
   /* Blue 2 */
-  --color-accent-content: #ffffff;
+  --color-accent-content: oklch(99% 0.005 250);
 
   /* Neutral */
-  --color-neutral: #f4f4f5;
-  --color-neutral-content: #18181b;
+  --color-neutral: oklch(96% 0.003 270);
+  --color-neutral-content: oklch(18% 0.005 270);
 
-  /* Status colors from HIG */
-  --color-info: #3584e4;
-  /* Blue 3 - slightly darker for better contrast on light bg */
-  --color-info-content: #ffffff;
+  /* Status colors from HIG, shifted darker for light-bg contrast */
+  --color-info: oklch(60% 0.17 254);
+  /* Blue 3 */
+  --color-info-content: oklch(99% 0.005 250);
 
-  --color-success: #2EC27E;
-  /* Green 3 - darker for better light mode contrast */
-  --color-success-content: #ffffff;
+  --color-success: oklch(70% 0.16 155);
+  /* Green 3 */
+  --color-success-content: oklch(99% 0.005 250);
 
-  --color-warning: #FF7800;
-  /* Yellow 4 - better contrast on light */
-  --color-warning-content: #ffffff;
+  --color-warning: oklch(70% 0.18 53);
+  /* Yellow 4 */
+  --color-warning-content: oklch(99% 0.005 250);
 
-  --color-error: #E01B24;
-  /* Red 4 - darker for better light mode contrast */
-  --color-error-content: #ffffff;
+  --color-error: oklch(56% 0.22 28);
+  /* Red 4 */
+  --color-error-content: oklch(99% 0.005 250);
+
+  /* Code surface — slightly tinted neutral, paired with Atom One Light syntax theme */
+  --color-code-bg: oklch(96% 0.008 250);
+
+  /* Semantic: "versioned install" — darker for light-bg contrast */
+  --color-versioned: oklch(55% 0.14 215);
+
+  /* Tray preview, tokenized native menu colors */
+  --color-tray-preview-chrome: oklch(95% 0.011 250);
+  --color-tray-preview-menu: oklch(99% 0.004 250);
+  --color-tray-preview-border: oklch(84% 0.006 250);
+  --color-tray-preview-text: oklch(24% 0.006 270);
+  --color-tray-preview-muted: oklch(48% 0.006 270);
+  --color-tray-preview-separator: oklch(89% 0.005 250);
+  --color-tray-preview-pin: oklch(56% 0.15 73);
+  --color-tray-preview-overlay: oklch(45% 0.006 270 / 0.68);
+  --shadow-tray-preview-menu: 0 8px 20px oklch(40% 0.006 270 / 0.16);
+  --color-app-swatch-content: oklch(99% 0.005 250);
 
   /* GNOME's rounded + clean style */
   --radius-selector: 0.375rem;
@@ -133,6 +169,14 @@
 
 .bg-base-400 {
   background-color: var(--color-base-400);
+}
+
+.bg-code {
+  background-color: var(--color-code-bg);
+}
+
+.text-versioned {
+  color: var(--color-versioned);
 }
 
 /* Custom close button outline style */
@@ -153,6 +197,17 @@
 
 .animate-slide-lr {
   animation: slide-lr 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Utility: slow fade for overlays */

@@ -266,7 +266,7 @@ pub fn resolve_scoop_root<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, Stri
 
     if let Some(best) = select_best_scoop_root(candidates, None) {
         let best_path = best.path.clone();
-        
+
         log::info!(
             "Auto-detected Scoop root: {} (apps_dir={}, buckets_dir={}, installs={})",
             best_path.display(),
@@ -311,16 +311,6 @@ pub fn resolve_scoop_root<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, Stri
 /// Propagates any I/O failure and returns a domain-specific error when the
 /// manifest cannot be located.
 pub fn locate_package_manifest(
-    scoop_dir: &std::path::Path,
-    package_name: &str,
-    package_source: Option<String>,
-) -> Result<(PathBuf, String), String> {
-    locate_package_manifest_impl(scoop_dir, package_name, package_source)
-}
-
-// Internal implementation that contains the previous logic. This avoids code
-// duplication while giving us the opportunity to phase out the old API.
-fn locate_package_manifest_impl(
     scoop_dir: &std::path::Path,
     package_name: &str,
     package_source: Option<String>,
@@ -472,32 +462,6 @@ pub fn get_scoop_app_shortcuts_with_path(
         log::info!("Scoop Apps shortcuts detected: {}", shortcuts.len());
     }
     Ok(shortcuts)
-}
-
-/// Legacy wrapper for backwards compatibility - tries to find Scoop root automatically
-pub fn get_scoop_app_shortcuts() -> Result<Vec<ScoopAppShortcut>, String> {
-    // Try to find Scoop root automatically for backwards compatibility
-    let scoop_root = get_scoop_root_fallback();
-    get_scoop_app_shortcuts_with_path(&scoop_root)
-}
-
-/// Get Scoop root directory as fallback when AppState is not available
-pub fn get_scoop_root_fallback() -> PathBuf {
-    let candidates = build_candidate_list(Vec::<PathBuf>::new());
-
-    if let Some(best) = select_best_scoop_root(candidates, None) {
-        log::info!(
-            "Using Scoop root fallback: {} (apps_dir={}, buckets_dir={}, installs={})",
-            best.path.display(),
-            best.has_apps_dir,
-            best.has_buckets_dir,
-            best.installed_count
-        );
-        return best.path;
-    }
-
-    log::warn!("Could not find Scoop root directory, using default");
-    PathBuf::from("C:\\scoop")
 }
 
 #[derive(Debug)]

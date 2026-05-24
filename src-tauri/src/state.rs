@@ -43,7 +43,10 @@ impl AppState {
 
     /// Returns the current Scoop root path stored in the application state.
     pub fn scoop_path(&self) -> PathBuf {
-        self.scoop_path.read().unwrap_or_else(|e| e.into_inner()).clone()
+        self.scoop_path
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// Updates the Scoop root path stored in the application state.
@@ -72,12 +75,12 @@ impl AppState {
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
         let last_refresh = self.last_refresh_time();
-        
+
         // If last_refresh is 0, it's the first run, so don't debounce
         if last_refresh == 0 {
             return false;
         }
-        
+
         now.saturating_sub(last_refresh) < 1000 // Debounce within 1 second
     }
 }

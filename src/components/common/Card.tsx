@@ -22,21 +22,21 @@ export default function Card(props: CardProps) {
             aria-describedby={descriptionId}
         >
             <div class="card-body p-4">
-                <div class="flex items-center justify-between">
-                    <h2 class="card-title text-xl flex items-center">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h2 class="card-title text-lg sm:text-xl flex items-center min-w-0">
                         {props.icon && (
-                            <Dynamic component={props.icon} class="w-6 h-6 mr-2 text-primary" />
+                            <Dynamic component={props.icon} class="w-6 h-6 mr-2 text-primary shrink-0" />
                         )}
 
-                        {props.title}
+                        <span class="min-w-0 break-words">{props.title}</span>
                     </h2>
                     <Show when={props.headerAction}>
-                        <div class="form-control">{props.headerAction}</div>
+                        <div class="form-control w-full sm:w-auto sm:shrink-0">{props.headerAction}</div>
                     </Show>
                 </div>
 
                 <Show when={props.description}>
-                    <div id={descriptionId} class=" mb-4">
+                    <div id={descriptionId} class="mb-4 text-sm text-base-content/70 break-words">
                         {props.description}
                     </div>
                 </Show>

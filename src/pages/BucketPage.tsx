@@ -43,6 +43,7 @@ function BucketPage() {
   const [showAddBucketModal, setShowAddBucketModal] = createSignal(false);
   const [updatingBuckets, setUpdatingBuckets] = createSignal<Set<string>>(new Set());
   const [updateResults, setUpdateResults] = createSignal<{ [key: string]: string }>({});
+  const [updateError, setUpdateError] = createSignal<string | null>(null);
 
   onMount(() => {
     fetchBuckets();
@@ -158,6 +159,7 @@ function BucketPage() {
   // Handle updating a single bucket
   const handleUpdateBucket = async (bucketName: string) => {
     setUpdatingBuckets(prev => new Set([...prev, bucketName]));
+    setUpdateError(null);
 
     try {
       const result = await invoke<BucketUpdateResult>("update_bucket", {
@@ -179,6 +181,7 @@ function BucketPage() {
       }
     } catch (error) {
       console.error('Failed to update bucket:', bucketName, error);
+      setUpdateError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
     } finally {
       setUpdatingBuckets(prev => {
         const newSet = new Set(prev);
@@ -193,10 +196,9 @@ function BucketPage() {
     console.log('Updating all buckets...');
     const gitBuckets = buckets().filter(bucket => bucket.is_git_repo);
 
-    // Update all git buckets in parallel
-    await Promise.all(
-      gitBuckets.map(bucket => handleUpdateBucket(bucket.name))
-    );
+    for (const bucket of gitBuckets) {
+      await handleUpdateBucket(bucket.name);
+    }
   };
 
   const refreshPackageStateAfterOperation = async () => {
@@ -240,9 +242,9 @@ function BucketPage() {
     <div class="p-4">
       <div class="max-w-6xl mx-auto">
         {/* Header Section */}
-        <div class={`mb-6 relative transition-all duration-300 ${isSearchActive() ? 'mb-32' : 'mb-6'}`}>
-          <div class="flex items-center justify-between">
-            <div class={`transition-all duration-300 ${isSearchActive() ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div class="mb-6">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div classList={{ "hidden": isSearchActive() }}>
               <h1 class="text-3xl font-bold mb-2">{t("buckets.title")}</h1>
             </div>
 
@@ -254,60 +256,41 @@ function BucketPage() {
           </div>
         </div>
 
-        {/* Loading State */}
-        <Show when={loading() && !isSearchActive()}>
-          <div class="flex justify-center items-center py-8">
-            <span class="loading loading-spinner loading-lg"></span>
-            <span class="ml-2">{t("buckets.loading")}</span>
-          </div>
-        </Show>
-
-        {/* Error State */}
+        {/* Fetch Error State */}
         <Show when={error() && !isSearchActive()}>
           <div class="alert alert-error mb-4">
             <span>{error()}</span>
           </div>
         </Show>
 
-        {/* Main Content */}
-        <Show when={!loading() && !error()}>
-          {/* Search Results */}
-          <Show when={isSearchActive()}>
-            <div class={`transition-all duration-300 ${isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}>
-              <div class="card bg-base-100">
-                <div class="card-body">
-                  <BucketSearchResults
-                    buckets={searchResults()}
-                    loading={searchLoading()}
-                    error={searchError()}
-                    totalCount={searchTotalCount()}
-                    isExpandedSearch={isExpandedSearch()}
-                    installedBuckets={buckets()}
-                    onBucketSelect={handleSearchBucketSelect}
-                    onBucketInstalled={handleBucketInstalled}
-                  />
-                </div>
-              </div>
-            </div>
-          </Show>
+        {/* Search Results */}
+        <Show when={isSearchActive()}>
+          <BucketSearchResults
+            buckets={searchResults()}
+            loading={searchLoading()}
+            error={searchError()}
+            totalCount={searchTotalCount()}
+            isExpandedSearch={isExpandedSearch()}
+            installedBuckets={buckets()}
+            onBucketSelect={handleSearchBucketSelect}
+            onBucketInstalled={handleBucketInstalled}
+          />
+        </Show>
 
-          {/* Regular Buckets View */}
-          <Show when={!isSearchActive()}>
-            <div class={`transition-all duration-300 ${!isSearchActive() ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-              }`}>
-              <BucketGrid
-                buckets={buckets()}
-                onViewBucket={handleViewBucket}
-                onRefresh={fetchBuckets}
-                onUpdateBucket={handleUpdateBucket}
-                onUpdateAll={handleUpdateAllBuckets}
-                onAddBucket={() => setShowAddBucketModal(true)}
-                updatingBuckets={updatingBuckets()}
-                updateResults={updateResults()}
-              />
-            </div>
-          </Show>
+        {/* Regular Buckets View — header always renders, spinner sits in body */}
+        <Show when={!isSearchActive() && !error()}>
+          <BucketGrid
+            buckets={buckets()}
+            loading={loading()}
+            onViewBucket={handleViewBucket}
+            onRefresh={fetchBuckets}
+            onUpdateBucket={handleUpdateBucket}
+            onUpdateAll={handleUpdateAllBuckets}
+            onAddBucket={() => setShowAddBucketModal(true)}
+            updatingBuckets={updatingBuckets()}
+            updateResults={updateResults()}
+            error={updateError()}
+          />
         </Show>
       </div>
 

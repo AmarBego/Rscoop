@@ -1,10 +1,10 @@
 //! Command for checking for available updates for installed Scoop packages.
 use crate::commands::installed::get_installed_packages_full;
-use crate::models::ScoopPackage as InstalledPackage;
+use crate::models::{PackageManifest, ScoopPackage as InstalledPackage};
 use crate::state::AppState;
 use crate::utils::locate_package_manifest;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -16,12 +16,6 @@ pub struct UpdatablePackage {
     pub name: String,
     pub current: String,
     pub available: String,
-}
-
-/// Represents the structure of a `manifest.json` file, used to extract the version.
-#[derive(Deserialize, Debug)]
-struct Manifest {
-    version: String,
 }
 
 /// Checks a single package to see if a newer version is available in its manifest.
@@ -40,7 +34,7 @@ fn check_package_for_update(
     // Read and parse the manifest to get the latest version.
     let content = fs::read_to_string(manifest_path)
         .map_err(|e| format!("Could not read manifest for {}: {}", package.name, e))?;
-    let manifest: Manifest = serde_json::from_str(&content)
+    let manifest: PackageManifest = serde_json::from_str(&content)
         .map_err(|e| format!("Could not parse manifest for {}: {}", package.name, e))?;
 
     // Compare versions and return an UpdatablePackage if a new version is found.

@@ -69,7 +69,6 @@ pub struct AppStatusInfo {
     pub name: String,
     pub installed_version: String,
     pub latest_version: Option<String>,
-    pub missing_dependencies: Vec<String>,
     pub info: Vec<String>,
     pub is_outdated: bool,
     pub is_failed: bool,
@@ -94,6 +93,8 @@ pub struct ScoopStatus {
 pub struct PackageManifest {
     pub description: Option<String>,
     pub version: String,
+    #[serde(default)]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone, Default)]

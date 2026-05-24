@@ -1,8 +1,9 @@
 import { For } from "solid-js";
-import { Languages } from "lucide-solid";
+import { Languages, ChevronDown } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import { useI18n, availableLanguages } from "../../../i18n";
 import Card from "../../common/Card";
+import { Dropdown, DropdownItem } from "../../common/Dropdown";
 
 function LanguageSettings() {
     const { settings, setLanguage } = settingsStore;
@@ -13,23 +14,30 @@ function LanguageSettings() {
         setI18nLanguage(lang);
     };
 
+    const currentLabel = () => availableLanguages.find(l => l.code === settings.language)?.name ?? settings.language;
+
     return (
         <Card
             title={t("settings.language.title")}
             icon={Languages}
             description={t("settings.language.description")}
             headerAction={
-                <select
-                    class="select select-sm select-bordered"
-                    value={settings.language}
-                    onChange={(e) => handleChange(e.currentTarget.value)}
+                <Dropdown
+                    ariaLabel={t("settings.language.title")}
+                    triggerClass="border border-base-content/20"
+                    trigger={<><span>{currentLabel()}</span><ChevronDown class="w-4 h-4 opacity-60" aria-hidden="true" /></>}
                 >
                     <For each={availableLanguages}>
                         {(lang) => (
-                            <option value={lang.code}>{lang.name}</option>
+                            <DropdownItem
+                                active={settings.language === lang.code}
+                                onClick={() => handleChange(lang.code)}
+                            >
+                                {lang.name}
+                            </DropdownItem>
                         )}
                     </For>
-                </select>
+                </Dropdown>
             }
         />
     );

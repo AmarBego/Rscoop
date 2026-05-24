@@ -1,8 +1,8 @@
 //! Cleanup operations. All streaming cleanup flows run through the
 //! OperationManager — callers should enqueue `CleanupApps` / `CleanupCache`
 //! actions rather than invoke these directly.
-use crate::commands::installed::get_installed_packages_full;
 use crate::commands::doctor::cache;
+use crate::commands::installed::get_installed_packages_full;
 use crate::commands::scoop;
 use crate::operations;
 use crate::state::AppState;
@@ -57,7 +57,7 @@ pub async fn cleanup_outdated_cache_internal(app: AppHandle) -> Result<(), Strin
         "stdout",
     );
 
-    let result = cache::cleanup_outdated_cache_internal(app.clone()).await?;
+    let result = cache::cleanup_outdated_cache_for_packages_internal(app.clone(), None).await?;
 
     for file in result.deleted.iter().take(100) {
         operations::append_output(&app, format!("Deleted cache file: {}", file), "stdout");
@@ -89,20 +89,6 @@ pub async fn cleanup_outdated_cache_internal(app: AppHandle) -> Result<(), Strin
         "stdout",
     );
     Ok(())
-}
-
-/// Force-cleanup ALL apps including versioned installs. Kept as a separate
-/// Tauri command because it bypasses the normal queue (used from a dangerous
-/// settings toggle, not the Doctor page).
-#[tauri::command]
-pub async fn cleanup_all_apps_force(app: AppHandle) -> Result<(), String> {
-    log::warn!("Running FORCE cleanup of ALL app versions (including versioned installs)");
-    run_cleanup(
-        app,
-        vec!["cleanup".to_string(), "--all".to_string()],
-        "Force Cleanup All App Versions",
-    )
-    .await
 }
 
 async fn run_cleanup(app: AppHandle, args: Vec<String>, label: &str) -> Result<(), String> {

@@ -21,11 +21,11 @@ function ConfirmationModal(props: ConfirmationModalProps) {
             size="medium"
             footer={
                 <>
-                    <button class="btn-close-outline" onClick={props.onCancel}>
+                    <button type="button" class="btn-close-outline" onClick={props.onCancel}>
                         {props.cancelText || t("modal.confirmation.cancel")}
                     </button>
-                    <button class="btn btn-error" onClick={props.onConfirm}>
-                        {props.confirmText || "Confirm"}
+                    <button type="button" class="btn btn-error" onClick={props.onConfirm}>
+                        {props.confirmText || t("common.confirm")}
                     </button>
                 </>
             }

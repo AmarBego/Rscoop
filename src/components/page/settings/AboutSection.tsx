@@ -231,7 +231,7 @@ export default function AboutSection(props: AboutSectionProps) {
         )}
 
         {/* Links */}
-        <div class="flex items-center justify-center gap-3">
+        <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           <button
             class="btn btn-sm btn-ghost"
             onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}

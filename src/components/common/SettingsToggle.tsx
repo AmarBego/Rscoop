@@ -14,6 +14,8 @@ interface SettingsToggleProps {
      * Custom label text or element.
      */
     label?: string | JSX.Element;
+    ariaLabel?: string;
+    describedBy?: string;
     className?: string;
     children?: JSX.Element;
 }
@@ -38,6 +40,8 @@ export default function SettingsToggle(props: SettingsToggleProps) {
                 class="toggle toggle-primary"
                 checked={props.checked}
                 disabled={props.disabled}
+                aria-label={props.ariaLabel}
+                aria-describedby={props.describedBy}
                 onChange={(e) => props.onChange(e.currentTarget.checked)}
             />
         </label>

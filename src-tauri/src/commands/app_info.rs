@@ -1,6 +1,4 @@
 use crate::utils;
-use tauri;
-
 /// Checks if the application is installed via Scoop package manager
 #[tauri::command]
 pub fn is_scoop_installation() -> bool {
@@ -12,10 +10,4 @@ pub fn is_scoop_installation() -> bool {
 #[tauri::command]
 pub fn is_cwd_mismatch() -> bool {
     utils::is_cwd_mismatch()
-}
-
-/// Closes the application
-#[tauri::command]
-pub fn close_app<R: tauri::Runtime>(app: tauri::AppHandle<R>) {
-    app.exit(0);
 }

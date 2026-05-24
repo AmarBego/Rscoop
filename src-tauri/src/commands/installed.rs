@@ -1,6 +1,7 @@
 //! Command for fetching all installed Scoop packages from the filesystem.
 use crate::models::{InstallManifest, PackageManifest, ScoopPackage};
 use crate::state::{AppState, InstalledPackagesCache};
+use crate::utils::locate_package_manifest;
 use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use std::fs;
@@ -32,31 +33,6 @@ fn get_install_modification_time(install_dir: &Path) -> u128 {
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
         .map(|duration| duration.as_millis())
         .unwrap_or(0)
-}
-
-/// Searches for a package manifest in all bucket directories to determine the bucket.
-fn find_package_bucket(scoop_path: &Path, package_name: &str) -> Option<String> {
-    let buckets_path = scoop_path.join("buckets");
-
-    if let Ok(buckets) = fs::read_dir(&buckets_path) {
-        for bucket_entry in buckets.flatten() {
-            if bucket_entry.path().is_dir() {
-                let bucket_name = bucket_entry.file_name().to_string_lossy().to_string();
-                // Look in the correct path: buckets/{bucket}/bucket/{package}.json
-                let manifest_path = bucket_entry
-                    .path()
-                    .join("bucket")
-                    .join(format!("{}.json", package_name));
-
-                if manifest_path.exists() {
-                    return Some(bucket_name);
-                }
-            }
-        }
-    }
-
-    // Fallback: check if it's in the main bucket (which might not be in buckets dir)
-    None
 }
 
 /// Returns the most recently updated version directory for a package when the
@@ -163,11 +139,14 @@ fn load_package_details(package_path: &Path, scoop_path: &Path) -> Result<ScoopP
     let bucket = install_manifest
         .bucket
         .clone()
-        .or_else(|| find_package_bucket(scoop_path, &package_name))
+        .or_else(|| {
+            locate_package_manifest(scoop_path, &package_name, None)
+                .ok()
+                .map(|(_, bucket)| bucket)
+        })
         .unwrap_or_else(|| "main".to_string());
 
-    // Check if this is a versioned install - versioned installs don't have a bucket field in install.json
-    // AND cannot be found in any bucket directory (indicating custom/generated manifest)
+    // Versioned installs do not have a bucket field in install.json.
     let is_versioned_install = install_manifest.bucket.is_none();
 
     // Get the last modified time of the installation

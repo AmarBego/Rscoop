@@ -121,9 +121,7 @@ pub async fn clear_cache<R: Runtime>(
         &files
     );
 
-    clear_cache_internal(app, files)
-        .await
-        .map(|_| ())
+    clear_cache_internal(app, files).await.map(|_| ())
 }
 
 pub async fn clear_cache_internal<R: Runtime>(
@@ -160,8 +158,9 @@ pub async fn clear_cache_internal<R: Runtime>(
     clear_specific_files_safe(&cache_path, &files_to_delete, &versioned_packages)
 }
 
-pub async fn cleanup_outdated_cache_internal<R: Runtime>(
+pub async fn cleanup_outdated_cache_for_packages_internal<R: Runtime>(
     app: AppHandle<R>,
+    packages: Option<&[String]>,
 ) -> Result<CacheClearResult, String> {
     let state_app = app.clone();
     let state = state_app.state::<AppState>();
@@ -179,15 +178,28 @@ pub async fn cleanup_outdated_cache_internal<R: Runtime>(
         .iter()
         .map(|pkg| (pkg.name.to_ascii_lowercase(), pkg.version.clone()))
         .collect();
+    let versioned_packages: HashSet<String> = installed_packages
+        .iter()
+        .filter(|pkg| pkg.is_versioned_install)
+        .map(|pkg| pkg.name.clone())
+        .collect();
+    let requested_packages: Option<HashSet<String>> =
+        packages.map(|names| names.iter().map(|name| name.to_ascii_lowercase()).collect());
 
     let files_to_delete: Vec<String> = fs::read_dir(&cache_path)
         .map_err(|e| format!("Failed to read cache directory: {}", e))?
         .filter_map(Result::ok)
         .filter_map(|entry| {
             let path = entry.path();
-            let cache_entry = parse_cache_entry_from_path(&path, &HashSet::new())?;
-            let installed_version =
-                installed_versions.get(&cache_entry.name.to_ascii_lowercase());
+            let cache_entry = parse_cache_entry_from_path(&path, &versioned_packages)?;
+            let normalized_name = cache_entry.name.to_ascii_lowercase();
+            if requested_packages
+                .as_ref()
+                .is_some_and(|packages| !packages.contains(&normalized_name))
+            {
+                return None;
+            }
+            let installed_version = installed_versions.get(&normalized_name);
             let is_outdated = match installed_version {
                 Some(version) => cache_entry.version != *version,
                 None => true,
@@ -196,7 +208,7 @@ pub async fn cleanup_outdated_cache_internal<R: Runtime>(
         })
         .collect();
 
-    clear_specific_files_safe(&cache_path, &files_to_delete, &HashSet::new())
+    clear_specific_files_safe(&cache_path, &files_to_delete, &versioned_packages)
 }
 
 fn clear_specific_files_safe(
@@ -212,29 +224,29 @@ fn clear_specific_files_safe(
     let results: Vec<(String, Result<(), String>)> = files_to_delete
         .par_iter()
         .map(|file_name| {
-        // Parse the package name from the cache file name (format: name#version#hash.ext)
-        if let Some(package_name) = file_name.split('#').next() {
-            if versioned_packages.contains(package_name) {
-                log::info!("Skipping cache file for versioned install: {}", file_name);
-                return (file_name.clone(), Err("versioned install".to_string()));
+            // Parse the package name from the cache file name (format: name#version#hash.ext)
+            if let Some(package_name) = file_name.split('#').next() {
+                if versioned_packages.contains(package_name) {
+                    log::info!("Skipping cache file for versioned install: {}", file_name);
+                    return (file_name.clone(), Err("versioned install".to_string()));
+                }
             }
-        }
 
-        let file_path = cache_path.join(file_name);
-        if file_path.is_file() {
-            match fs::remove_file(&file_path) {
-                Ok(()) => {
-                    log::debug!("Deleted cache file: {}", file_name);
-                    (file_name.clone(), Ok(()))
+            let file_path = cache_path.join(file_name);
+            if file_path.is_file() {
+                match fs::remove_file(&file_path) {
+                    Ok(()) => {
+                        log::debug!("Deleted cache file: {}", file_name);
+                        (file_name.clone(), Ok(()))
+                    }
+                    Err(e) => {
+                        log::error!("Failed to delete cache file {}: {}", file_name, e);
+                        (file_name.clone(), Err(e.to_string()))
+                    }
                 }
-                Err(e) => {
-                    log::error!("Failed to delete cache file {}: {}", file_name, e);
-                    (file_name.clone(), Err(e.to_string()))
-                }
+            } else {
+                (file_name.clone(), Err("not a file".to_string()))
             }
-        } else {
-            (file_name.clone(), Err("not a file".to_string()))
-        }
         })
         .collect();
 
@@ -248,8 +260,5 @@ fn clear_specific_files_safe(
         }
     }
 
-    Ok(CacheClearResult {
-        deleted,
-        failed,
-    })
+    Ok(CacheClearResult { deleted, failed })
 }

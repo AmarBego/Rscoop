@@ -19,9 +19,11 @@ function BucketCard(props: BucketCardProps) {
   let observerRef: IntersectionObserver | undefined;
 
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "Unknown";
+    if (!dateString) return t("common.unknown");
     return new Date(dateString).toLocaleDateString();
   };
+
+  const openBucket = () => props.onViewBucket(props.bucket);
 
   // Flash overlay only when new manifests arrived
   createEffect(() => {
@@ -55,7 +57,7 @@ function BucketCard(props: BucketCardProps) {
     <div
       ref={cardRef}
       class="bg-base-300 rounded-lg p-4 cursor-pointer hover:bg-base-300/80 transition-colors relative overflow-hidden"
-      onClick={() => props.onViewBucket(props.bucket)}
+      onClick={openBucket}
     >
       {/* Success overlay */}
       <Show when={showOverlay()}>
@@ -66,15 +68,22 @@ function BucketCard(props: BucketCardProps) {
       </Show>
 
       <div class="flex items-start justify-between mb-2">
-        <div>
-          <h3 class="font-semibold">{props.bucket.name}</h3>
+        <div class="min-w-0 flex-1">
+          <button
+            type="button"
+            class="font-semibold text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate max-w-full"
+            onClick={openBucket}
+            title={props.bucket.name}
+          >
+            {props.bucket.name}
+          </button>
           <div class="flex items-baseline gap-1.5 mt-0.5">
             <span class="text-primary font-bold">{props.bucket.manifest_count}</span>
             <span class="text-xs text-base-content/50">{t("buckets.packages")}</span>
           </div>
         </div>
         <Show when={props.bucket.git_branch}>
-          <span class="text-xs text-base-content/40 font-mono">{props.bucket.git_branch}</span>
+          <span class="text-xs text-base-content/40 font-mono shrink-0 ml-2">{props.bucket.git_branch}</span>
         </Show>
       </div>
 
@@ -84,14 +93,15 @@ function BucketCard(props: BucketCardProps) {
         </Show>
         <Show when={props.bucket.is_git_repo && props.onUpdateBucket}>
           <button
-            class="btn btn-ghost btn-xs text-sm ml-auto"
+            type="button"
+            class="btn btn-ghost btn-sm ml-auto"
             onClick={(e) => {
               e.stopPropagation();
               props.onUpdateBucket!(props.bucket.name);
             }}
             disabled={props.isUpdating}
           >
-            <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": props.isUpdating }} />
+            <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": props.isUpdating }} aria-hidden="true" />
             {t("common.update")}
           </button>
         </Show>

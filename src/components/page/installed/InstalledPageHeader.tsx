@@ -3,6 +3,7 @@ import {
   Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, Activity
 } from 'lucide-solid';
 import { useI18n } from "../../../i18n";
+import { Dropdown, DropdownItem, DropdownTitle } from "../../common/Dropdown";
 
 interface InstalledPageHeaderProps {
   updatableCount: Accessor<number>;
@@ -28,31 +29,25 @@ interface InstalledPageHeaderProps {
 function InstalledPageHeader(props: InstalledPageHeaderProps) {
   const { t } = useI18n();
   const [isSearchOpen, setIsSearchOpen] = createSignal(false);
-  let searchContainerRef: HTMLDivElement | undefined;
   let searchInputRef: HTMLInputElement | undefined;
 
   createEffect(() => {
     if (!isSearchOpen()) return;
 
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (target.closest('[data-no-close-search]')) {
-        return;
-      }
-
-      if (searchContainerRef && !searchContainerRef.contains(event.target as Node)) {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
         setIsSearchOpen(false);
         props.setSearchQuery("");
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    onCleanup(() => document.removeEventListener("mousedown", handleClickOutside));
+    document.addEventListener("keydown", handleEscape);
+    onCleanup(() => document.removeEventListener("keydown", handleEscape));
   });
 
   createEffect(() => {
     if (isSearchOpen()) {
-      setTimeout(() => searchInputRef?.focus(), 50);
+      queueMicrotask(() => searchInputRef?.focus());
     }
   });
 
@@ -65,22 +60,28 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
       <Show
         when={!isSearchOpen()}
         fallback={
-          <div ref={searchContainerRef} class="flex-grow flex items-center gap-2">
+          <div class="flex-grow flex items-center gap-2">
             <div class="join w-full">
               <span class="join-item btn btn-disabled bg-base-200 border-none"> <Search class="w-4 h-4" /></span>
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder={t("installed.searchPlaceholder")}
-                class="input input-bordered w-full join-item bg-base-200"
+                aria-label={t("installed.searchTooltip")}
+                class="input w-full join-item bg-base-200 focus:outline-none focus:border-base-content/20"
                 value={props.searchQuery()}
                 onInput={(e) => props.setSearchQuery(e.currentTarget.value)}
               />
             </div>
-            <button class="btn btn-ghost btn-circle" onClick={() => {
-              setIsSearchOpen(false);
-              props.setSearchQuery("");
-            }}>
+            <button
+              type="button"
+              class="btn btn-ghost btn-circle"
+              aria-label={t("buckets.clearSearch")}
+              onClick={() => {
+                setIsSearchOpen(false);
+                props.setSearchQuery("");
+              }}
+            >
               <X class="w-5 h-5" />
             </button>
           </div>
@@ -90,7 +91,13 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
         <div class="flex items-center gap-2">
 
           {/* Search Button */}
-          <button class="btn btn-ghost btn-circle tooltip tooltip-bottom" data-tip={t("installed.searchTooltip")} onClick={() => setIsSearchOpen(true)}>
+          <button
+            type="button"
+            class="btn btn-ghost btn-circle tooltip tooltip-bottom"
+            data-tip={t("installed.searchTooltip")}
+            aria-label={t("installed.searchTooltip")}
+            onClick={() => setIsSearchOpen(true)}
+          >
             <Search class="w-5 h-5" />
           </button>
 
@@ -98,8 +105,10 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
           <Show when={props.updatableCount() > 0}
             fallback={
               <button
+                type="button"
                 class={`btn btn-ghost btn-circle tooltip tooltip-bottom ${props.scoopStatus?.()?.is_everything_ok ? "text-success" : ""}`}
                 data-tip={t("installed.checkStatusTooltip")}
+                aria-label={t("installed.checkStatusTooltip")}
                 onClick={props.onCheckStatus}
                 disabled={props.statusLoading?.()}
               >
@@ -121,41 +130,42 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
               </button>
             }
           >
-            <button class="btn btn-secondary gap-2" onClick={props.onUpdateAll}>
+            <button type="button" class="btn btn-secondary gap-2" onClick={props.onUpdateAll}>
               <CircleArrowUp class="w-4 h-4" />
               <span>{t("installed.updateAll", { count: props.updatableCount() })}</span>
             </button>
           </Show>
 
           {/* Filters Dropdown */}
-          <div class="dropdown dropdown-end">
-            <label tabindex="0" class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50" data-tip={t("installed.filterTooltip")}>
-              <Funnel class="w-4 h-4" />
-            </label>
-            <div tabindex="0" class="dropdown-content menu p-4 shadow bg-base-300 rounded-box w-64 z-[1]">
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">Bucket</span>
-                </label>
-                <select
-                  class="select select-bordered bg-base-300"
-                  value={props.selectedBucket()}
-                  onChange={(e) => props.setSelectedBucket(e.currentTarget.value)}
+          <Dropdown
+            size="lg"
+            tone="dark"
+            scrollable
+            menuWidth="w-56"
+            ariaLabel={t("installed.filterTooltip")}
+            triggerTooltip={t("installed.filterTooltip")}
+            triggerClass="border border-base-100/50"
+            trigger={<Funnel class="w-4 h-4" />}
+          >
+            <DropdownTitle>{t("installed.tableBucket")}</DropdownTitle>
+            <For each={props.uniqueBuckets()}>
+              {(bucket) => (
+                <DropdownItem
+                  active={props.selectedBucket() === bucket}
+                  onClick={() => props.setSelectedBucket(bucket)}
                 >
-                  <For each={props.uniqueBuckets()}>
-                    {(bucket) => (
-                      <option value={bucket}>{bucket === 'all' ? t("installed.allBuckets") : bucket}</option>
-                    )}
-                  </For>
-                </select>
-              </div>
-            </div>
-          </div>
+                  {bucket === 'all' ? t("installed.allBuckets") : bucket}
+                </DropdownItem>
+              )}
+            </For>
+          </Dropdown>
 
           {/* View Toggle Button */}
           <button
+            type="button"
             class="btn btn-ghost tooltip tooltip-bottom border border-base-100/50"
             data-tip={props.viewMode() === 'grid' ? t("installed.switchToList") : t("installed.switchToGrid")}
+            aria-label={props.viewMode() === 'grid' ? t("installed.switchToList") : t("installed.switchToGrid")}
             onClick={toggleViewMode}
           >
             <Show when={props.viewMode() === 'grid'}>

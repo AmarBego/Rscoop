@@ -25,7 +25,9 @@ pub struct IconCache {
 
 impl IconCache {
     pub fn new() -> Self {
-        Self { inner: Mutex::new(HashMap::new()) }
+        Self {
+            inner: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Lookup-or-extract. Returns None if extraction fails (e.g. target is
@@ -68,7 +70,10 @@ fn extract_icon(target_path: &str) -> Option<CachedIcon> {
     use windows_sys::Win32::UI::WindowsAndMessaging::{DestroyIcon, GetIconInfo, HICON, ICONINFO};
 
     // Convert to wide string for Win32
-    let wide: Vec<u16> = target_path.encode_utf16().chain(std::iter::once(0)).collect();
+    let wide: Vec<u16> = target_path
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
 
     unsafe {
         // Extract both large (~32x32) and small (~16x16) icons. We prefer
@@ -89,13 +94,21 @@ fn extract_icon(target_path: &str) -> Option<CachedIcon> {
         // Prefer the large icon; fall back to small if large wasn't provided.
         let chosen = if !large.is_null() { large } else { small };
         if chosen.is_null() {
-            if !small.is_null() { DestroyIcon(small); }
-            if !large.is_null() { DestroyIcon(large); }
+            if !small.is_null() {
+                DestroyIcon(small);
+            }
+            if !large.is_null() {
+                DestroyIcon(large);
+            }
             return None;
         }
         // Release the one we didn't pick.
-        if chosen != small && !small.is_null() { DestroyIcon(small); }
-        if chosen != large && !large.is_null() { DestroyIcon(large); }
+        if chosen != small && !small.is_null() {
+            DestroyIcon(small);
+        }
+        if chosen != large && !large.is_null() {
+            DestroyIcon(large);
+        }
 
         // Pull the color + mask bitmaps out of the HICON.
         let mut info: ICONINFO = std::mem::zeroed();
@@ -200,8 +213,7 @@ fn encode_data_url(rgba: &[u8], width: u32, height: u32) -> Option<String> {
 
 /// Minimal base64 encoder — avoids pulling in another dep just for this.
 fn base64_encode(data: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
     let mut i = 0;
     while i + 3 <= data.len() {

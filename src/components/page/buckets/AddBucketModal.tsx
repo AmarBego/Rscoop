@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, createUniqueId, Show } from "solid-js";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
 import Modal from "../../common/Modal";
 import { useI18n } from "../../../i18n";
@@ -11,6 +11,9 @@ interface AddBucketModalProps {
 
 function AddBucketModal(props: AddBucketModalProps) {
   const { t } = useI18n();
+  const formId = createUniqueId();
+  const urlId = createUniqueId();
+  const nameId = createUniqueId();
   const [url, setUrl] = createSignal("");
   const [name, setName] = createSignal("");
   const [error, setError] = createSignal<string | null>(null);
@@ -18,7 +21,8 @@ function AddBucketModal(props: AddBucketModalProps) {
 
   const bucketInstall = useBucketInstall();
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event?: SubmitEvent) => {
+    event?.preventDefault();
     const urlValue = url().trim();
     if (!urlValue) {
       setError(t("buckets.addModalUrlRequired"));
@@ -45,7 +49,7 @@ function AddBucketModal(props: AddBucketModalProps) {
         setError(result.message);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add bucket");
+      setError(err instanceof Error ? err.message : typeof err === "string" ? err : t("common.unknownError"));
     }
   };
 
@@ -67,12 +71,13 @@ function AddBucketModal(props: AddBucketModalProps) {
       size="small"
       footer={
         <div class="flex justify-end gap-2 w-full">
-          <button class="btn" onClick={resetAndClose} disabled={isInstalling()}>
+          <button type="button" class="btn" onClick={resetAndClose} disabled={isInstalling()}>
             {t("common.cancel")}
           </button>
           <button
+            type="submit"
+            form={formId}
             class="btn btn-primary"
-            onClick={handleSubmit}
             disabled={isInstalling() || !url().trim()}
           >
             <Show when={isInstalling()} fallback={t("buckets.addModalSubmit")}>
@@ -83,31 +88,31 @@ function AddBucketModal(props: AddBucketModalProps) {
         </div>
       }
     >
+      <form id={formId} onSubmit={handleSubmit}>
       <div class="form-control w-full mb-3">
-        <label class="label">
+        <label class="label" for={urlId}>
           <span class="label-text">{t("buckets.addModalUrlLabel")} <span class="text-error">*</span></span>
         </label>
         <input
+          id={urlId}
           type="text"
           placeholder={t("buckets.addModalUrlPlaceholder")}
-          class="input input-bordered w-full"
+          class="input w-full focus:outline-none focus:border-base-content/20"
           value={url()}
           onInput={(e) => setUrl(e.currentTarget.value)}
           disabled={isInstalling()}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !isInstalling()) handleSubmit();
-          }}
         />
       </div>
 
       <div class="form-control w-full">
-        <label class="label">
+        <label class="label" for={nameId}>
           <span class="label-text">{t("buckets.addModalNameLabel")} <span class="text-base-content/50">{t("buckets.addModalNameOptional")}</span></span>
         </label>
         <input
+          id={nameId}
           type="text"
           placeholder={t("buckets.addModalNamePlaceholder")}
-          class="input input-bordered w-full"
+          class="input w-full focus:outline-none focus:border-base-content/20"
           value={name()}
           onInput={(e) => setName(e.currentTarget.value)}
           disabled={isInstalling()}
@@ -125,6 +130,7 @@ function AddBucketModal(props: AddBucketModalProps) {
           <span>{success()}</span>
         </div>
       </Show>
+      </form>
     </Modal>
   );
 }

@@ -2,7 +2,9 @@
 //! This implements the equivalent of `scoop status` command.
 
 use crate::commands::installed::get_installed_packages_full;
-use crate::models::{AppStatusInfo, ScoopPackage as InstalledPackage, ScoopStatus};
+use crate::models::{
+    AppStatusInfo, PackageManifest, ScoopPackage as InstalledPackage, ScoopStatus,
+};
 use crate::state::AppState;
 use crate::utils::locate_package_manifest;
 use git2::Repository;
@@ -12,14 +14,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime, State};
 
-/// Represents the structure of a `manifest.json` file, used to extract the version.
-#[derive(Deserialize, Debug)]
-struct Manifest {
-    version: String,
-    #[serde(default)]
-    deprecated: Option<String>,
-}
-
 /// Represents the structure of an install.json file
 #[derive(Deserialize, Debug)]
 struct InstallInfo {
@@ -27,62 +21,46 @@ struct InstallInfo {
     hold: Option<bool>,
 }
 
-/// Check if a git repository needs updating by comparing local and remote branches.
-/// Uses git2 library instead of spawning shell processes for better performance.
-fn test_update_status(repo_path: &Path) -> Result<bool, String> {
+/// Check whether a git repository is behind its already-fetched remote ref.
+/// This is intentionally local-only: checking status must not fetch or mutate
+/// repository state.
+fn has_local_remote_update(repo_path: &Path) -> bool {
     if !repo_path.join(".git").exists() {
-        return Ok(false); // If not a git repo, no updates needed (not an error condition)
+        return false;
     }
 
     // Open the repository using git2
     let repo = match Repository::open(repo_path) {
         Ok(repo) => repo,
-        Err(_) => return Ok(false), // If we can't open the repo, assume no updates needed
+        Err(_) => return false,
     };
 
     // Get the current branch
     let head = match repo.head() {
         Ok(head) => head,
-        Err(_) => return Ok(false), // No HEAD, can't check for updates
+        Err(_) => return false,
     };
 
     let branch_name = match head.shorthand() {
         Some(name) => name,
-        None => return Ok(false), // No current branch name
+        None => return false,
     };
 
-    // Try to fetch from origin (this might fail due to network issues)
-    if let Ok(mut remote) = repo.find_remote("origin") {
-        // Attempt to fetch - if this fails, we'll treat it as a network error
-        if let Err(_) = remote.fetch(
-            &[&format!("+refs/heads/*:refs/remotes/origin/*")],
-            None,
-            None,
-        ) {
-            return Err("Network failure".to_string());
-        }
-    } else {
-        // No origin remote, can't check for updates
-        return Ok(false);
-    }
-
-    // Get local and remote commit IDs
-    let local_commit = match head.peel_to_commit() {
-        Ok(commit) => commit,
-        Err(_) => return Ok(false),
+    let local_oid = match head.target() {
+        Some(oid) => oid,
+        None => return false,
     };
 
     let remote_branch_name = format!("origin/{}", branch_name);
-    let remote_commit = match repo.find_branch(&remote_branch_name, git2::BranchType::Remote) {
-        Ok(branch) => match branch.get().peel_to_commit() {
-            Ok(commit) => commit,
-            Err(_) => return Ok(false),
+    let remote_oid = match repo.find_branch(&remote_branch_name, git2::BranchType::Remote) {
+        Ok(branch) => match branch.get().target() {
+            Some(oid) => oid,
+            None => return false,
         },
-        Err(_) => return Ok(false), // No remote branch found
+        Err(_) => return false,
     };
 
-    // Check if remote is ahead of local
-    Ok(local_commit.id() != remote_commit.id())
+    local_oid != remote_oid
 }
 
 /// Get the status of a single app
@@ -113,7 +91,7 @@ fn get_app_status(
         Ok((manifest_path, _)) => {
             match fs::read_to_string(manifest_path) {
                 Ok(content) => {
-                    match serde_json::from_str::<Manifest>(&content) {
+                    match serde_json::from_str::<PackageManifest>(&content) {
                         Ok(manifest) => {
                             latest_version = Some(manifest.version.clone());
                             // Check if package is outdated
@@ -169,7 +147,6 @@ fn get_app_status(
         name: package.name.clone(),
         installed_version: package.version.clone(),
         latest_version,
-        missing_dependencies: Vec::new(), // TODO: Implement dependency checking
         info,
         is_outdated,
         is_failed,
@@ -206,48 +183,33 @@ pub async fn check_scoop_status<R: Runtime>(
     let scoop_path = state.scoop_path();
     let mut scoop_needs_update = false;
     let mut bucket_needs_update = false;
-    let mut network_failure = false;
+    let network_failure = false;
 
     // Check if scoop needs updating
     let scoop_current_dir = scoop_path.join("apps").join("scoop").join("current");
     if scoop_current_dir.exists() {
         let dir_clone = scoop_current_dir.clone();
-        match tokio::task::spawn_blocking(move || test_update_status(&dir_clone)).await {
-            Ok(Ok(needs_update)) => scoop_needs_update = needs_update,
-            Ok(Err(_)) => network_failure = true,
-            Err(_) => network_failure = true,
+        if let Ok(needs_update) =
+            tokio::task::spawn_blocking(move || has_local_remote_update(&dir_clone)).await
+        {
+            scoop_needs_update = needs_update;
         }
     }
 
     // Check if any buckets need updating
-    if !network_failure {
-        let buckets = get_local_buckets(&scoop_path);
-        let mut tasks = Vec::new();
+    let buckets = get_local_buckets(&scoop_path);
+    let mut tasks = Vec::new();
 
-        for bucket_path in buckets {
-            tasks.push(tokio::task::spawn_blocking(move || {
-                test_update_status(&bucket_path)
-            }));
-        }
+    for bucket_path in buckets {
+        tasks.push(tokio::task::spawn_blocking(move || {
+            has_local_remote_update(&bucket_path)
+        }));
+    }
 
-        let mut results = Vec::new();
-        for task in tasks {
-            results.push(task.await);
-        }
-
-        for res in results {
-            match res {
-                Ok(Ok(needs_update)) => {
-                    if needs_update {
-                        bucket_needs_update = true;
-                    }
-                }
-                Ok(Err(_)) => {
-                    network_failure = true;
-                }
-                Err(_) => {
-                    // Task panic
-                }
+    for task in tasks {
+        if let Ok(needs_update) = task.await {
+            if needs_update {
+                bucket_needs_update = true;
             }
         }
     }

@@ -25,13 +25,19 @@ function Checkup(props: CheckupProps) {
         <Card
             title={t("doctor.checkupTitle")}
             headerAction={
-                <button class="btn btn-ghost btn-sm" onClick={props.onRerun} disabled={props.isLoading}>
-                    <RefreshCw classList={{ "animate-spin": props.isLoading }} />
+                <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    onClick={props.onRerun}
+                    disabled={props.isLoading}
+                    aria-label={t("common.refresh")}
+                >
+                    <RefreshCw classList={{ "animate-spin": props.isLoading }} aria-hidden="true" />
                 </button>
             }
             description={t("doctor.checkupDescription")}
         >
-            <Show when={props.isLoading}>
+            <Show when={props.isLoading && props.checkupResult.length === 0}>
                 <div class="flex justify-center p-8">
                     <span class="loading loading-dots loading-lg"></span>
                 </div>
@@ -39,12 +45,12 @@ function Checkup(props: CheckupProps) {
 
             <Show when={props.error}>
                 <div class="alert alert-error text-sm">
-                    <TriangleAlert class="w-5 h-5" />
+                    <TriangleAlert class="w-5 h-5" aria-hidden="true" />
                     <span>{props.error}</span>
                 </div>
             </Show>
 
-            <Show when={!props.isLoading && !props.error && props.checkupResult.length > 0}>
+            <Show when={!props.error && props.checkupResult.length > 0}>
                 <ul class="space-y-3">
                     <For each={props.checkupResult}>
                         {(item) => (
@@ -56,6 +62,7 @@ function Checkup(props: CheckupProps) {
                                     <span class="flex-grow">{item.text}</span>
                                     <Show when={item.id && !item.status}>
                                         <button
+                                            type="button"
                                             class="btn btn-xs btn-outline btn-primary"
                                             onClick={() => props.onInstallHelper(item.id!)}
                                             disabled={!!props.installingHelper}

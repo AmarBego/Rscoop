@@ -1,7 +1,9 @@
 import { Show, createSignal, createMemo } from "solid-js";
+import { Package, Search } from "lucide-solid";
 import PackageInfoModal from "../components/PackageInfoModal";
 import ScoopStatusModal from "../components/ScoopStatusModal";
 import { useInstalledPackages } from "../hooks/useInstalledPackages";
+import installedPackagesStore from "../stores/installedPackagesStore";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
 import PackageListView from "../components/page/installed/PackageListView";
 import PackageGridView from "../components/page/installed/PackageGridView";
@@ -82,7 +84,7 @@ function InstalledPage(props: InstalledPageProps) {
         onCheckForUpdates={checkForUpdates}
       />
 
-      <Show when={loading()}>
+      <Show when={loading() && processedPackages().length === 0}>
         <div class="flex justify-center items-center h-64">
           <span class="loading loading-spinner loading-lg"></span>
         </div>
@@ -90,19 +92,50 @@ function InstalledPage(props: InstalledPageProps) {
 
       <Show when={error()}>
         <div role="alert" class="alert alert-error">
-          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           <span>{t("common.error")}: {error()}</span>
-          <button class="btn btn-sm btn-primary" onClick={fetchInstalledPackages}>Try Again</button>
+          <button type="button" class="btn btn-sm btn-primary" onClick={fetchInstalledPackages}>{t("common.retry")}</button>
         </div>
       </Show>
 
       <Show when={!loading() && !error() && filteredPackages().length === 0}>
-        <div class="text-center py-16">
-          <p class="text-xl">{t("installed.noPackages")}</p>
-        </div>
+        <Show
+          when={installedPackagesStore.packages().length === 0}
+          fallback={
+            <div class="text-center py-16 flex flex-col items-center gap-3">
+              <p class="text-lg text-base-content/70">{t("installed.noPackages")}</p>
+              <button
+                type="button"
+                class="btn btn-sm btn-ghost"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSelectedBucket("all");
+                }}
+              >
+                {t("installed.emptyClearFilter")}
+              </button>
+            </div>
+          }
+        >
+          <div class="text-center py-20 flex flex-col items-center gap-4 max-w-md mx-auto">
+            <Package class="w-12 h-12 text-base-content/30" aria-hidden="true" strokeWidth={1.5} />
+            <h3 class="text-xl font-semibold">{t("installed.emptyTitle")}</h3>
+            <p class="text-sm text-base-content/60 leading-relaxed">{t("installed.emptyBody")}</p>
+            <Show when={props.onNavigate}>
+              <button
+                type="button"
+                class="btn btn-primary btn-sm gap-2 mt-2"
+                onClick={() => props.onNavigate?.("search")}
+              >
+                <Search class="w-4 h-4" />
+                {t("installed.emptyAction")}
+              </button>
+            </Show>
+          </div>
+        </Show>
       </Show>
 
-      <Show when={!loading() && !error() && filteredPackages().length > 0}>
+      <Show when={!error() && filteredPackages().length > 0}>
         <Show when={viewMode() === 'list'}
           fallback={<PackageGridView
             packages={filteredPackages}

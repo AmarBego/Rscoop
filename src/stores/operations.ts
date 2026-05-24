@@ -144,6 +144,7 @@ function createOperationsStore() {
   const [queue, setQueue] = createSignal<QueuedOperation[]>([]);
   const [completed, setCompleted] = createSignal<CompletedOperation[]>([]);
   const [isMinimized, setIsMinimized] = createSignal(false);
+  let lastCurrentId: string | null = null;
 
 
   // --- Post-op callbacks (frontend-only) ---
@@ -177,6 +178,11 @@ function createOperationsStore() {
     setQueue(snap.queue);
     setCompleted(snap.completed);
     if (snap.current) {
+      const isNewRunningOp = snap.current.id !== lastCurrentId && snap.current.result === null;
+      if (isNewRunningOp && settingsStore.settings.operations.backgroundByDefault) {
+        setIsMinimized(true);
+      }
+      lastCurrentId = snap.current.id;
       const isScan =
         snap.current.kind === "scan" && snap.current.result === null;
       setCurrent({
@@ -198,6 +204,7 @@ function createOperationsStore() {
         isScan,
       });
     } else {
+      lastCurrentId = null;
       setCurrent(null);
     }
   }
@@ -285,7 +292,12 @@ function createOperationsStore() {
     }
   }
 
-  async function queueInstall(pkg: ScoopPackage, version?: string, onComplete?: (wasSuccess: boolean) => void) {
+  async function queueInstall(
+    pkg: ScoopPackage,
+    version?: string,
+    onComplete?: (wasSuccess: boolean) => void,
+    options?: { skipScan?: boolean },
+  ): Promise<string | null> {
     const { settings } = settingsStore;
     if (onComplete) {
       onNextFinish(
@@ -294,15 +306,15 @@ function createOperationsStore() {
       );
     }
 
-    if (settings.virustotal.enabled && settings.virustotal.autoScanOnInstall) {
-      await enqueue({
+    if (!options?.skipScan && settings.virustotal.enabled && settings.virustotal.autoScanOnInstall) {
+      return await enqueue({
         type: "scan-and-install",
         package: pkg.name,
         bucket: pkg.source,
         version: version || null,
       });
     } else {
-      await enqueue({
+      return await enqueue({
         type: "install",
         package: pkg.name,
         bucket: pkg.source,

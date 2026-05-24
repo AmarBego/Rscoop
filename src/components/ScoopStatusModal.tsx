@@ -57,7 +57,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
             "alert-warning alert-outline": !props.status.is_everything_ok
           }}>
             <Show when={props.status.is_everything_ok}
-              fallback={<TriangleAlert class="w-4 h- 4" />}
+              fallback={<TriangleAlert class="w-4 h-4" />}
             >
               <CircleCheckBig class="w-4 h-4" />
             </Show>
@@ -123,8 +123,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
                               <div class="badge badge-sm" classList={{
                                 "badge-warning": info.includes("Deprecated"),
                                 "badge-error": info.includes("failed") || info.includes("removed"),
-                                "badge-info text-cyan-400": info.includes("Versioned install"),
-                                "badge-info": !info.includes("Deprecated") && !info.includes("failed") && !info.includes("removed") && !info.includes("Versioned install")
+                                "badge-info": !info.includes("Deprecated") && !info.includes("failed") && !info.includes("removed")
                               }}>
                                 {info}
                               </div>

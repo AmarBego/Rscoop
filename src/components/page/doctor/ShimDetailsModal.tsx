@@ -1,7 +1,8 @@
-import { Show } from "solid-js";
-import { X, Trash2, Eye, EyeOff } from "lucide-solid";
+import { createSignal, Show } from "solid-js";
+import { Trash2, Eye, EyeOff } from "lucide-solid";
 import { Shim } from "./ShimManager";
 import { useI18n } from "../../../i18n";
+import Modal from "../../common/Modal";
 
 interface ShimDetailsModalProps {
     shim: Shim;
@@ -9,11 +10,15 @@ interface ShimDetailsModalProps {
     onRemove: (name: string) => void;
     onAlter: (name: string) => void;
     isOperationRunning: boolean;
+    error?: string | null;
 }
 
 function ShimDetailsModal(props: ShimDetailsModalProps) {
     const { t } = useI18n();
+    const [isConfirmingRemove, setIsConfirmingRemove] = createSignal(false);
+
     const handleRemove = () => {
+        setIsConfirmingRemove(false);
         props.onRemove(props.shim.name);
     }
 
@@ -22,14 +27,62 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
     }
 
     return (
-        <div class="modal modal-open" role="dialog">
-            <div class="modal-box bg-base-200">
-                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={props.onClose}>
-                    <X />
-                </button>
-                <h3 class="font-bold text-lg text-primary">{props.shim.name}</h3>
-
+        <>
+            <Modal
+                isOpen={true}
+                onClose={props.onClose}
+                title={props.shim.name}
+                size="medium"
+                footer={
+                    <div class="flex flex-wrap gap-2 justify-end">
+                        <button
+                            type="button"
+                            class="btn btn-error"
+                            onClick={() => {
+                                if (isConfirmingRemove()) {
+                                    handleRemove();
+                                } else {
+                                    setIsConfirmingRemove(true);
+                                }
+                            }}
+                            disabled={props.isOperationRunning}
+                        >
+                            <Trash2 class="w-4 h-4" aria-hidden="true" /> {t("doctor.shimRemove")}
+                        </button>
+                        <Show when={isConfirmingRemove()}>
+                            <button
+                                type="button"
+                                class="btn btn-ghost"
+                                onClick={() => setIsConfirmingRemove(false)}
+                                disabled={props.isOperationRunning}
+                            >
+                                {t("modal.confirmation.cancel")}
+                            </button>
+                        </Show>
+                        <button
+                            type="button"
+                            class="btn"
+                            onClick={handleAlter}
+                            disabled={props.isOperationRunning}
+                        >
+                            <Show when={!props.shim.isHidden} fallback={<><Eye class="w-4 h-4" aria-hidden="true" /> {t("doctor.shimUnhide")}</>}>
+                                <EyeOff class="w-4 h-4" aria-hidden="true" /> {t("doctor.shimHide")}
+                            </Show>
+                        </button>
+                    </div>
+                }
+            >
                 <div class="py-4 space-y-3">
+                    <Show when={props.error}>
+                        <div role="alert" class="alert alert-error text-sm">
+                            <span>{props.error}</span>
+                        </div>
+                    </Show>
+                    <Show when={isConfirmingRemove()}>
+                        <div role="alert" class="alert alert-warning text-sm">
+                            <span>{t("doctor.shimRemoveConfirm", { name: props.shim.name })}</span>
+                        </div>
+                    </Show>
                     <p class="text-sm  break-all">
                         <span class="font-semibold text-base-content">{t("doctor.shimDetailsSource")} </span> {props.shim.source}
                     </p>
@@ -43,20 +96,8 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
                         </p>
                     </Show>
                 </div>
-
-                <div class="modal-action">
-                    <button class="btn btn-error" onClick={handleRemove} disabled={props.isOperationRunning}>
-                        <Trash2 class="w-4 h-4" /> {t("doctor.shimRemove")}
-                    </button>
-                    <button class="btn" onClick={handleAlter} disabled={props.isOperationRunning}>
-                        <Show when={!props.shim.isHidden} fallback={<><Eye class="w-4 h-4" /> {t("doctor.shimUnhide")}</>}>
-                            <EyeOff class="w-4 h-4" /> {t("doctor.shimHide")}
-                        </Show>
-                    </button>
-                </div>
-            </div>
-            <div class="modal-backdrop" onClick={props.onClose}></div>
-        </div>
+            </Modal>
+        </>
     );
 }
 

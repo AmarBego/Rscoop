@@ -51,7 +51,11 @@ pub fn run_cold_start<R: Runtime>(app: AppHandle<R>) {
 }
 
 /// Emits ready events with exponential backoff retry logic to ensure delivery
-async fn emit_ready_events_with_retry<R: Runtime>(app: &AppHandle<R>, success: bool, max_retries: u32) {
+async fn emit_ready_events_with_retry<R: Runtime>(
+    app: &AppHandle<R>,
+    success: bool,
+    max_retries: u32,
+) {
     let mut retry_count = 0;
 
     while retry_count < max_retries {
@@ -86,10 +90,4 @@ async fn emit_ready_events_with_retry<R: Runtime>(app: &AppHandle<R>, success: b
         tokio::time::sleep(delay).await;
         retry_count += 1;
     }
-}
-
-/// Returns whether the cold start sequence has completed successfully.
-#[tauri::command]
-pub fn is_cold_start_ready() -> bool {
-    COLD_START_DONE.load(Ordering::SeqCst)
 }

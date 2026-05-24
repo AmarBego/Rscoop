@@ -13,36 +13,38 @@ function SearchBar(props: SearchBarProps) {
     return (
         <div class="relative w-full">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 z-10">
-                <Show when={props.loading?.()} fallback={<Search class="h-5 w-5 text-gray-400" />}>
-                    <LoaderCircle class="h-5 w-5 text-gray-400 animate-spin" />
+                <Show when={props.loading?.()} fallback={<Search class="h-5 w-5 text-base-content/50" aria-hidden="true" />}>
+                    <LoaderCircle class="h-5 w-5 text-base-content/50 animate-spin" aria-hidden="true" />
                 </Show>
             </span>
 
             <input
-                type="text"
+                type="search"
                 placeholder={t("search.placeholder")}
-                class="input bg-base-400 input-bordered w-full pl-10 pr-16 relative"
+                aria-label={t("search.placeholder")}
+                class="input bg-base-400 w-full pl-10 pr-16 relative focus:outline-none focus:border-base-content/20 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                 value={props.searchTerm()}
                 onInput={(e) => props.setSearchTerm(e.currentTarget.value)}
-                disabled={props.loading?.()}
             />
 
             <div class="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
                 <Show when={props.searchTerm().length > 0}>
                     <button
+                        type="button"
                         onClick={() => props.setSearchTerm("")}
-                        class="p-1 -mr-1 rounded-full text-gray-500 hover:text-gray-700 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none"
+                        class="p-1 -mr-1 rounded-full text-base-content/60 hover:text-base-content hover:bg-base-content/10 focus:outline-none"
                         aria-label={t("search.clearLabel")}
-                        disabled={props.loading?.()}
                     >
-                        <X class="h-5 w-5" />
+                        <X class="h-5 w-5" aria-hidden="true" />
                     </button>
                 </Show>
                 <span
                     class="tooltip tooltip-left"
                     data-tip={t("search.exactMatchTooltip")}
+                    role="img"
+                    aria-label={t("search.exactMatchTooltip")}
                 >
-                    <CircleQuestionMark size={16} class="text-gray-400" />
+                    <CircleQuestionMark class="w-4 h-4 text-base-content/50" aria-hidden="true" />
                 </span>
             </div>
         </div>

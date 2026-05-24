@@ -1,4 +1,4 @@
-import { For, Show, createMemo, Switch, Match } from "solid-js";
+import { For, Show, createMemo, Switch, Match, createSignal } from "solid-js";
 import { BucketInfo } from "../hooks/useBuckets";
 import { SearchableBucket } from "../hooks/useBucketSearch";
 import { useBucketInstall } from "../hooks/useBucketInstall";
@@ -8,8 +8,8 @@ import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
 import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";
 import Modal from "./common/Modal";
+import { Dropdown, DropdownItem } from "./common/Dropdown";
 import { openUrl, openPath } from '@tauri-apps/plugin-opener';
-import settingsStore from "../stores/settings";
 import { useI18n } from "../i18n";
 
 hljs.registerLanguage('bash', bash);
@@ -32,8 +32,9 @@ interface BucketInfoModalProps {
 
 // Component to render bucket detail values
 function DetailValue(props: { value: string | number | undefined }) {
+  const { t } = useI18n();
   const displayValue = () => {
-    if (props.value === undefined || props.value === null) return "Unknown";
+    if (props.value === undefined || props.value === null) return t("common.unknown");
     return String(props.value);
   };
 
@@ -62,13 +63,14 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
                 // Clean up manifest name (remove (root) suffix if present)
                 const cleanName = manifest.replace(/ \(root\)$/, '');
                 return (
-                  <div
-                    class="hover:text-primary cursor-pointer py-0.5 px-1 rounded hover:bg-base-300 transition-colors"
+                  <button
+                    type="button"
+                    class="text-left hover:text-primary cursor-pointer py-0.5 px-1 rounded hover:bg-base-300 transition-colors"
                     onClick={() => props.onPackageClick?.(cleanName)}
-                    title={`Click to view info for ${cleanName}`}
+                    title={t("modal.bucket.viewPackageInfo", { name: cleanName })}
                   >
                     {manifest}
-                  </div>
+                  </button>
                 );
               }}
             </For>
@@ -82,10 +84,7 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
 function BucketInfoModal(props: BucketInfoModalProps) {
   const { t } = useI18n();
   const bucketInstall = useBucketInstall();
-  const { settings } = settingsStore;
-
-  const isDark = () => settings.theme === 'dark';
-  const BgColor = () => isDark() ? '#282c34' : '#f0f4f9';
+  const [operationError, setOperationError] = createSignal<string | null>(null);
 
   const bucketName = () => props.bucket?.name || props.searchBucket?.name || '';
   const isExternalBucket = () => !props.bucket && !!props.searchBucket;
@@ -117,6 +116,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
   // Handle bucket installation
   const handleInstallBucket = async () => {
     if (!props.searchBucket) return;
+    setOperationError(null);
 
     try {
       const result = await bucketInstall.installBucket({
@@ -138,9 +138,11 @@ function BucketInfoModal(props: BucketInfoModalProps) {
         }
       } else {
         console.error('Bucket installation failed:', result.message);
+        setOperationError(result.message);
       }
     } catch (error) {
       console.error('Failed to install bucket:', error);
+      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
     }
   };
 
@@ -148,6 +150,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
   const handleRemoveBucket = async () => {
     const name = bucketName();
     if (!name) return;
+    setOperationError(null);
 
     try {
       const result = await bucketInstall.removeBucket(name);
@@ -159,9 +162,11 @@ function BucketInfoModal(props: BucketInfoModalProps) {
         props.onClose();
       } else {
         console.error('Bucket removal failed:', result.message);
+        setOperationError(result.message);
       }
     } catch (error) {
       console.error('Failed to remove bucket:', error);
+      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
     }
   };
   const orderedDetails = createMemo(() => {
@@ -181,7 +186,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
   });
 
   const formatDate = (dateString: string | undefined) => {
-    if (!dateString) return "Unknown";
+    if (!dateString) return t("common.unknown");
     try {
       return new Date(dateString).toLocaleDateString();
     } catch {
@@ -193,7 +198,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
     <div class="flex items-center gap-2">
       <Show when={props.bucket?.is_git_repo}>
         <div class="badge badge-info badge-sm">
-          <GitBranch class="w-3 h-3 mr-1" />
+          <GitBranch class="w-3 h-3 mr-1" aria-hidden="true" />
           {t("modal.bucket.git")}
         </div>
       </Show>
@@ -202,57 +207,43 @@ function BucketInfoModal(props: BucketInfoModalProps) {
           {t("modal.bucket.external")}
         </div>
       </Show>
-      <div class="dropdown dropdown-end">
-        <div tabindex="0" role="button" class="btn btn-ghost btn-sm btn-circle">
-          <Ellipsis class="w-5 h-5" />
-        </div>
-        <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52 z-[100]">
-          <Show when={props.bucket?.path}>
-            <li>
-              <button type="button" onClick={async (e) => {
-                e.stopPropagation();
-                if (props.bucket?.path) {
-                  try {
-                    await openPath(props.bucket.path);
-                  } catch (error) {
-                    console.error('Failed to open path:', error);
-                  }
+      <Dropdown
+        iconOnly
+        ariaLabel={t("modal.bucket.actions")}
+        trigger={<Ellipsis class="w-5 h-5" aria-hidden="true" />}
+      >
+        <Show when={props.bucket?.path}>
+          <DropdownItem
+            icon={<ExternalLink class="w-4 h-4" aria-hidden="true" />}
+            onClick={async () => {
+              if (props.bucket?.path) {
+                try {
+                  await openPath(props.bucket.path);
+                } catch (error) {
+                  console.error('Failed to open path:', error);
                 }
-              }}>
-                <ExternalLink class="w-4 h-4 mr-2" />
-                {t("modal.bucket.openInExplorer")}
-              </button>
-            </li>
-          </Show>
-          <Show when={isInstalled()}>
-            <li>
-              <button type="button" onClick={(e) => { e.stopPropagation(); /* TODO: Refresh Bucket */ }}>
-                {t("modal.bucket.refreshBucket")}
-              </button>
-            </li>
-          </Show>
-          <li>
-            <button
-              type="button"
-              onClick={async (e) => {
-                e.stopPropagation();
-                const url = props.bucket?.git_url || props.searchBucket?.url;
-                if (url) {
-                  try {
-                    await openUrl(url);
-                  } catch (error) {
-                    console.error('Failed to open URL:', error);
-                  }
-                }
-              }}
-              disabled={!props.bucket?.git_url && !props.searchBucket?.url}
-              class={(!props.bucket?.git_url && !props.searchBucket?.url) ? "text-base-content/50" : ""}
-            >
-              {t("modal.bucket.viewOnGithub")}
-            </button>
-          </li>
-        </ul>
-      </div>
+              }
+            }}
+          >
+            {t("modal.bucket.openInExplorer")}
+          </DropdownItem>
+        </Show>
+        <DropdownItem
+          disabled={!props.bucket?.git_url && !props.searchBucket?.url}
+          onClick={async () => {
+            const url = props.bucket?.git_url || props.searchBucket?.url;
+            if (url) {
+              try {
+                await openUrl(url);
+              } catch (error) {
+                console.error('Failed to open URL:', error);
+              }
+            }
+          }}
+        >
+          {t("modal.bucket.viewOnGithub")}
+        </DropdownItem>
+      </Dropdown>
     </div>
   );
 
@@ -269,12 +260,12 @@ function BucketInfoModal(props: BucketInfoModalProps) {
             when={bucketInstall.isBucketInstalling(bucketName())}
             fallback={
               <>
-                <Download class="w-4 h-4 mr-2" />
+                <Download class="w-4 h-4 mr-2" aria-hidden="true" />
                 {t("common.install")}
               </>
             }
           >
-            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
+            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
             {t("common.installing")}
           </Show>
         </button>
@@ -290,17 +281,17 @@ function BucketInfoModal(props: BucketInfoModalProps) {
             when={bucketInstall.isBucketRemoving(bucketName())}
             fallback={
               <>
-                <Trash2 class="w-4 h-4 mr-2" />
+                <Trash2 class="w-4 h-4 mr-2" aria-hidden="true" />
                 {t("common.remove")}
               </>
             }
           >
-            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" />
+            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
             {t("common.removing")}
           </Show>
         </button>
       </Show>
-      <button class="btn-close-outline" onClick={props.onClose}>{t("common.close")}</button>
+      <button type="button" class="btn-close-outline" onClick={props.onClose}>{t("common.close")}</button>
     </>
   );
 
@@ -321,10 +312,15 @@ function BucketInfoModal(props: BucketInfoModalProps) {
       >
         <Show when={props.error}>
           <div role="alert" class="alert alert-error mb-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>{props.error}</span>
+          </div>
+        </Show>
+        <Show when={operationError()}>
+          <div role="alert" class="alert alert-error mb-4">
+            <span>{operationError()}</span>
           </div>
         </Show>
         <Show when={props.bucket || props.searchBucket}>
@@ -363,7 +359,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                             rel="noopener noreferrer"
                             class="link link-primary break-all text-xs flex items-center gap-1"
                           >
-                            <GitBranch class="w-3 h-3" />
+                            <GitBranch class="w-3 h-3" aria-hidden="true" />
                             {props.searchBucket!.url}
                           </a>
                         </div>
@@ -397,7 +393,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                             <Match when={key === 'Manifests'}>
                               <div class="flex items-center gap-1">
                                 <span class="font-bold text-primary">{value}</span>
-                                <span class="text-xs text-base-content/70">packages</span>
+                                <span class="text-xs text-base-content/70">{t("buckets.packages")}</span>
                               </div>
                             </Match>
                           </Switch>
@@ -416,7 +412,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                           rel="noopener noreferrer"
                           class="link link-primary break-all text-xs flex items-center gap-1"
                         >
-                          <GitBranch class="w-3 h-3" />
+                          <GitBranch class="w-3 h-3" aria-hidden="true" />
                           {props.bucket!.git_url}
                         </a>
                       </div>
@@ -434,7 +430,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                   <Show when={props.description && !isInstalled()}>
 
                     <h4 class="text-lg font-medium mb-3 border-b pb-2">{t("modal.bucket.description")}</h4>
-                    <div class="rounded-lg p-4" style={{ "background-color": BgColor() }}>
+                    <div class="bg-code rounded-lg p-4">
                       <p class="text-sm  leading-relaxed">
                         {props.description}
                       </p>

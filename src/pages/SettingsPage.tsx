@@ -42,6 +42,9 @@ function SettingsPage(props: SettingsPageProps) {
         { key: 'about', label: t("settings.tabAbout") },
     ];
     const [activeTab, setActiveTab] = createSignal<string>('automation');
+    const activeIndex = () => TABS.findIndex(tab => tab.key === activeTab());
+    const tabId = (key: string) => `settings-tab-${key}`;
+    const panelId = (key: string) => `settings-panel-${key}`;
 
     onMount(() => {
         // Preload update info silently
@@ -65,22 +68,56 @@ function SettingsPage(props: SettingsPageProps) {
         });
     };
 
+    const focusTab = (index: number) => {
+        const next = TABS[(index + TABS.length) % TABS.length];
+        setActiveTab(next.key);
+        document.getElementById(tabId(next.key))?.focus();
+    };
+
+    const handleTabKeyDown = (e: KeyboardEvent) => {
+        switch (e.key) {
+            case "ArrowRight":
+            case "ArrowDown":
+                e.preventDefault();
+                focusTab(activeIndex() + 1);
+                break;
+            case "ArrowLeft":
+            case "ArrowUp":
+                e.preventDefault();
+                focusTab(activeIndex() - 1);
+                break;
+            case "Home":
+                e.preventDefault();
+                focusTab(0);
+                break;
+            case "End":
+                e.preventDefault();
+                focusTab(TABS.length - 1);
+                break;
+        }
+    };
+
     return (
-        <div class="p-2">
-                <h1 class="text-3xl font-bold mb-4">{t("settings.title")}</h1>
+        <div class="p-0 sm:p-2">
+                <h1 class="text-2xl sm:text-3xl font-bold mb-4">{t("settings.title")}</h1>
                 {/* Tab Navigation */}
-                <div role="tablist" aria-label="Settings Sections" class="tabs tabs-border mb-6">
+                <div role="tablist" aria-label={t("settings.title")} class="tabs tabs-border mb-6 -mx-1 px-1 overflow-x-auto flex-nowrap touch-pan-x [scrollbar-width:none]">
                     <For each={TABS}>
                         {(tab) => (
-                            <a
-                                class="tab"
+                            <button
+                                id={tabId(tab.key)}
+                                type="button"
+                                class="tab px-3 whitespace-nowrap shrink-0"
                                 classList={{ 'tab-active': activeTab() === tab.key }}
                                 onClick={() => setActiveTab(tab.key)}
+                                onKeyDown={handleTabKeyDown}
                                 role="tab"
                                 aria-selected={activeTab() === tab.key}
+                                aria-controls={panelId(tab.key)}
+                                tabindex={activeTab() === tab.key ? 0 : -1}
                             >
                                 {tab.label}
-                            </a>
+                            </button>
                         )}
                     </For>
                 </div>
@@ -88,7 +125,7 @@ function SettingsPage(props: SettingsPageProps) {
                 <div class="space-y-6">
                     {/* Automation Tab */}
                     <Show when={activeTab() === 'automation'}>
-                        <div class="space-y-8">
+                        <div id={panelId("automation")} role="tabpanel" aria-labelledby={tabId("automation")} tabindex="0" class="space-y-6 sm:space-y-8">
                             <AutoCleanupSettings />
                             <OperationSettings />
                             <BucketAutoUpdateSettings />
@@ -97,7 +134,7 @@ function SettingsPage(props: SettingsPageProps) {
 
                     {/* Management Tab */}
                     <Show when={activeTab() === 'management'}>
-                        <div class="space-y-8">
+                        <div id={panelId("management")} role="tabpanel" aria-labelledby={tabId("management")} tabindex="0" class="space-y-6 sm:space-y-8">
                             <ScoopConfiguration />
                             <HeldPackagesManagement
                                 onUnhold={handleUnhold}
@@ -109,14 +146,14 @@ function SettingsPage(props: SettingsPageProps) {
 
                     {/* Security Tab */}
                     <Show when={activeTab() === 'security'}>
-                        <div class="space-y-8">
+                        <div id={panelId("security")} role="tabpanel" aria-labelledby={tabId("security")} tabindex="0" class="space-y-6 sm:space-y-8">
                             <VirusTotalSettings />
                         </div>
                     </Show>
 
                     {/* Window & UI Tab */}
                     <Show when={activeTab() === 'window'}>
-                        <div class="space-y-8">
+                        <div id={panelId("window")} role="tabpanel" aria-labelledby={tabId("window")} tabindex="0" class="space-y-6 sm:space-y-8">
                             <ThemeSettings />
                             <LanguageSettings />
                             <WindowBehaviorSettings />
@@ -128,15 +165,19 @@ function SettingsPage(props: SettingsPageProps) {
 
                     {/* Tray Menu Tab */}
                     <Show when={activeTab() === 'tray'}>
-                        <TrayMenuSettings />
+                        <div id={panelId("tray")} role="tabpanel" aria-labelledby={tabId("tray")} tabindex="0">
+                            <TrayMenuSettings />
+                        </div>
                     </Show>
 
                     {/* About Tab */}
                     <Show when={activeTab() === 'about'}>
-                        <AboutSection
-                            ref={(r) => (aboutSectionRef = r)}
-                            isScoopInstalled={props.isScoopInstalled}
-                        />
+                        <div id={panelId("about")} role="tabpanel" aria-labelledby={tabId("about")} tabindex="0">
+                            <AboutSection
+                                ref={(r) => (aboutSectionRef = r)}
+                                isScoopInstalled={props.isScoopInstalled}
+                            />
+                        </div>
                     </Show>
                 </div>
         </div>

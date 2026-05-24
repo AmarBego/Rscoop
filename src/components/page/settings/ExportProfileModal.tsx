@@ -1,11 +1,9 @@
-import { createSignal, createMemo, For, Show } from "solid-js";
+import { createSignal, createMemo, For, Show, onCleanup } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import {
     Package,
     Upload,
-    Filter,
-    Sparkles,
     Check,
     AlertTriangle,
     ClipboardCopy,
@@ -20,13 +18,7 @@ type GroupId =
     | "buckets"
     | "holds"
     | "scoopConfig"
-    | "appearance"
-    | "window"
-    | "tray"
-    | "automation"
-    | "updates"
-    | "virustotal"
-    | "path";
+    | "rscoopSettings";
 
 type Preset = "full" | "scoop" | "prefs" | "custom";
 
@@ -45,15 +37,9 @@ interface Group {
 const GROUPS: Group[] = [
     { id: "apps", cat: "scoop", title: "Installed apps", sub: "name, bucket, version", count: "apps", size: "~12 KB", scoopCompat: true, sensitive: false },
     { id: "buckets", cat: "scoop", title: "Buckets", sub: "name + git source URL", count: "buckets", size: "~1 KB", scoopCompat: true, sensitive: false },
-    { id: "holds", cat: "scoop", title: "Held / pinned packages", sub: "version-locked apps", count: "holds", size: "<1 KB", scoopCompat: false, sensitive: false },
+    { id: "holds", cat: "scoop", title: "Held / pinned packages", sub: "version-locked apps", count: "holds", size: "<1 KB", scoopCompat: true, sensitive: false },
     { id: "scoopConfig", cat: "scoop", title: "Scoop global config", sub: "~/.config/scoop/config.json", count: "keys", size: "~2 KB", scoopCompat: false, sensitive: true },
-    { id: "appearance", cat: "rscoop", title: "Theme, language, launch page", sub: "dark / english / default page", count: "settings", size: "<1 KB", scoopCompat: false, sensitive: false },
-    { id: "window", cat: "rscoop", title: "Window behavior", sub: "close-to-tray, launch on startup", count: "settings", size: "<1 KB", scoopCompat: false, sensitive: false },
-    { id: "tray", cat: "rscoop", title: "Tray menu settings", sub: "pinned/hidden apps, state filters", count: "overrides", size: "~1 KB", scoopCompat: false, sensitive: false },
-    { id: "automation", cat: "rscoop", title: "Automation rules", sub: "auto-cleanup, retention, cache, background", count: "rules", size: "~1 KB", scoopCompat: false, sensitive: false },
-    { id: "updates", cat: "rscoop", title: "Bucket auto-update", sub: "interval, auto-update-packages", count: "settings", size: "<1 KB", scoopCompat: false, sensitive: false },
-    { id: "virustotal", cat: "rscoop", title: "VirusTotal", sub: "enabled, auto-scan-on-install", count: "settings", size: "<1 KB", scoopCompat: false, sensitive: true },
-    { id: "path", cat: "rscoop", title: "scoop_path override", sub: "custom install root", count: "setting", size: "<1 KB", scoopCompat: false, sensitive: false },
+    { id: "rscoopSettings", cat: "rscoop", title: "rScoop preferences", sub: "window, cleanup, updates, operations, path", count: "settings", size: "~1 KB", scoopCompat: false, sensitive: false },
 ];
 
 interface Props {
@@ -74,6 +60,7 @@ export default function ExportProfileModal(props: Props) {
     const [busy, setBusy] = createSignal(false);
     const [error, setError] = createSignal<string | null>(null);
     const [savedPath, setSavedPath] = createSignal<string | null>(null);
+    let feedbackTimeout: number | undefined;
 
     const applyPreset = (p: Preset) => {
         setPreset(p);
@@ -139,7 +126,8 @@ export default function ExportProfileModal(props: Props) {
             });
             await navigator.clipboard.writeText(json);
             setSavedPath("__clipboard__");
-            setTimeout(() => setSavedPath(null), 2000);
+            window.clearTimeout(feedbackTimeout);
+            feedbackTimeout = window.setTimeout(() => setSavedPath(null), 2000);
         } catch (e) {
             setError(e instanceof Error ? e.message : String(e));
         } finally {
@@ -155,6 +143,10 @@ export default function ExportProfileModal(props: Props) {
         setSavedPath(null);
         props.onClose();
     };
+
+    onCleanup(() => {
+        window.clearTimeout(feedbackTimeout);
+    });
 
     return (
         <Modal
@@ -172,352 +164,215 @@ export default function ExportProfileModal(props: Props) {
                     schema v{SCHEMA_VERSION}
                 </span>
             }
-        >
-            <div class="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 items-start">
-                {/* LEFT — composer */}
-                <div class="flex flex-col gap-4 min-w-0">
-                    <p class="text-sm text-base-content/70 mt-0">
-                        {t("settings.exim.export.description")}
-                    </p>
-
-                    {/* Presets */}
-                    <div>
-                        <div class="text-xs font-semibold uppercase tracking-wider text-base-content/60 mb-2">
-                            {t("settings.exim.export.presets")}
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <PresetCard
-                                active={preset() === "full"}
-                                onClick={() => applyPreset("full")}
-                                icon={<Package class="w-3 h-3" />}
-                                title={t("settings.exim.export.presetFullTitle")}
-                                sub={t("settings.exim.export.presetFullSub")}
-                                count={GROUPS.length}
-                            />
-                            <PresetCard
-                                active={preset() === "scoop"}
-                                onClick={() => applyPreset("scoop")}
-                                icon={<Package class="w-3 h-3" />}
-                                title={t("settings.exim.export.presetScoopTitle")}
-                                sub={t("settings.exim.export.presetScoopSub")}
-                                count={GROUPS.filter((g) => g.scoopCompat).length}
-                                badge={t("settings.exim.export.compatible")}
-                            />
-                            <PresetCard
-                                active={preset() === "prefs"}
-                                onClick={() => applyPreset("prefs")}
-                                icon={<Filter class="w-3 h-3" />}
-                                title={t("settings.exim.export.presetPrefsTitle")}
-                                sub={t("settings.exim.export.presetPrefsSub")}
-                                count={GROUPS.filter((g) => g.cat === "rscoop").length}
-                            />
-                            <PresetCard
-                                active={preset() === "custom"}
-                                onClick={() => setPreset("custom")}
-                                icon={<Sparkles class="w-3 h-3" />}
-                                title={t("settings.exim.export.presetCustomTitle")}
-                                sub={t("settings.exim.export.presetCustomSub")}
-                                count={selected().size}
-                            />
-                        </div>
+            footer={
+                <div class="flex w-full items-center">
+                    <div class="min-w-0 flex-1">
+                        <Show when={error()}>
+                            <span class="flex items-center gap-2 text-sm text-error">
+                                <AlertTriangle class="w-4 h-4 shrink-0" />
+                                <span class="truncate">{error()}</span>
+                            </span>
+                        </Show>
+                        <Show when={savedPath() === "__clipboard__"}>
+                            <span class="flex items-center gap-2 text-sm text-success">
+                                <Check class="w-4 h-4 shrink-0" />
+                                <span class="truncate">{t("settings.exim.export.copiedOk")}</span>
+                            </span>
+                        </Show>
+                        <Show when={savedPath() && savedPath() !== "__clipboard__"}>
+                            <span class="flex items-center gap-2 text-sm text-success">
+                                <Check class="w-4 h-4 shrink-0" />
+                                <span class="truncate">{t("settings.exim.export.savedOk")}: {savedPath()}</span>
+                            </span>
+                        </Show>
                     </div>
 
-                    {/* Contents */}
-                    <div class="rounded-lg border border-base-200 overflow-hidden">
-                        <div class="flex items-center px-4 py-2.5 border-b border-base-200 bg-base-200/40">
-                            <div class="text-sm font-semibold">
-                                {t("settings.exim.export.contents")}
-                            </div>
-                            <div class="flex-1" />
-                            <div class="text-xs text-base-content/60">
-                                {t("settings.exim.export.selectedCount", {
-                                    n: selected().size,
-                                    total: GROUPS.length,
-                                })}
-                            </div>
+                    <div class="flex shrink-0 items-center gap-2">
+                        <button
+                            type="button"
+                            class="btn btn-ghost btn-sm"
+                            disabled={selected().size === 0 || busy()}
+                            onClick={handleCopy}
+                        >
+                            <ClipboardCopy class="w-4 h-4" />
+                            {t("settings.exim.export.copyClipboard")}
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            disabled={selected().size === 0 || busy()}
+                            onClick={handleSave}
+                        >
+                            <Upload class="w-4 h-4" />
+                            {busy() ? t("common.loading") : t("settings.exim.export.saveFile")}
+                        </button>
+                    </div>
+                </div>
+            }
+        >
+            <div class="space-y-5">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <p class="text-sm text-base-content/70 max-w-2xl">
+                        {t("settings.exim.export.description")}
+                    </p>
+                    <div class="text-xs text-base-content/60 sm:text-right">
+                        <div class="font-mono truncate max-w-full sm:max-w-64" title={suggestedName()}>
+                            {suggestedName()}
                         </div>
-
-                        <GroupSection
-                            title={t("settings.exim.export.sectionScoop")}
-                            sub={t("settings.exim.export.sectionScoopSub")}
-                            items={GROUPS.filter((g) => g.cat === "scoop")}
-                            selected={selected()}
-                            toggle={toggle}
-                            includeSecrets={includeSecrets()}
-                            setIncludeSecrets={setIncludeSecrets}
-                        />
-                        <GroupSection
-                            title={t("settings.exim.export.sectionRscoop")}
-                            sub={t("settings.exim.export.sectionRscoopSub")}
-                            items={GROUPS.filter((g) => g.cat === "rscoop")}
-                            selected={selected()}
-                            toggle={toggle}
-                            includeSecrets={includeSecrets()}
-                            setIncludeSecrets={setIncludeSecrets}
-                        />
+                        <Show
+                            when={onlyScoopShape()}
+                            fallback={<span>rScoop JSON</span>}
+                        >
+                            <span>{t("settings.exim.export.scoopCompat")}</span>
+                        </Show>
                     </div>
                 </div>
 
-                {/* RIGHT — summary */}
-                <aside class="flex flex-col gap-3 lg:sticky lg:top-0">
-                    <div class="rounded-lg border border-base-200 overflow-hidden bg-base-200/30">
-                        <div class="flex items-center px-4 py-3 border-b border-base-200">
-                            <div class="text-sm font-semibold flex items-center gap-2">
-                                <Package class="w-4 h-4 text-primary" />
-                                {t("settings.exim.export.fileSummary")}
-                            </div>
-                            <div class="flex-1" />
-                            <Show
-                                when={onlyScoopShape()}
-                                fallback={
-                                    <span class="badge badge-sm badge-ghost">
-                                        rScoop
-                                    </span>
-                                }
-                            >
-                                <span class="badge badge-sm badge-primary">
-                                    {t("settings.exim.export.scoopCompat")}
-                                </span>
-                            </Show>
-                        </div>
+                <div class="space-y-2">
+                    <div class="text-xs font-semibold uppercase tracking-wider text-base-content/60">
+                        {t("settings.exim.export.presets")}
+                    </div>
+                    <div class="flex flex-col gap-2 sm:flex-row">
+                        <PresetButton
+                            active={preset() === "full"}
+                            onClick={() => applyPreset("full")}
+                        >
+                            {t("settings.exim.export.presetFullTitle")}
+                        </PresetButton>
+                        <PresetButton
+                            active={preset() === "scoop"}
+                            onClick={() => applyPreset("scoop")}
+                        >
+                            {t("settings.exim.export.presetScoopTitle")}
+                        </PresetButton>
+                        <PresetButton
+                            active={preset() === "prefs"}
+                            onClick={() => applyPreset("prefs")}
+                        >
+                            {t("settings.exim.export.presetPrefsTitle")}
+                        </PresetButton>
+                    </div>
+                </div>
 
-                        <div class="p-4 flex flex-col gap-3">
-                            <div class="flex items-center gap-2.5">
-                                <div class="w-9 h-9 rounded-md bg-primary/15 text-primary grid place-items-center shrink-0">
-                                    <Package class="w-4 h-4" />
-                                </div>
-                                <div class="min-w-0 flex-1">
-                                    <div
-                                        class="font-mono text-xs truncate"
-                                        title={suggestedName()}
-                                    >
-                                        {suggestedName()}
-                                    </div>
-                                    <div class="text-[10px] text-base-content/60 mt-0.5">
-                                        JSON · schema v{SCHEMA_VERSION}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="h-px bg-base-200" />
-
-                            <div class="text-[10px] uppercase tracking-wider text-base-content/60 font-semibold">
-                                {t("settings.exim.export.whatsInside")}
-                            </div>
-
-                            <Show
-                                when={selectedGroups().length > 0}
-                                fallback={
-                                    <div class="text-xs italic text-base-content/50">
-                                        {t("settings.exim.export.nothingSelected")}
-                                    </div>
-                                }
-                            >
-                                <ul class="flex flex-col gap-1.5">
-                                    <For each={selectedGroups()}>
-                                        {(g) => (
-                                            <li class="flex items-center gap-2 text-xs">
-                                                <Check class="w-3 h-3 text-success shrink-0" />
-                                                <span class="truncate flex-1">{g.title}</span>
-                                                <span class="font-mono text-[10px] text-base-content/50 shrink-0">
-                                                    {g.size}
-                                                </span>
-                                            </li>
-                                        )}
-                                    </For>
-                                </ul>
-                            </Show>
-
-                            <Show when={willExposeSecret()}>
-                                <div class="rounded-md border border-warning/40 bg-warning/10 p-2.5 flex gap-2 text-xs">
-                                    <AlertTriangle class="w-4 h-4 text-warning shrink-0 mt-0.5" />
-                                    <div>
-                                        <div class="font-semibold text-warning mb-0.5">
-                                            {t("settings.exim.export.secretsIncluded")}
-                                        </div>
-                                        <div class="text-warning/80">
-                                            {t("settings.exim.export.secretsWarning")}
-                                        </div>
-                                    </div>
-                                </div>
-                            </Show>
-                        </div>
-
-                        <div class="px-4 py-3 border-t border-base-200 flex flex-col gap-2">
-                            <button
-                                class="btn btn-primary btn-sm w-full"
-                                disabled={selected().size === 0 || busy()}
-                                onClick={handleSave}
-                            >
-                                <Upload class="w-4 h-4" />
-                                {busy() ? t("common.loading") : t("settings.exim.export.saveFile")}
-                            </button>
-                            <button
-                                class="btn btn-ghost btn-sm w-full"
-                                disabled={selected().size === 0 || busy()}
-                                onClick={handleCopy}
-                            >
-                                <ClipboardCopy class="w-4 h-4" />
-                                {t("settings.exim.export.copyClipboard")}
-                            </button>
+                <div class="rounded-lg border border-base-200 overflow-hidden">
+                    <div class="flex flex-col gap-1 px-4 py-3 border-b border-base-200 bg-base-200/30 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="text-sm font-semibold">{t("settings.exim.export.contents")}</div>
+                        <div class="text-xs text-base-content/60">
+                            {t("settings.exim.export.selectedCount", {
+                                n: selected().size,
+                                total: GROUPS.length,
+                            })}
                         </div>
                     </div>
 
-                    <Show when={error()}>
-                        <div class="alert alert-error text-xs p-3">
-                            {error()}
-                        </div>
-                    </Show>
-                    <Show when={savedPath() === "__clipboard__"}>
-                        <div class="alert alert-success text-xs p-3">
-                            {t("settings.exim.export.copiedOk")}
-                        </div>
-                    </Show>
-                    <Show when={savedPath() && savedPath() !== "__clipboard__"}>
-                        <div class="alert alert-success text-xs p-3">
-                            <Check class="w-4 h-4" />
-                            <div class="min-w-0">
-                                <div class="font-semibold">
-                                    {t("settings.exim.export.savedOk")}
-                                </div>
-                                <div class="font-mono text-[10px] truncate opacity-80">
-                                    {savedPath()}
-                                </div>
+                    <For each={GROUPS}>
+                        {(group) => (
+                            <GroupRow
+                                group={group}
+                                selected={selected().has(group.id)}
+                                includeSecrets={includeSecrets()}
+                                onToggle={() => toggle(group.id)}
+                                onSecretsChange={setIncludeSecrets}
+                            />
+                        )}
+                    </For>
+                </div>
+
+                <Show when={willExposeSecret()}>
+                    <div class="rounded-md border border-warning/40 bg-warning/10 p-3 flex gap-2 text-xs">
+                        <AlertTriangle class="w-4 h-4 text-warning shrink-0 mt-0.5" />
+                        <div>
+                            <div class="font-semibold text-warning mb-0.5">
+                                {t("settings.exim.export.secretsIncluded")}
+                            </div>
+                            <div class="text-warning/80">
+                                {t("settings.exim.export.secretsWarning")}
                             </div>
                         </div>
-                    </Show>
-
-                    <div class="text-xs text-base-content/60 leading-relaxed px-1">
-                        {t("settings.exim.export.aboutProfiles")}
                     </div>
-                </aside>
+                </Show>
+
             </div>
         </Modal>
     );
 }
 
-function PresetCard(p: {
+function PresetButton(p: {
     active: boolean;
     onClick: () => void;
-    icon: any;
-    title: string;
-    sub: string;
-    count: number;
-    badge?: string;
+    children: any;
 }) {
     return (
         <button
+            type="button"
             onClick={p.onClick}
-            class="text-left p-3 rounded-lg border transition-colors flex flex-col gap-1 min-h-[88px] cursor-pointer"
+            class="btn btn-sm flex-1 justify-start sm:justify-center"
             classList={{
-                "bg-primary/10 border-primary/40": p.active,
-                "bg-base-200/40 border-base-200 hover:bg-base-200/60": !p.active,
+                "btn-primary": p.active,
+                "btn-ghost border border-base-content/15": !p.active,
             }}
         >
-            <div class="flex items-center gap-1.5">
-                <div
-                    class="w-5 h-5 rounded grid place-items-center shrink-0"
-                    classList={{
-                        "bg-primary text-primary-content": p.active,
-                        "bg-base-100 text-primary": !p.active,
-                    }}
-                >
-                    {p.icon}
-                </div>
-                <div class="text-sm font-semibold flex-1">{p.title}</div>
-                <Show when={p.active}>
-                    <Check class="w-3.5 h-3.5 text-primary" />
-                </Show>
-            </div>
-            <div class="text-xs text-base-content/70 leading-snug">{p.sub}</div>
-            <div class="mt-auto text-[10px] text-base-content/50 flex items-center gap-1.5">
-                <span class="font-mono">{p.count} groups</span>
-                <Show when={p.badge}>
-                    <span class="text-primary">· {p.badge}</span>
-                </Show>
-            </div>
+            <Show when={p.active}>
+                <Check class="w-4 h-4" />
+            </Show>
+            {p.children}
         </button>
     );
 }
 
-function GroupSection(p: {
-    title: string;
-    sub: string;
-    items: Group[];
-    selected: Set<GroupId>;
-    toggle: (id: GroupId) => void;
+function GroupRow(p: {
+    group: Group;
+    selected: boolean;
+    onToggle: () => void;
     includeSecrets: boolean;
-    setIncludeSecrets: (v: boolean) => void;
+    onSecretsChange: (v: boolean) => void;
 }) {
     const { t } = useI18n();
+    const inputId = () => `export-group-${p.group.id}`;
+    const secretsId = () => `export-secrets-${p.group.id}`;
     return (
-        <div>
-            <div class="px-4 py-2 bg-base-200/30 border-b border-base-200">
-                <div class="text-[11px] font-semibold uppercase tracking-wider text-base-content/70">
-                    {p.title}
-                </div>
-                <div class="text-[11px] text-base-content/50 mt-0.5">{p.sub}</div>
-            </div>
-            <For each={p.items}>
-                {(g) => {
-                    const on = () => p.selected.has(g.id);
-                    return (
-                        <div
-                            class="flex items-center gap-3 px-4 py-2.5 border-b border-base-200/50 last:border-b-0 transition-opacity"
-                            classList={{ "opacity-60": !on() }}
-                        >
-                            <div
-                                onClick={() => p.toggle(g.id)}
-                                class="w-[18px] h-[18px] rounded border-[1.5px] grid place-items-center shrink-0 cursor-pointer"
-                                classList={{
-                                    "border-primary bg-primary": on(),
-                                    "border-base-content/30": !on(),
-                                }}
-                            >
-                                <Show when={on()}>
-                                    <Check class="w-3 h-3 text-primary-content" />
-                                </Show>
-                            </div>
-                            <div
-                                class="flex-1 min-w-0 cursor-pointer"
-                                onClick={() => p.toggle(g.id)}
-                            >
-                                <div class="text-sm flex items-center gap-2 flex-wrap">
-                                    <span class="font-medium">{g.title}</span>
-                                    <Show when={g.scoopCompat}>
-                                        <span class="badge badge-xs badge-primary">
-                                            scoop
-                                        </span>
-                                    </Show>
-                                    <Show when={g.sensitive}>
-                                        <span class="badge badge-xs badge-warning">
-                                            {t("settings.exim.export.containsSecret")}
-                                        </span>
-                                    </Show>
-                                </div>
-                                <div class="text-[11px] text-base-content/60 mt-0.5">
-                                    {g.sub}
-                                </div>
-                            </div>
-                            <Show when={on() && g.sensitive}>
-                                <label class="flex items-center gap-2 px-2.5 py-1 rounded-md bg-warning/10 border border-warning/30 cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        class="toggle toggle-xs toggle-warning"
-                                        checked={p.includeSecrets}
-                                        onChange={(e) =>
-                                            p.setIncludeSecrets(e.currentTarget.checked)
-                                        }
-                                    />
-                                    <span class="text-[11px] text-warning">
-                                        {t("settings.exim.export.includeApiKey")}
-                                    </span>
-                                </label>
-                            </Show>
-                        </div>
-                    );
-                }}
-            </For>
+        <div
+            class="flex flex-col gap-3 px-4 py-3 border-b border-base-200/50 last:border-b-0 sm:flex-row sm:items-center"
+            classList={{ "opacity-65": !p.selected }}
+        >
+            <label for={inputId()} class="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+                <input
+                    id={inputId()}
+                    type="checkbox"
+                    class="checkbox checkbox-primary checkbox-sm mt-0.5"
+                    checked={p.selected}
+                    onChange={p.onToggle}
+                />
+                <span class="min-w-0">
+                    <span class="flex flex-wrap items-center gap-2 text-sm font-medium">
+                        {p.group.title}
+                        <Show when={p.group.scoopCompat}>
+                            <span class="badge badge-xs badge-primary">scoop</span>
+                        </Show>
+                        <Show when={p.group.sensitive}>
+                            <span class="badge badge-xs badge-warning">
+                                {t("settings.exim.export.containsSecret")}
+                            </span>
+                        </Show>
+                    </span>
+                    <span class="block text-[11px] text-base-content/60 mt-0.5">
+                        {p.group.sub}
+                    </span>
+                </span>
+            </label>
+
+            <Show when={p.selected && p.group.sensitive}>
+                <label for={secretsId()} class="flex items-center gap-2 rounded-md bg-warning/10 px-3 py-1 text-xs text-warning sm:shrink-0">
+                    <input
+                        id={secretsId()}
+                        type="checkbox"
+                        class="toggle toggle-sm toggle-warning"
+                        checked={p.includeSecrets}
+                        onChange={(e) => p.onSecretsChange(e.currentTarget.checked)}
+                    />
+                    {t("settings.exim.export.includeApiKey")}
+                </label>
+            </Show>
         </div>
     );
 }

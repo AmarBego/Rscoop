@@ -158,13 +158,12 @@ export default function ImportProfileModal(props: Props) {
 
                 {/* Paste area */}
                 <div>
-                    <div class="flex items-center mb-2">
+                    <div class="flex flex-col gap-2 mb-2 sm:flex-row sm:items-center">
                         <label class="text-sm font-semibold">
                             {t("settings.exim.import.pasteLabel")}
                         </label>
-                        <div class="flex-1" />
                         <button
-                            class="btn btn-xs btn-ghost"
+                            class="btn btn-xs btn-ghost sm:ml-auto"
                             onClick={handleFilePick}
                         >
                             <FileJson class="w-3.5 h-3.5" />

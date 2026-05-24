@@ -14,13 +14,13 @@ pub async fn get_operation_state(app: AppHandle) -> Result<OperationStateSnapsho
 }
 
 #[tauri::command]
-pub async fn cancel_queued_operation(app: AppHandle, id: String) -> Result<bool, String> {
-    Ok(operations::remove_queued(&app, &id))
-}
-
-#[tauri::command]
 pub async fn cancel_current_operation(app: AppHandle) -> Result<bool, String> {
-    operations::cancel_current_job(&app)
+    let cancelled = operations::cancel_current_job(&app)?;
+    if cancelled {
+        Ok(true)
+    } else {
+        Ok(crate::commands::bucket_install::cancel_bucket_install())
+    }
 }
 
 #[tauri::command]

@@ -1,7 +1,9 @@
-import { Accessor, Show, createSignal, createEffect } from "solid-js";
-import { Search, X, TriangleAlert, LoaderCircle } from "lucide-solid";
+import { Accessor, Show, createSignal, createEffect, createUniqueId } from "solid-js";
+import { Search, X, TriangleAlert, LoaderCircle, ChevronDown } from "lucide-solid";
 import { useBucketSearch } from "../../../hooks/useBucketSearch";
 import { useI18n } from "../../../i18n";
+import Modal from "../../common/Modal";
+import { Dropdown, DropdownItem } from "../../common/Dropdown";
 
 interface BucketSearchProps {
   isActive: Accessor<boolean>;
@@ -17,6 +19,8 @@ function BucketSearch(props: BucketSearchProps) {
   const [expandedInfo, setExpandedInfo] = createSignal<any>(null);
   const [tempDisableChineseBuckets, setTempDisableChineseBuckets] = createSignal(false);
   const [tempMinimumStars, setTempMinimumStars] = createSignal(2);
+  const communityChineseId = createUniqueId();
+  const communityStarsId = createUniqueId();
 
   // Input ref to maintain focus
   let inputRef: HTMLInputElement | undefined;
@@ -44,14 +48,6 @@ function BucketSearch(props: BucketSearchProps) {
         error: bucketSearch.error(),
         isExpandedSearch: bucketSearch.isExpandedSearch(),
       });
-    }
-  });
-
-  // Maintain focus during search operations
-  createEffect(() => {
-    if (!bucketSearch.isSearching() && document.activeElement !== inputRef && searchInput().length > 0) {
-      // Only restore focus if we were actively searching and input has content
-      setTimeout(() => inputRef?.focus(), 0);
     }
   });
 
@@ -88,41 +84,28 @@ function BucketSearch(props: BucketSearchProps) {
   return (
     <>
       {/* Search Button */}
-      <div class="flex items-center gap-3">
-        <Show when={!props.isActive()}>
-          <div class="flex items-center gap-3 px-4 py-2 rounded-lg border border-primary/20 hover:border-primary/40 transition-all duration-200">
-            <div class="flex flex-col">
-              <span class="text-sm font-semibold text-primary">{t("buckets.discoverNew")}</span>
-              <span class="text-xs text-base-content/60 hidden sm:block">{t("buckets.exploreCommunity")}</span>
-            </div>
-            <button
-              onClick={props.onToggle}
-              class="btn btn-circle btn-primary hover:btn-primary hover:scale-110 transition-all duration-200 shadow-lg"
-              aria-label={t("buckets.searchAriaLabel")}
-            >
-              <Search class="h-5 w-5" />
-            </button>
-          </div>
-        </Show>
-      </div>
+      <Show when={!props.isActive()}>
+        <button
+          type="button"
+          onClick={props.onToggle}
+          class="btn btn-ghost btn-sm gap-2"
+          aria-label={t("buckets.searchAriaLabel")}
+        >
+          <Search class="h-4 w-4" aria-hidden="true" />
+          {t("buckets.discoverNew")}
+        </button>
+      </Show>
 
-      {/* Search Bar - Slides in from top */}
-      <div class={`absolute top-0 left-0 right-0 transition-all duration-300 ease-in-out z-50 ${props.isActive()
-        ? 'opacity-100 translate-y-0 pointer-events-auto'
-        : 'opacity-0 -translate-y-4 pointer-events-none'
-        }`}>
-        {/* Backdrop to ensure search bar stands out */}
-        <div class="absolute inset-0 bg-base-100/80 backdrop-blur-sm -z-10 rounded-lg"></div>
-
-        <div class="flex flex-col gap-4 mb-4 bg-base-100 p-4 rounded-lg shadow-xl border border-base-300 relative">
+      <Show when={props.isActive()}>
+        <div class="flex flex-col gap-4 w-full bg-base-100 p-4 rounded-lg border border-base-300">
           {/* Search Input Row */}
-          <div class="flex items-center gap-4">
+          <div class="flex flex-wrap items-center gap-3">
             <div class="relative flex-1">
               <span class="absolute inset-y-0 left-0 flex items-center pl-3 z-10">
                 <Show when={!bucketSearch.isSearching()} fallback={
-                  <LoaderCircle class="h-5 w-5 text-gray-400 animate-spin" />
+                  <LoaderCircle class="h-5 w-5 text-base-content/40 animate-spin" aria-hidden="true" />
                 }>
-                  <Search class="h-5 w-5 text-gray-400" />
+                  <Search class="h-5 w-5 text-base-content/40" aria-hidden="true" />
                 </Show>
               </span>
 
@@ -130,61 +113,80 @@ function BucketSearch(props: BucketSearchProps) {
                 ref={inputRef}
                 type="text"
                 placeholder={t("buckets.searchPlaceholder")}
-                class="input input-bordered w-full pl-10 pr-4 bg-base-300 transition-colors duration-200"
+                aria-label={t("buckets.searchPlaceholder")}
+                class="input w-full pl-10 pr-10 bg-base-300 transition-colors duration-200 focus:outline-none focus:border-base-content/20"
                 value={searchInput()}
                 onInput={(e) => handleSearchInput(e.currentTarget.value)}
-                disabled={bucketSearch.isSearching()}
               />
+
+              <Show when={searchInput().length > 0}>
+                <button
+                  type="button"
+                  onClick={() => handleSearchInput("")}
+                  class="absolute inset-y-0 right-0 flex items-center pr-3 text-base-content/40 hover:text-base-content"
+                  aria-label={t("buckets.clearSearch")}
+                >
+                  <X class="h-4 w-4" aria-hidden="true" />
+                </button>
+              </Show>
             </div>
 
-            <Show when={searchInput().length > 0}>
-              <button
-                onClick={() => handleSearchInput("")}
-                class="btn btn-circle btn-sm btn-ghost hover:btn-error"
-                aria-label={t("buckets.clearSearch")}
-                disabled={bucketSearch.isSearching()}
-              >
-                <X class="h-4 w-4" />
-              </button>
-            </Show>
-
             <button
+              type="button"
               onClick={closeSearch}
-              class="btn btn-circle btn-outline hover:btn-error transition-colors"
+              class="btn btn-ghost btn-sm"
               aria-label={t("buckets.closeSearch")}
             >
-              <X class="h-5 w-5" />
+              {t("common.close")}
             </button>
           </div>
 
           {/* Search Options Row */}
-          <div class="flex items-center justify-between gap-4 text-sm">
-            <div class="flex items-center gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-4 text-sm">
+            <div class="flex flex-wrap items-center gap-4 min-w-0">
               {/* Sort Options */}
               <div class="flex items-center gap-2">
                 <span class="text-base-content/70">{t("buckets.sortBy")}</span>
-                <select
-                  class="select select-sm select-bordered"
-                  value={bucketSearch.sortBy()}
-                  onChange={async (e) => {
-                    bucketSearch.setSortBy(e.currentTarget.value);
-                    // Manually trigger search if we have a query
+                {(() => {
+                  const sortOptions: { value: string; labelKey: string }[] = [
+                    { value: "stars", labelKey: "buckets.sortStars" },
+                    { value: "relevance", labelKey: "buckets.sortRelevance" },
+                    { value: "apps", labelKey: "buckets.sortApps" },
+                    { value: "name", labelKey: "buckets.sortName" },
+                  ];
+                  const currentLabel = () => {
+                    const match = sortOptions.find(o => o.value === bucketSearch.sortBy());
+                    return match ? t(match.labelKey) : bucketSearch.sortBy();
+                  };
+                  const setSort = async (value: string) => {
+                    bucketSearch.setSortBy(value);
                     if (searchInput().trim()) {
                       await bucketSearch.searchBuckets(searchInput());
                     }
-                    // Restore focus to input
                     inputRef?.focus();
-                  }}
-                >
-                  <option value="stars">{t("buckets.sortStars")}</option>
-                  <option value="relevance">{t("buckets.sortRelevance")}</option>
-                  <option value="apps">{t("buckets.sortApps")}</option>
-                  <option value="name">{t("buckets.sortName")}</option>
-                </select>
+                  };
+                  return (
+                    <Dropdown
+                      ariaLabel={t("buckets.sortBy")}
+                      triggerClass="border border-base-content/20"
+                      menuWidth="w-40"
+                      trigger={<><span>{currentLabel()}</span><ChevronDown class="w-4 h-4 opacity-60" aria-hidden="true" /></>}
+                    >
+                      {sortOptions.map((opt) => (
+                        <DropdownItem
+                          active={bucketSearch.sortBy() === opt.value}
+                          onClick={() => setSort(opt.value)}
+                        >
+                          {t(opt.labelKey)}
+                        </DropdownItem>
+                      ))}
+                    </Dropdown>
+                  );
+                })()}
               </div>
 
               {/* Results Count */}
-              <Show when={bucketSearch.searchResults().length > 0 && !bucketSearch.isSearching()}>
+              <Show when={bucketSearch.searchResults().length > 0}>
                 <div class="text-base-content/70">
                   {t("buckets.resultsCount", { count: bucketSearch.searchResults().length, total: bucketSearch.totalCount() })}
                 </div>
@@ -195,28 +197,30 @@ function BucketSearch(props: BucketSearchProps) {
             <div class="flex items-center gap-2">
               <Show when={!bucketSearch.cacheExists() && !bucketSearch.isExpandedSearch()}>
                 <button
+                  type="button"
                   onClick={async () => {
                     await handleExpandedSearchClick();
                   }}
                   class="btn btn-sm btn-outline btn-warning"
                   disabled={bucketSearch.isSearching()}
                 >
-                  <TriangleAlert class="h-4 w-4 mr-1" />
+                  <TriangleAlert class="h-4 w-4 mr-1" aria-hidden="true" />
                   {t("buckets.communityBuckets")}
                 </button>
               </Show>
 
               <Show when={bucketSearch.cacheExists() || bucketSearch.isExpandedSearch()}>
                 <button
+                  type="button"
                   onClick={async () => {
                     await bucketSearch.disableExpandedSearch();
                     // The effect will handle updating parent results
                   }}
                   class="btn btn-sm btn-outline btn-error"
                   disabled={bucketSearch.isSearching()}
-                  title="Clear expanded search cache and return to verified buckets only"
+                  title={t("buckets.disableCommunityTooltip")}
                 >
-                  <X class="h-4 w-4 mr-1" />
+                  <X class="h-4 w-4 mr-1" aria-hidden="true" />
                   {t("buckets.disableCommunity")}
                 </button>
               </Show>
@@ -226,19 +230,39 @@ function BucketSearch(props: BucketSearchProps) {
           {/* Error Display */}
           <Show when={bucketSearch.error()}>
             <div class="alert alert-error alert-sm">
-              <TriangleAlert class="h-4 w-4" />
+              <TriangleAlert class="h-4 w-4" aria-hidden="true" />
               <span>{bucketSearch.error()}</span>
             </div>
           </Show>
         </div>
-      </div>
+      </Show>
 
       {/* Expanded Search Confirmation Dialog */}
-      <Show when={showExpandedDialog()}>
-        <div class="modal modal-open backdrop-blur-sm">
-          <div class="modal-box bg-base-200 max-w-md">
-            <h3 class="font-bold text-lg mb-3">{t("buckets.communityDialogTitle")}</h3>
-
+      <Modal
+        isOpen={showExpandedDialog()}
+        onClose={() => setShowExpandedDialog(false)}
+        title={t("buckets.communityDialogTitle")}
+        size="small"
+        footer={
+          <div class="flex flex-wrap justify-end gap-2 w-full">
+            <button
+              type="button"
+              class="btn btn-ghost"
+              onClick={() => setShowExpandedDialog(false)}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              onClick={confirmExpandedSearch}
+              disabled={bucketSearch.isSearching()}
+            >
+              {t("buckets.enable")}
+            </button>
+          </div>
+        }
+      >
             <p class="text-sm text-base-content/70 mb-4">
               {t("buckets.communityDialogText", { totalBuckets: expandedInfo()?.total_buckets?.toLocaleString(), sizeMb: expandedInfo()?.estimated_size_mb })}
             </p>
@@ -246,8 +270,9 @@ function BucketSearch(props: BucketSearchProps) {
             {/* Filters */}
             <div class="space-y-3 mb-6">
               <div class="flex items-center justify-between">
-                <span class="text-sm">{t("buckets.excludeChinese")}</span>
+                <label class="text-sm" for={communityChineseId}>{t("buckets.excludeChinese")}</label>
                 <input
+                  id={communityChineseId}
                   type="checkbox"
                   class="toggle toggle-primary"
                   checked={tempDisableChineseBuckets()}
@@ -255,10 +280,11 @@ function BucketSearch(props: BucketSearchProps) {
                 />
               </div>
               <div class="flex items-center justify-between">
-                <span class="text-sm">{t("buckets.minimumStars")}</span>
+                <label class="text-sm" for={communityStarsId}>{t("buckets.minimumStars")}</label>
                 <input
+                  id={communityStarsId}
                   type="number"
-                  class="input input-bordered input-sm w-20"
+                  class="input input-sm w-20 focus:outline-none focus:border-base-content/20"
                   min="0"
                   max="1000"
                   value={tempMinimumStars()}
@@ -266,26 +292,7 @@ function BucketSearch(props: BucketSearchProps) {
                 />
               </div>
             </div>
-
-            <div class="modal-action">
-              <button
-                class="btn btn-sm btn-ghost"
-                onClick={() => setShowExpandedDialog(false)}
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                class="btn btn-sm btn-primary"
-                onClick={confirmExpandedSearch}
-                disabled={bucketSearch.isSearching()}
-              >
-                {t("buckets.enable")}
-              </button>
-            </div>
-          </div>
-          <div class="modal-backdrop" onClick={() => setShowExpandedDialog(false)}></div>
-        </div>
-      </Show>
+      </Modal>
     </>
   );
 }

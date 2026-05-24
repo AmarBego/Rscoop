@@ -1,6 +1,6 @@
 //! Commands for automatic cleanup based on user settings.
-use crate::commands::installed::get_installed_packages_full;
 use crate::commands::doctor::cache;
+use crate::commands::installed::{get_installed_packages_full, invalidate_installed_cache};
 use crate::commands::settings;
 use crate::state::AppState;
 use serde::Deserialize;
@@ -23,23 +23,22 @@ pub fn compare_versions(a: &str, b: &str) -> Ordering {
 
 /// Settings for automatic cleanup operations.
 #[derive(Debug, Deserialize)]
-pub struct CleanupSettings {
+struct CleanupSettings {
     #[serde(rename = "autoCleanupEnabled")]
-    pub auto_cleanup_enabled: bool,
+    auto_cleanup_enabled: bool,
     #[serde(rename = "cleanupOldVersions")]
-    pub cleanup_old_versions: bool,
+    cleanup_old_versions: bool,
     #[serde(rename = "cleanupCache")]
-    pub cleanup_cache: bool,
+    cleanup_cache: bool,
     #[serde(rename = "preserveVersionCount")]
-    pub preserve_version_count: usize,
+    preserve_version_count: usize,
 }
 
 /// Runs the auto cleanup operation silently in the background based on user settings.
 ///
 /// This function is designed to be called after package operations (install, update, uninstall)
 /// to automatically clean up old versions and/or cache without user intervention.
-#[tauri::command]
-pub async fn run_auto_cleanup<R: Runtime>(
+async fn run_auto_cleanup<R: Runtime>(
     app: AppHandle<R>,
     state: State<'_, AppState>,
     settings: CleanupSettings,
@@ -87,6 +86,7 @@ pub async fn run_auto_cleanup<R: Runtime>(
             settings.preserve_version_count,
         )
         .await?;
+        invalidate_installed_cache(state.clone()).await;
     }
 
     if settings.cleanup_cache && !regular_packages.is_empty() {
@@ -210,7 +210,7 @@ async fn cleanup_cache_for_packages<R: Runtime>(
         return Ok(());
     }
 
-    match cache::cleanup_outdated_cache_internal(app).await {
+    match cache::cleanup_outdated_cache_for_packages_internal(app, Some(packages)).await {
         Ok(result) => {
             log::debug!(
                 "Automatic cache cleanup deleted {} outdated files",

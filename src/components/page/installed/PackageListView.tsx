@@ -7,6 +7,7 @@ import type { ScoopPackage } from "../../../types/scoop";
 import heldStore from "../../../stores/held";
 import { formatIsoDate } from "../../../utils/date";
 import { useI18n } from "../../../i18n";
+import { Dropdown, DropdownItem, DropdownLoadingItem } from "../../common/Dropdown";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
@@ -32,18 +33,28 @@ const SortableHeader = (props: {
   onSort: (key: SortKey) => void,
   sortKey: Accessor<SortKey>,
   sortDirection: Accessor<'asc' | 'desc'>
-}) => (
-  <th class="cursor-pointer select-none" onClick={() => props.onSort(props.key)}>
-    <div class="flex items-center gap-2">
-      {props.title}
-      <Show when={props.sortKey() === props.key}>
-        <Show when={props.sortDirection() === 'asc'} fallback={<ArrowDown class="w-4 h-4" />}>
-          <ArrowUp class="w-4 h-4" />
+}) => {
+  const ariaSort = (): "ascending" | "descending" | "none" => {
+    if (props.sortKey() !== props.key) return "none";
+    return props.sortDirection() === 'asc' ? "ascending" : "descending";
+  };
+  return (
+    <th aria-sort={ariaSort()} class="select-none p-0">
+      <button
+        type="button"
+        class="w-full text-left px-4 py-3 flex items-center gap-2 hover:bg-base-200"
+        onClick={() => props.onSort(props.key)}
+      >
+        {props.title}
+        <Show when={props.sortKey() === props.key}>
+          <Show when={props.sortDirection() === 'asc'} fallback={<ArrowDown class="w-4 h-4" />}>
+            <ArrowUp class="w-4 h-4" />
+          </Show>
         </Show>
-      </Show>
-    </div>
-  </th>
-);
+      </button>
+    </th>
+  );
+};
 
 function PackageListView(props: PackageListViewProps) {
   const { t } = useI18n();
@@ -75,7 +86,7 @@ function PackageListView(props: PackageListViewProps) {
                     </Show>
                     <Show when={pkg.is_versioned_install}>
                       <div class="tooltip" data-tip={t("installed.versionedInstallTooltip")}>
-                        <Lock class="w-4 h-4 text-cyan-400" />
+                        <Lock class="w-4 h-4 text-versioned" />
                       </div>
                     </Show>
                     <Show when={heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
@@ -89,74 +100,52 @@ function PackageListView(props: PackageListViewProps) {
                 <td>{pkg.source}</td>
                 <td title={pkg.updated}>{formatIsoDate(pkg.updated)}</td>
                 <td class="text-center">
-                  <div
-                    class="dropdown dropdown-end"
-                    classList={{
-                      'dropdown-top': index() * 2 >= props.packages().length - 1,
-                    }}
+                  <Dropdown
+                    size="sm"
+                    iconOnly
+                    direction={index() * 2 >= props.packages().length - 1 ? "top" : "bottom"}
+                    ariaLabel={t("installed.tableActions")}
+                    trigger={<Ellipsis class="w-4 h-4" />}
                   >
-                    <label tabindex="0" class="btn btn-ghost btn-xs btn-circle">
-                      <Ellipsis class="w-4 h-4" />
-                    </label>
-                    <ul tabindex="0" class="dropdown-content menu p-2 shadow bg-base-300 rounded-box w-52 z-[1]">
-                      <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
-                        <li>
-                          <a onClick={() => props.onUpdate(pkg)}>
-                            <CircleArrowUp class="w-4 h-4 mr-2" />
-                            {t("installed.updateTo", { version: pkg.available_version ?? "" })}
-                          </a>
-                        </li>
-                      </Show>
-                      <li>
-                        <Show when={props.operatingOn() === pkg.name}
+                    <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
+                      <DropdownItem icon={<CircleArrowUp class="w-4 h-4" />} onClick={() => props.onUpdate(pkg)}>
+                        {t("installed.updateTo", { version: pkg.available_version ?? "" })}
+                      </DropdownItem>
+                    </Show>
+                    <Show when={props.operatingOn() === pkg.name}
+                      fallback={
+                        <Show when={pkg.is_versioned_install}
                           fallback={
-                            <Show when={pkg.is_versioned_install}
+                            <Show when={heldStore.isHeld(pkg.name)}
                               fallback={
-                                <Show when={heldStore.isHeld(pkg.name)}
-                                  fallback={
-                                    <a onClick={() => props.onHold(pkg.name)}>
-                                      <Lock class="w-4 h-4 mr-2" />
-                                      <span>{t("installed.holdPackage")}</span>
-                                    </a>
-                                  }
-                                >
-                                  <a onClick={() => props.onUnhold(pkg.name)}>
-                                    <LockOpen class="w-4 h-4 mr-2" />
-                                    <span>{t("installed.unholdPackage")}</span>
-                                  </a>
-                                </Show>
+                                <DropdownItem icon={<Lock class="w-4 h-4" />} onClick={() => props.onHold(pkg.name)}>
+                                  {t("installed.holdPackage")}
+                                </DropdownItem>
                               }
                             >
-                              <a class="btn-disabled cursor-not-allowed">
-                                <Lock class="w-4 h-4 mr-2 text-cyan-400" />
-                                <span>{t("installed.cannotUnholdVersioned")}</span>
-                              </a>
+                              <DropdownItem icon={<LockOpen class="w-4 h-4" />} onClick={() => props.onUnhold(pkg.name)}>
+                                {t("installed.unholdPackage")}
+                              </DropdownItem>
                             </Show>
                           }
                         >
-                          <span class="flex items-center justify-center p-2">
-                            <span class="loading loading-spinner loading-xs"></span>
-                          </span>
+                          <DropdownItem disabled icon={<Lock class="w-4 h-4 text-versioned" />}>
+                            {t("installed.cannotUnholdVersioned")}
+                          </DropdownItem>
                         </Show>
-                      </li>
-                      <Show when={props.isPackageVersioned(pkg.name)}>
-                        <li>
-                          <a onClick={() => {
-                            props.onViewInfoForVersions(pkg);
-                          }}>
-                            <RefreshCw class="w-4 h-4 mr-2" />
-                            {t("installed.switchVersion")}
-                          </a>
-                        </li>
-                      </Show>
-                      <li>
-                        <a class="text-error" onClick={() => props.onUninstall(pkg)}>
-                          <Trash2 class="w-4 h-4 mr-2" />
-                          {t("common.uninstall")}
-                        </a>
-                      </li>
-                    </ul>
-                  </div>
+                      }
+                    >
+                      <DropdownLoadingItem />
+                    </Show>
+                    <Show when={props.isPackageVersioned(pkg.name)}>
+                      <DropdownItem icon={<RefreshCw class="w-4 h-4" />} onClick={() => props.onViewInfoForVersions(pkg)}>
+                        {t("installed.switchVersion")}
+                      </DropdownItem>
+                    </Show>
+                    <DropdownItem destructive icon={<Trash2 class="w-4 h-4" />} onClick={() => props.onUninstall(pkg)}>
+                      {t("common.uninstall")}
+                    </DropdownItem>
+                  </Dropdown>
                 </td>
               </tr>
             )}

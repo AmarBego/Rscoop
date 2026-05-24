@@ -806,21 +806,6 @@ fn expand_action(action: EnqueueAction) -> (EnqueueAction, Option<Box<EnqueueAct
     }
 }
 
-/// Remove a queued operation by id. Returns true if removed.
-pub fn remove_queued(app: &AppHandle, id: &str) -> bool {
-    let removed = {
-        let state = manager(app);
-        let mut m = state.lock().unwrap();
-        let before = m.queue.len();
-        m.queue.retain(|q| q.id != id);
-        m.queue.len() != before
-    };
-    if removed {
-        emit_state(app);
-    }
-    removed
-}
-
 /// Clear completed history.
 pub fn clear_completed(app: &AppHandle) {
     {
@@ -1021,12 +1006,17 @@ fn spawn_runner(app: AppHandle, pending: PendingOp) {
 async fn run_action(app: AppHandle, pending: PendingOp) {
     // Execute the primary action
     let primary_result = execute_action(&app, &pending.action).await;
+    let primary_had_warnings = has_operation_warnings(&app);
 
     // If success and there's an auto chain, run it in the SAME op
     // (output continues to stream into the same current op, no new modal).
     // Deferred chains (auto_chain=false) are left on the op for the user
     // to invoke later via `run_pending_chain`.
-    let final_result = if primary_result.is_ok() && pending.chain.is_some() && pending.auto_chain {
+    let final_result = if primary_result.is_ok()
+        && !primary_had_warnings
+        && pending.chain.is_some()
+        && pending.auto_chain
+    {
         let chain_ref = pending.chain.as_deref().unwrap();
         let chain_title = chain_ref.title();
         // Emit a visual separator and flip the title to reflect the new phase.
@@ -1074,8 +1064,7 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
         },
         Ok(()) => CommandResult {
             success: true,
-            message: summary
-                .unwrap_or_else(|| format!("{} completed successfully", pending.title)),
+            message: summary.unwrap_or_else(|| format!("{} completed successfully", pending.title)),
             status: "success".to_string(),
         },
         Err(e) if has_scan_warning => CommandResult {
@@ -1090,9 +1079,15 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
         },
     };
 
-    // Run post-op hooks (auto cleanup, cache invalidation) for package ops.
-    // Fire-and-forget; these mirror what the legacy commands did inline.
-    run_post_hooks(&app, &pending, &final_result).await;
+    // Finish post-op hooks before notifying listeners. The frontend reloads
+    // installed package state on `operation-finished`, so cache invalidation
+    // and auto-cleanup must happen first.
+    let hook_result = if primary_had_warnings {
+        Err("operation completed with warnings".to_string())
+    } else {
+        final_result.clone()
+    };
+    run_post_hooks(&app, &pending, &hook_result).await;
 
     // Emit finished event before moving state so listeners see the result.
     let _ = app.emit(EVENT_FINISHED, result.clone());
@@ -1129,6 +1124,15 @@ async fn run_action(app: AppHandle, pending: PendingOp) {
     if let Some(p) = next {
         spawn_runner(app, p);
     }
+}
+
+fn has_operation_warnings(app: &AppHandle) -> bool {
+    let state = manager(app);
+    let m = state.lock().unwrap();
+    m.current
+        .as_ref()
+        .map(|active| !active.operation_warnings.is_empty())
+        .unwrap_or(false)
 }
 
 /// Stash a scan warning on the currently-active op. Called from the Scan
@@ -1238,11 +1242,13 @@ async fn run_post_hooks(app: &AppHandle, pending: &PendingOp, result: &Result<()
         | EnqueueAction::UpdateAll => {
             invalidate_manifest_cache(&state.scoop_path()).await;
             invalidate_installed_cache(state.clone()).await;
-            // Auto-cleanup fires regardless of success on the original impl;
-            // mirror that.
-            crate::commands::auto_cleanup::trigger_auto_cleanup(app.clone(), state).await;
+            if result.is_ok() {
+                crate::commands::auto_cleanup::trigger_auto_cleanup(app.clone(), state).await;
+            }
+        }
+        EnqueueAction::CleanupApps if result.is_ok() => {
+            invalidate_installed_cache(state.clone()).await;
         }
         _ => {}
     }
-    let _ = result;
 }

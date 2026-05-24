@@ -166,6 +166,9 @@ fn scoop_rules() -> Vec<Rule> {
         warning, "scoop.update.running_process",
             "Scoop skipped one or more updates because related processes are still running. Close the listed processes and run the update again.",
             r"(?i)running process detected.*skip\s+updating";
+        warning, "scoop.uninstall.running_process",
+            "Scoop could not fully uninstall the app because one or more related processes are still running. Close the listed processes and run the uninstall again.",
+            r"(?i)(?:application is still running|running process detected|(?:instances? of .+|process(?:es)? .+) (?:are )?still running)";
         warning, "scoop.update.held", "'$1' is held to a fixed version and was not updated.",
             r"'([^']+)' is held to version";
         warning, "scoop.install.already_installed", "'$1' is already installed.",
@@ -305,7 +308,9 @@ mod tests {
     #[test]
     fn hash_failure_is_known_error() {
         let evs = classify(&["Hash check failed for download.zip"]);
-        assert!(matches!(evs.as_slice(), [InterpreterEvent::KnownError { code, .. }] if code == "scoop.hash_mismatch"));
+        assert!(
+            matches!(evs.as_slice(), [InterpreterEvent::KnownError { code, .. }] if code == "scoop.hash_mismatch")
+        );
     }
 
     #[test]
@@ -322,7 +327,18 @@ mod tests {
     #[test]
     fn running_process_warns() {
         let evs = classify(&["WARN  Running process detected, skip updating."]);
-        assert!(matches!(evs.as_slice(), [InterpreterEvent::Warning { code: Some(c), .. }] if c == "scoop.update.running_process"));
+        assert!(
+            matches!(evs.as_slice(), [InterpreterEvent::Warning { code: Some(c), .. }] if c == "scoop.update.running_process")
+        );
+    }
+
+    #[test]
+    fn uninstall_running_process_warns() {
+        let evs = classify(&["ERROR The following instances of \"github\" are still running. Close them and try again."]);
+        assert!(
+            matches!(evs.as_slice(), [InterpreterEvent::Warning { code: Some(c), .. }] if c == "scoop.uninstall.running_process"),
+            "got {evs:?}"
+        );
     }
 
     #[test]
@@ -432,7 +448,10 @@ mod tests {
                 (execra::Stream::Stdout, "Notes"),
                 (execra::Stream::Stdout, "-----"),
                 (execra::Stream::Stdout, "Add the install dir to PATH"),
-                (execra::Stream::Stdout, "Also: don't forget to restart shells"),
+                (
+                    execra::Stream::Stdout,
+                    "Also: don't forget to restart shells",
+                ),
                 (execra::Stream::Stdout, ""),
             ],
             ExitCode::from_code(0),

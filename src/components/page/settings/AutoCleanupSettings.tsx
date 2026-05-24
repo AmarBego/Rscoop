@@ -35,8 +35,8 @@ function AutoCleanupSettings() {
                 <div class="border-t border-base-content/10" />
                 <div class="space-y-3">
                     {/* Clean old versions */}
-                    <div class="flex items-center justify-between py-2">
-                        <div class="flex-1">
+                    <div class="flex flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0 flex-1">
                             <span class="text-sm font-medium">{t("settings.cleanup.cleanOldVersions")}</span>
                             <p class="text-xs text-base-content/50">
                                 {t("settings.cleanup.cleanOldVersionsDescription")}
@@ -51,9 +51,9 @@ function AutoCleanupSettings() {
                     </div>
 
                     <Show when={settings.cleanup.cleanupOldVersions}>
-                        <div class="flex items-center gap-3 pl-1">
+                        <div class="flex flex-col gap-2 pl-0 sm:flex-row sm:items-center sm:gap-3 sm:pl-1">
                             <span class="text-xs text-base-content/60">{t("settings.cleanup.versionsToKeep")}</span>
-                            <div class="flex items-center gap-1">
+                            <div class="flex items-center gap-2">
                                 <button
                                     class="btn btn-xs btn-ghost font-mono"
                                     onClick={() => handleVersionCountChange(localVersionCount() - 1)}
@@ -78,8 +78,8 @@ function AutoCleanupSettings() {
                     <div class="border-t border-base-content/10" />
 
                     {/* Clean outdated cache */}
-                    <div class="flex items-center justify-between py-2">
-                        <div class="flex-1">
+                    <div class="flex flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0 flex-1">
                             <span class="text-sm font-medium">{t("settings.cleanup.cleanOutdatedCache")}</span>
                             <p class="text-xs text-base-content/50">{t("settings.cleanup.cleanOutdatedCacheDescription")}</p>
                         </div>
@@ -94,8 +94,8 @@ function AutoCleanupSettings() {
                     <div class="border-t border-base-content/10" />
 
                     {/* Auto clear cache on uninstall */}
-                    <div class="flex items-center justify-between py-2">
-                        <div class="flex-1">
+                    <div class="flex flex-col gap-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0 flex-1">
                             <span class="text-sm font-medium">{t("settings.cleanup.clearCacheOnUninstall")}</span>
                             <p class="text-xs text-base-content/50">{t("settings.cleanup.clearCacheOnUninstallDescription")}</p>
                         </div>

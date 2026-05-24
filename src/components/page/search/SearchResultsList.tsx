@@ -1,7 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
 import { ScoopPackage } from "../../../types/scoop";
 import { Download, Check } from "lucide-solid";
-import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
 
 interface SearchResultsListProps {
@@ -29,7 +28,7 @@ function SearchResultsList(props: SearchResultsListProps) {
 
     return (
         <>
-            <Show when={props.loading}>
+            <Show when={props.loading && props.results.length === 0}>
                 <div class="flex justify-center items-center h-64">
                     <span class="loading loading-spinner loading-lg"></span>
                 </div>
@@ -45,47 +44,57 @@ function SearchResultsList(props: SearchResultsListProps) {
                 </div>
             </Show>
 
-            <div class="space-y-4">
+            <div
+                role="tabpanel"
+                id={`search-tab-${props.activeTab}-panel`}
+                aria-labelledby={`search-tab-${props.activeTab}-btn`}
+                class="space-y-2"
+            >
                 <For each={props.results}>
                     {(pkg) => (
-                        <div onClick={() => props.onViewInfo(pkg)}>
-                            <Card
-                                class="cursor-pointer transition-all duration-200 transform hover:scale-101"
-                                title={
-                                    <div class="flex flex-col gap-0">
-                                        <span class="text-base font-semibold">{pkg.name}</span>
-                                        <span class="text-sm font-normal text-base-content/70">
-                                            {t("search.fromBucket", { source: pkg.source })}
-                                        </span>
-                                    </div>
+                        <div
+                            role="button"
+                            tabindex="0"
+                            aria-label={pkg.name}
+                            onClick={() => props.onViewInfo(pkg)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    props.onViewInfo(pkg);
                                 }
-                                headerAction={
-                                    <div class="flex items-center gap-2">
-                                        <span class="badge badge-primary badge-soft">
-                                            {pkg.version}
-                                        </span>
-                                        {pkg.is_installed ? (
-                                            <span class="badge badge-success">{t("search.installedBadge")}</span>
-                                        ) : (
-                                            <button
-                                                class="btn btn-sm btn-ghost"
-                                                classList={{ "text-success": queued().has(pkg.name) }}
-                                                disabled={queued().has(pkg.name)}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    props.onInstall(pkg);
-                                                    props.onPackageStateChanged?.();
-                                                    flashQueued(pkg.name);
-                                                }}
-                                            >
-                                                <Show when={queued().has(pkg.name)} fallback={<Download />}>
-                                                    <Check />
-                                                </Show>
-                                            </button>
-                                        )}
-                                    </div>
-                                }
-                            />
+                            }}
+                            class="bg-base-300 hover:bg-base-400 rounded-lg p-3 transition-colors cursor-pointer flex items-start justify-between gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                        >
+                            <div class="min-w-0 flex-1">
+                                <h3 class="font-medium text-base truncate" title={pkg.name}>{pkg.name}</h3>
+                                <p class="text-xs text-base-content/60 mt-0.5 truncate">
+                                    {t("search.fromBucket", { source: pkg.source })}
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="badge badge-primary badge-soft">{pkg.version}</span>
+                                <Show when={pkg.is_installed} fallback={
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-ghost"
+                                        classList={{ "text-success": queued().has(pkg.name) }}
+                                        disabled={queued().has(pkg.name)}
+                                        aria-label={queued().has(pkg.name) ? t("common.queued") : t("common.install")}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            props.onInstall(pkg);
+                                            props.onPackageStateChanged?.();
+                                            flashQueued(pkg.name);
+                                        }}
+                                    >
+                                        <Show when={queued().has(pkg.name)} fallback={<Download class="w-4 h-4" aria-hidden="true" />}>
+                                            <Check class="w-4 h-4" aria-hidden="true" />
+                                        </Show>
+                                    </button>
+                                }>
+                                    <span class="badge badge-success">{t("search.installedBadge")}</span>
+                                </Show>
+                            </div>
                         </div>
                     )}
                 </For>

@@ -1,8 +1,9 @@
 import { createSignal, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { RefreshCcw } from "lucide-solid";
+import { RefreshCcw, ChevronDown } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
+import { Dropdown, DropdownItem } from "../../common/Dropdown";
 import { useI18n } from "../../../i18n";
 
 const PRESET_VALUES = [
@@ -67,7 +68,7 @@ export default function BucketAutoUpdateSettings() {
             icon={RefreshCcw}
             description={t("settings.bucketUpdate.description")}
             headerAction={
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-2" aria-live="polite">
                     <ActiveBadge value={settings.buckets.autoUpdateInterval} />
                     {saving() && <span class="loading loading-spinner loading-xs" />}
                 </div>
@@ -75,14 +76,16 @@ export default function BucketAutoUpdateSettings() {
         >
             {/* Interval selector */}
             <div class="flex items-center gap-2">
-                <div class="flex bg-base-100 rounded-lg p-0.5 gap-0.5">
+                <div class="flex w-full flex-wrap bg-base-100 rounded-lg p-1 gap-1 sm:w-auto" role="group" aria-label={t("settings.bucketUpdate.title")}>
                     {PRESET_VALUES.map(opt => (
                         <button
-                            class="btn btn-xs rounded-md"
+                            type="button"
+                            class="btn btn-sm rounded-md flex-1 sm:flex-none"
                             classList={{
                                 "btn-primary": settings.buckets.autoUpdateInterval === opt.value,
                                 "btn-ghost": settings.buckets.autoUpdateInterval !== opt.value,
                             }}
+                            aria-pressed={settings.buckets.autoUpdateInterval === opt.value}
                             disabled={loading() || saving()}
                             onClick={() => {
                                 persistInterval(opt.value);
@@ -93,11 +96,13 @@ export default function BucketAutoUpdateSettings() {
                         </button>
                     ))}
                     <button
-                        class="btn btn-xs rounded-md"
+                        type="button"
+                        class="btn btn-sm rounded-md flex-1 sm:flex-none"
                         classList={{
                             "btn-primary": isCustom() || (showCustom() && !isCustom()),
                             "btn-ghost": !isCustom() && !showCustom(),
                         }}
+                        aria-pressed={isCustom() || (showCustom() && !isCustom())}
                         disabled={loading() || saving()}
                         onClick={() => setShowCustom(true)}
                     >
@@ -119,12 +124,13 @@ export default function BucketAutoUpdateSettings() {
             {/* Auto update packages toggle */}
             <Show when={settings.buckets.autoUpdateInterval !== "off"}>
                 <div class="border-t border-base-content/10 mt-4 pt-3">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <span class="text-sm font-medium">{t("settings.bucketUpdate.autoUpdatePackages")}</span>
+                    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0 pr-4">
+                            <label for="settings-bucket-auto-update-packages" class="text-sm font-medium">{t("settings.bucketUpdate.autoUpdatePackages")}</label>
                             <p class="text-xs text-base-content/50">{t("settings.bucketUpdate.autoUpdatePackagesDescription")}</p>
                         </div>
                         <input
+                            id="settings-bucket-auto-update-packages"
                             type="checkbox"
                             class="toggle toggle-primary"
                             checked={settings.buckets.autoUpdatePackagesEnabled}
@@ -139,7 +145,8 @@ export default function BucketAutoUpdateSettings() {
             <Show when={settings.debug.enabled && settings.buckets.autoUpdateInterval !== "off"}>
                 <div class="mt-3">
                     <button
-                        class="btn btn-xs btn-warning"
+                        type="button"
+                        class="btn btn-sm btn-warning"
                         disabled={saving() || loading()}
                         onClick={() => persistInterval("custom:10")}
                     >
@@ -148,7 +155,7 @@ export default function BucketAutoUpdateSettings() {
                 </div>
             </Show>
 
-            {error() && <p class="text-error text-xs mt-2">{error()}</p>}
+            {error() && <p class="text-error text-xs mt-2" role="status" aria-live="polite">{error()}</p>}
         </Card>
     );
 }
@@ -177,6 +184,8 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
     const [unit, setUnit] = createSignal("days");
     const [error, setError] = createSignal<string | null>(null);
     const [saved, setSaved] = createSignal(false);
+    const inputId = "settings-bucket-custom-interval-quantity";
+    const statusId = "settings-bucket-custom-interval-status";
 
     const unitSeconds = (u: string) => ({ minutes: 60, hours: 3600, days: 86400, weeks: 604800 }[u] || 0);
 
@@ -206,34 +215,51 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
     };
 
     return (
-        <div class="flex items-center gap-2 mt-3">
+        <div class="flex flex-col gap-2 mt-3 sm:flex-row sm:items-center">
+            <label for={inputId} class="sr-only">{t("settings.bucketUpdate.custom")}</label>
             <input
+                id={inputId}
                 type="number"
                 min={1}
-                class="input input-sm input-bordered w-20 bg-base-100 font-mono text-sm"
+                class="input input-sm input-bordered w-full bg-base-100 font-mono text-sm focus:outline-none focus:border-base-content/20 sm:w-20"
                 value={quantity()}
                 disabled={props.disabled}
-                onInput={(e) => { setQuantity(parseInt(e.currentTarget.value || "1", 10)); setError(null); }}
+                aria-invalid={!!error()}
+                aria-describedby={statusId}
+                onInput={(e) => {
+                    const next = parseInt(e.currentTarget.value || "1", 10);
+                    setQuantity(Number.isFinite(next) ? next : 1);
+                    setError(null);
+                }}
             />
-            <select
-                class="select select-sm select-bordered bg-base-100 text-sm"
-                value={unit()}
+            <Dropdown
+                ariaLabel={t("settings.bucketUpdate.custom")}
                 disabled={props.disabled}
-                onChange={(e) => { setUnit(e.currentTarget.value); setError(null); }}
+                triggerClass="border border-base-content/20 w-full justify-between sm:w-auto"
+                menuWidth="w-32"
+                trigger={
+                    <>
+                        <span>{t(`settings.bucketUpdate.unit${unit() === "minutes" ? "Min" : unit() === "hours" ? "Hr" : unit() === "days" ? "Days" : "Wk"}`)}</span>
+                        <ChevronDown class="w-4 h-4 opacity-60" aria-hidden="true" />
+                    </>
+                }
             >
-                <option value="minutes">{t("settings.bucketUpdate.unitMin")}</option>
-                <option value="hours">{t("settings.bucketUpdate.unitHr")}</option>
-                <option value="days">{t("settings.bucketUpdate.unitDays")}</option>
-                <option value="weeks">{t("settings.bucketUpdate.unitWk")}</option>
-            </select>
+                <DropdownItem active={unit() === "minutes"} onClick={() => { setUnit("minutes"); setError(null); }}>{t("settings.bucketUpdate.unitMin")}</DropdownItem>
+                <DropdownItem active={unit() === "hours"} onClick={() => { setUnit("hours"); setError(null); }}>{t("settings.bucketUpdate.unitHr")}</DropdownItem>
+                <DropdownItem active={unit() === "days"} onClick={() => { setUnit("days"); setError(null); }}>{t("settings.bucketUpdate.unitDays")}</DropdownItem>
+                <DropdownItem active={unit() === "weeks"} onClick={() => { setUnit("weeks"); setError(null); }}>{t("settings.bucketUpdate.unitWk")}</DropdownItem>
+            </Dropdown>
             <button
+                type="button"
                 class="btn btn-sm btn-primary"
                 disabled={props.disabled || !!error()}
                 onClick={handleSave}
             >
                 {saved() ? t("common.saved") : t("settings.bucketUpdate.set")}
             </button>
-            {error() && <span class="text-error text-xs">{error()}</span>}
+            <span id={statusId} class="text-xs min-h-4" aria-live="polite">
+                {error() ? <span class="text-error">{error()}</span> : saved() ? <span class="text-success">{t("common.saved")}</span> : null}
+            </span>
         </div>
     );
 }

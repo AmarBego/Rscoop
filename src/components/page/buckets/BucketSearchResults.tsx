@@ -1,8 +1,8 @@
-import { For, Show } from "solid-js";
+import { For, Show, createSignal } from "solid-js";
 import { SearchableBucket } from "../../../hooks/useBucketSearch";
 import { BucketInfo } from "../../../hooks/useBuckets";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
-import { ExternalLink, Star, Package, GitFork, Shield, LoaderCircle } from "lucide-solid";
+import { ExternalLink, Star, Package, GitFork, Shield, LoaderCircle, TriangleAlert } from "lucide-solid";
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../../../i18n";
 
@@ -20,6 +20,7 @@ interface BucketSearchResultsProps {
 function BucketSearchResults(props: BucketSearchResultsProps) {
   const { t } = useI18n();
   const bucketInstall = useBucketInstall();
+  const [operationError, setOperationError] = createSignal<string | null>(null);
   const formatNumber = (num: number) => {
     if (num >= 1000) {
       return (num / 1000).toFixed(1) + 'k';
@@ -35,6 +36,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
   // Handle bucket installation
   const handleInstallBucket = async (bucket: SearchableBucket, event: Event) => {
     event.stopPropagation();
+    setOperationError(null);
 
     try {
       const result = await bucketInstall.installBucket({
@@ -49,15 +51,18 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         props.onBucketInstalled?.();
       } else {
         console.error('Bucket installation failed:', result.message);
+        setOperationError(result.message);
       }
     } catch (error) {
       console.error('Failed to install bucket:', error);
+      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
     }
   };
 
   // Handle bucket removal
   const handleRemoveBucket = async (bucketName: string, event: Event) => {
     event.stopPropagation();
+    setOperationError(null);
 
     try {
       const result = await bucketInstall.removeBucket(bucketName);
@@ -68,10 +73,16 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         props.onBucketInstalled?.();
       } else {
         console.error('Bucket removal failed:', result.message);
+        setOperationError(result.message);
       }
     } catch (error) {
       console.error('Failed to remove bucket:', error);
+      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
     }
+  };
+
+  const openBucket = (bucket: SearchableBucket) => {
+    props.onBucketSelect?.(bucket);
   };
 
   return (
@@ -80,7 +91,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
       <div class="flex items-center justify-between">
         <h2 class="text-xl font-bold">
           {t("buckets.searchResults")}
-          <Show when={!props.loading}>
+          <Show when={props.buckets.length > 0}>
             <span class="text-base-content/60 ml-2 text-lg font-normal">
               ({props.buckets.length}{props.totalCount > props.buckets.length ? ` of ${props.totalCount}` : ''})
             </span>
@@ -89,14 +100,14 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
 
         <Show when={props.isExpandedSearch}>
           <div class="badge badge-info badge-outline badge-lg">
-            <Shield class="w-3 h-3 mr-1" />
+            <Shield class="w-3 h-3 mr-1" aria-hidden="true" />
             {t("buckets.expandedSearch")}
           </div>
         </Show>
       </div>
 
-      {/* Loading State */}
-      <Show when={props.loading}>
+      {/* Loading State — cold only */}
+      <Show when={props.loading && props.buckets.length === 0}>
         <div class="flex justify-center items-center py-12">
           <span class="loading loading-spinner loading-lg mr-3"></span>
           <span class="text-lg">{t("buckets.searching")}</span>
@@ -110,38 +121,54 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         </div>
       </Show>
 
+      <Show when={operationError()}>
+        <div role="alert" class="alert alert-error">
+          <TriangleAlert class="w-4 h-4" aria-hidden="true" />
+          <span>{operationError()}</span>
+        </div>
+      </Show>
+
       {/* No Results */}
       <Show when={!props.loading && !props.error && props.buckets.length === 0}>
         <p class="text-sm text-base-content/50 py-8 text-center">{t("buckets.noResults")}</p>
       </Show>
 
       {/* Results Grid */}
-      <Show when={!props.loading && !props.error && props.buckets.length > 0}>
+      <Show when={!props.error && props.buckets.length > 0}>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <For each={props.buckets}>
             {(bucket) => (
               <div
                 class="bg-base-300 rounded-lg p-4 cursor-pointer hover:bg-base-300/80 transition-colors"
-                onClick={() => props.onBucketSelect?.(bucket)}
+                onClick={() => openBucket(bucket)}
               >
                 {/* Header */}
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="font-semibold text-lg truncate">{bucket.name}</span>
+                <div class="flex items-center gap-2 mb-2 min-w-0">
+                  <button
+                    type="button"
+                    class="font-semibold text-lg text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate min-w-0"
+                    onClick={() => openBucket(bucket)}
+                    title={bucket.name}
+                  >
+                    {bucket.name}
+                  </button>
                   <Show when={bucket.is_verified}>
                     <span class="badge badge-info badge-outline badge-xs">
-                      <Shield class="w-2.5 h-2.5 mr-0.5" />
+                      <Shield class="w-2.5 h-2.5 mr-0.5" aria-hidden="true" />
                       {t("buckets.verified")}
                     </span>
                   </Show>
                   <button
+                    type="button"
                     class="btn btn-ghost btn-xs btn-circle ml-auto"
                     onClick={async (e) => {
                       e.stopPropagation();
                       try { await openUrl(bucket.url); } catch {}
                     }}
                     title={t("buckets.openOnGithub")}
+                    aria-label={t("buckets.openOnGithub")}
                   >
-                    <ExternalLink class="w-3.5 h-3.5" />
+                    <ExternalLink class="w-3.5 h-3.5" aria-hidden="true" />
                   </button>
                 </div>
 
@@ -158,15 +185,15 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                 {/* Stats + action row */}
                 <div class="flex items-center gap-4 text-xs text-base-content/50">
                   <span class="flex items-center gap-1">
-                    <Star class="w-3 h-3 text-yellow-500" />
+                    <Star class="w-3 h-3 text-warning" aria-hidden="true" />
                     {formatNumber(bucket.stars)}
                   </span>
                   <span class="flex items-center gap-1">
-                    <Package class="w-3 h-3 text-blue-500" />
+                    <Package class="w-3 h-3 text-info" aria-hidden="true" />
                     {formatNumber(bucket.apps)}
                   </span>
                   <span class="flex items-center gap-1">
-                    <GitFork class="w-3 h-3 text-green-500" />
+                    <GitFork class="w-3 h-3 text-success" aria-hidden="true" />
                     {formatNumber(bucket.forks)}
                   </span>
                   <span class="ml-auto">
@@ -174,6 +201,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       when={isBucketInstalled(bucket.name)}
                       fallback={
                         <button
+                          type="button"
                           class="btn btn-primary text-xs btn-xs"
                           onClick={(e) => handleInstallBucket(bucket, e)}
                           disabled={bucketInstall.isBucketBusy(bucket.name)}
@@ -182,13 +210,14 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                             when={bucketInstall.isBucketInstalling(bucket.name)}
                             fallback={<>{t("common.install")}</>}
                           >
-                            <LoaderCircle class="w-3 h-3 animate-spin" />
+                            <LoaderCircle class="w-3 h-3 animate-spin" aria-hidden="true" />
                             {t("common.installing")}
                           </Show>
                         </button>
                       }
                     >
                       <button
+                        type="button"
                         class="btn btn-ghost btn-xs text-xs text-error"
                         onClick={(e) => handleRemoveBucket(bucket.name, e)}
                         disabled={bucketInstall.isBucketBusy(bucket.name)}
@@ -197,7 +226,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                           when={bucketInstall.isBucketRemoving(bucket.name)}
                           fallback={<>{t("common.remove")}</>}
                         >
-                          <LoaderCircle class="w-3 h-3 animate-spin" />
+                          <LoaderCircle class="w-3 h-3 animate-spin" aria-hidden="true" />
                           {t("common.removing")}
                         </Show>
                       </button>

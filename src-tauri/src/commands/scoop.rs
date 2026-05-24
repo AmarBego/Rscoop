@@ -135,10 +135,7 @@ pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<O
                 // (it emits synthetic ProgressUpdated handled above), so
                 // there's nothing phase-specific to do here beyond the
                 // breadcrumb.
-                operations::push_phase(
-                    app,
-                    label.clone().unwrap_or_else(|| name.clone()),
-                );
+                operations::push_phase(app, label.clone().unwrap_or_else(|| name.clone()));
             }
             execra::Event::PhaseUpdated { label, .. } => {
                 operations::update_top_phase(app, label.clone());
@@ -183,21 +180,33 @@ fn outcome_summary(outcome: &Outcome) -> Option<String> {
     }
 }
 
+async fn execute_scoop_labeled_outcome(
+    app: AppHandle,
+    op: ScoopOp,
+    package: Option<&str>,
+    bucket: Option<&str>,
+) -> Result<(Outcome, String), String> {
+    let args = build_scoop_args(op, package, bucket)?;
+    let label = operation_name(op, package)?;
+    let outcome = run_operation(
+        app,
+        scoop_cmd(args)
+            .label(label.clone())
+            .interpreter(scoop_interpreter()),
+    )
+    .await?;
+    Ok((outcome, label))
+}
+
 pub async fn execute_scoop_outcome(
     app: AppHandle,
     op: ScoopOp,
     package: Option<&str>,
     bucket: Option<&str>,
 ) -> Result<Outcome, String> {
-    let args = build_scoop_args(op, package, bucket)?;
-    let label = operation_name(op, package)?;
-    run_operation(
-        app,
-        scoop_cmd(args)
-            .label(label)
-            .interpreter(scoop_interpreter()),
-    )
-    .await
+    execute_scoop_labeled_outcome(app, op, package, bucket)
+        .await
+        .map(|(outcome, _)| outcome)
 }
 
 /// Run a scoop operation, mapping outcome to a flat Result.
@@ -207,8 +216,7 @@ pub async fn execute_scoop(
     package: Option<&str>,
     bucket: Option<&str>,
 ) -> Result<(), String> {
-    let label = operation_name(op, package)?;
-    let outcome = execute_scoop_outcome(app, op, package, bucket).await?;
+    let (outcome, label) = execute_scoop_labeled_outcome(app, op, package, bucket).await?;
     if outcome.is_success() {
         Ok(())
     } else {

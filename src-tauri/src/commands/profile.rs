@@ -82,14 +82,13 @@ pub struct ProfileBucket {
 fn parse_profile_lenient(json: &str) -> Result<(Profile, Vec<String>), String> {
     let mut warnings = Vec::new();
 
-    let raw: Value = serde_json::from_str(json)
-        .map_err(|e| format!("Not valid JSON: {}", e))?;
+    let raw: Value = serde_json::from_str(json).map_err(|e| format!("Not valid JSON: {}", e))?;
     if !raw.is_object() {
         return Err("Profile must be a JSON object.".to_string());
     }
 
-    let profile: Profile = serde_json::from_value(raw)
-        .map_err(|e| format!("Could not read profile shape: {}", e))?;
+    let profile: Profile =
+        serde_json::from_value(raw).map_err(|e| format!("Could not read profile shape: {}", e))?;
 
     // Major-version compatibility. Same major = assume readable; different
     // major = warn but still try.
@@ -146,8 +145,7 @@ fn read_scoop_config_file() -> Result<Map<String, Value>, String> {
     }
     let content = std::fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read scoop config: {}", e))?;
-    serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse scoop config: {}", e))
+    serde_json::from_str(&content).map_err(|e| format!("Failed to parse scoop config: {}", e))
 }
 
 fn write_scoop_config_file(config: &Map<String, Value>) -> Result<(), String> {
@@ -164,9 +162,8 @@ fn write_scoop_config_file(config: &Map<String, Value>) -> Result<(), String> {
 
 /// Export the selected groups of state to a JSON string.
 ///
-/// `groups` mirrors the frontend's group IDs:
-///   apps | buckets | holds | scoopConfig |
-///   appearance | window | tray | automation | updates | virustotal | path
+/// `groups` mirrors the frontend's real import/export groups:
+///   apps | buckets | holds | scoopConfig | rscoopSettings
 ///
 /// `include_secrets` gates the VirusTotal API key inside `scoopConfig` — when
 /// false, the key is stripped before serialization.
@@ -177,7 +174,11 @@ pub async fn export_profile<R: Runtime>(
     groups: Vec<String>,
     include_secrets: bool,
 ) -> Result<String, String> {
-    log::info!("Exporting profile, groups={:?}, secrets={}", groups, include_secrets);
+    log::info!(
+        "Exporting profile, groups={:?}, secrets={}",
+        groups,
+        include_secrets
+    );
 
     let want = |id: &str| groups.iter().any(|g| g == id);
 
@@ -229,40 +230,28 @@ pub async fn export_profile<R: Runtime>(
         None
     };
 
-    // rScoop-managed settings — one flat map keyed by the rscoop-setting keys.
-    let rscoop_settings = {
-        let mut any = false;
+    let rscoop_settings = if want("rscoopSettings") {
         let mut map = Map::new();
-
-        // The frontend settings group IDs map to prefixes in the store.
-        let key_matches_group = |key: &str| -> bool {
-            if key.starts_with("cleanup.") && want("automation") { return true; }
-            if key.starts_with("buckets.") && want("updates") { return true; }
-            if key.starts_with("window.") && want("window") { return true; }
-            if key.starts_with("operations.") && want("automation") { return true; }
-            false
-        };
-
         let store = app
             .store(PathBuf::from(STORE_PATH))
             .map_err(|e| e.to_string())?;
         for key in RSCOOP_SETTING_KEYS {
-            if !key_matches_group(key) { continue; }
             if let Some(v) = store.get(*key) {
                 map.insert((*key).to_string(), v.clone());
-                any = true;
             }
         }
 
-        // scoop_path override under the "path" group.
-        if want("path") {
-            if let Some(v) = store.get("scoop_path") {
-                map.insert("scoop_path".to_string(), v.clone());
-                any = true;
-            }
+        if let Some(v) = store.get("scoop_path") {
+            map.insert("scoop_path".to_string(), v.clone());
         }
 
-        if any { Some(map) } else { None }
+        if map.is_empty() {
+            None
+        } else {
+            Some(map)
+        }
+    } else {
+        None
     };
 
     let profile = Profile {
@@ -320,11 +309,21 @@ pub fn inspect_profile(json: String) -> Result<ProfileSummary, String> {
     let (profile, mut warnings) = parse_profile_lenient(&json)?;
 
     let mut groups_present = Vec::new();
-    if profile.apps.is_some() { groups_present.push("apps".into()); }
-    if profile.buckets.is_some() { groups_present.push("buckets".into()); }
-    if profile.holds.is_some() { groups_present.push("holds".into()); }
-    if profile.scoop_config.is_some() { groups_present.push("scoopConfig".into()); }
-    if profile.rscoop_settings.is_some() { groups_present.push("rscoopSettings".into()); }
+    if profile.apps.is_some() {
+        groups_present.push("apps".into());
+    }
+    if profile.buckets.is_some() {
+        groups_present.push("buckets".into());
+    }
+    if profile.holds.is_some() {
+        groups_present.push("holds".into());
+    }
+    if profile.scoop_config.is_some() {
+        groups_present.push("scoopConfig".into());
+    }
+    if profile.rscoop_settings.is_some() {
+        groups_present.push("rscoopSettings".into());
+    }
 
     let has_secrets = profile
         .scoop_config
@@ -348,10 +347,16 @@ pub fn inspect_profile(json: String) -> Result<ProfileSummary, String> {
         None => (0, 0),
     };
     if app_skipped > 0 {
-        warnings.push(format!("{} app entry/entries had an unfamiliar shape and were skipped.", app_skipped));
+        warnings.push(format!(
+            "{} app entry/entries had an unfamiliar shape and were skipped.",
+            app_skipped
+        ));
     }
     if bucket_skipped > 0 {
-        warnings.push(format!("{} bucket entry/entries had an unfamiliar shape and were skipped.", bucket_skipped));
+        warnings.push(format!(
+            "{} bucket entry/entries had an unfamiliar shape and were skipped.",
+            bucket_skipped
+        ));
     }
 
     Ok(ProfileSummary {
@@ -438,8 +443,8 @@ pub async fn import_profile(
                 // Only write keys we recognize — ignore anything unknown so a
                 // malicious or stale profile can't stuff arbitrary data into
                 // the store.
-                let recognized = RSCOOP_SETTING_KEYS.iter().any(|k| k == key)
-                    || key == "scoop_path";
+                let recognized =
+                    RSCOOP_SETTING_KEYS.iter().any(|k| k == key) || key == "scoop_path";
                 if recognized {
                     store.set(key, value.clone());
                     result.settings_applied += 1;
@@ -450,7 +455,9 @@ pub async fn import_profile(
             store.save().map_err(|e| e.to_string())?;
             result.applied_groups.push("rscoopSettings".into());
         } else {
-            result.notes.push("rScoop settings requested but not present in profile.".into());
+            result
+                .notes
+                .push("rScoop settings requested but not present in profile.".into());
         }
     }
 
@@ -465,7 +472,9 @@ pub async fn import_profile(
             write_scoop_config_file(&current)?;
             result.applied_groups.push("scoopConfig".into());
         } else {
-            result.notes.push("Scoop config requested but not present in profile.".into());
+            result
+                .notes
+                .push("Scoop config requested but not present in profile.".into());
         }
     }
 
@@ -475,30 +484,40 @@ pub async fn import_profile(
         if let Some(list) = profile.buckets.as_deref() {
             let (parsed, skipped) = lenient_list::<ProfileBucket>(list);
             if skipped > 0 {
-                result.notes.push(format!("{} bucket entries were malformed and skipped.", skipped));
+                result.notes.push(format!(
+                    "{} bucket entries were malformed and skipped.",
+                    skipped
+                ));
             }
             for b in parsed {
                 if b.name.is_empty() || b.source.is_empty() {
                     continue;
                 }
-                let res = install_bucket(app.clone(), BucketInstallOptions {
-                    name: b.name.clone(),
-                    url: b.source.clone(),
-                    force: false,
-                })
+                let res = install_bucket(
+                    app.clone(),
+                    BucketInstallOptions {
+                        name: b.name.clone(),
+                        url: b.source.clone(),
+                        force: false,
+                    },
+                )
                 .await
-                .unwrap_or_else(|e| crate::commands::bucket_install::BucketInstallResult {
-                    success: false,
-                    message: e,
-                    bucket_name: b.name.clone(),
-                    bucket_path: None,
-                    manifest_count: None,
+                .unwrap_or_else(|e| {
+                    crate::commands::bucket_install::BucketInstallResult {
+                        success: false,
+                        message: e,
+                        bucket_name: b.name.clone(),
+                        bucket_path: None,
+                        manifest_count: None,
+                    }
                 });
                 if res.success {
                     result.buckets_added += 1;
                 } else {
                     result.buckets_failed += 1;
-                    result.notes.push(format!("Bucket '{}' failed: {}", b.name, res.message));
+                    result
+                        .notes
+                        .push(format!("Bucket '{}' failed: {}", b.name, res.message));
                 }
             }
             result.applied_groups.push("buckets".into());
@@ -512,7 +531,10 @@ pub async fn import_profile(
         if let Some(list) = profile.apps.as_deref() {
             let (parsed, skipped) = lenient_list::<ProfileApp>(list);
             if skipped > 0 {
-                result.notes.push(format!("{} app entries were malformed and skipped.", skipped));
+                result.notes.push(format!(
+                    "{} app entries were malformed and skipped.",
+                    skipped
+                ));
             }
             let installed = get_installed_packages_full(app.clone(), state.clone())
                 .await
@@ -598,4 +620,3 @@ pub async fn import_profile(
 
     Ok(result)
 }
-

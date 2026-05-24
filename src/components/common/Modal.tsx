@@ -1,4 +1,5 @@
-import { Show, JSX, onMount, onCleanup, createEffect } from "solid-js";
+import { Show, JSX, onMount, onCleanup, createEffect, createUniqueId } from "solid-js";
+import { useI18n } from "../../i18n";
 
 interface ModalProps {
     isOpen: boolean;
@@ -14,7 +15,21 @@ interface ModalProps {
     preventBackdropClose?: boolean;
 }
 
+const FOCUSABLE_SELECTOR = [
+    "a[href]",
+    "button:not([disabled])",
+    "input:not([disabled])",
+    "textarea:not([disabled])",
+    "select:not([disabled])",
+    '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
 export default function Modal(props: ModalProps) {
+    const { t } = useI18n();
+    let dialogRef: HTMLDivElement | undefined;
+    let previouslyFocused: HTMLElement | null = null;
+    const titleId = createUniqueId();
+
     const getSizeClass = () => {
         switch (props.size) {
             case "small": return "max-w-md";
@@ -25,10 +40,39 @@ export default function Modal(props: ModalProps) {
         }
     };
 
-    // Handle ESC key to close modal
+    const getFocusable = (): HTMLElement[] => {
+        if (!dialogRef) return [];
+        return Array.from(dialogRef.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
+            .filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+    };
+
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape" && props.isOpen) {
+        if (!props.isOpen) return;
+        if (e.key === "Escape") {
+            e.stopPropagation();
             props.onClose();
+            return;
+        }
+        if (e.key === "Tab" && dialogRef) {
+            const focusable = getFocusable();
+            if (focusable.length === 0) {
+                e.preventDefault();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            const active = document.activeElement as HTMLElement | null;
+            if (e.shiftKey) {
+                if (active === first || !dialogRef.contains(active)) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (active === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
         }
     };
 
@@ -38,14 +82,21 @@ export default function Modal(props: ModalProps) {
 
     onCleanup(() => {
         document.removeEventListener("keydown", handleKeyDown);
+        document.body.style.overflow = "";
     });
 
-    // Prevent body scroll when modal is open
     createEffect(() => {
         if (props.isOpen) {
+            previouslyFocused = document.activeElement as HTMLElement | null;
             document.body.style.overflow = "hidden";
+            // Focus the dialog container itself (tabindex=-1) rather than the first
+            // focusable element. Auto-focusing a button can have side effects (e.g.
+            // DaisyUI dropdowns open on focus). Tab key proceeds from here into content.
+            queueMicrotask(() => dialogRef?.focus());
         } else {
             document.body.style.overflow = "";
+            previouslyFocused?.focus?.();
+            previouslyFocused = null;
         }
     });
 
@@ -57,20 +108,28 @@ export default function Modal(props: ModalProps) {
 
     return (
         <Show when={props.isOpen}>
-            <div class="modal modal-open backdrop-blur-sm" role="dialog">
-                <div class={`modal-box bg-base-300 shadow-2xl border border-base-300 p-0 overflow-hidden flex flex-col max-h-[90vh] ${getSizeClass()} ${props.class ?? ""}`}>
+            <div class="modal modal-open" role="presentation">
+                <div
+                    ref={dialogRef}
+                    class={`modal-box bg-base-300 shadow-2xl border border-base-300 p-0 overflow-hidden flex flex-col max-h-[90vh] ${getSizeClass()} ${props.class ?? ""}`}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby={titleId}
+                    tabindex="-1"
+                >
                     {/* Header */}
                     <div class="flex justify-between items-center p-4 border-b border-base-200 bg-base-400">
-                        <h3 class="font-bold text-lg">{props.title}</h3>
+                        <h3 id={titleId} class="font-bold text-lg">{props.title}</h3>
                         <div class="flex items-center gap-2">
                             <Show when={props.headerAction}>
                                 {props.headerAction}
                             </Show>
                             <Show when={props.showCloseButton !== false}>
                                 <button
+                                    type="button"
                                     class="btn btn-sm btn-circle btn-ghost"
                                     onClick={props.onClose}
-                                    aria-label="Close"
+                                    aria-label={t("common.close")}
                                 >
                                     ✕
                                 </button>

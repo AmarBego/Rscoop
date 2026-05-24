@@ -127,12 +127,14 @@ const DebugModal = () => {
             {/* Debug button in header - positioned as a floating button */}
             <Show when={settingsStore.settings.debug.enabled}>
                 <button
+                    type="button"
                     class="btn btn-sm btn-outline gap-2 fixed bottom-4 right-4 z-40"
                     onClick={() => {
                         setIsOpen(true);
                         refreshDebugInfo();
                     }}
-                    title="Open Debug Information"
+                    title={t("debug.openTooltip")}
+                    aria-label={t("debug.openTooltip")}
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -140,6 +142,7 @@ const DebugModal = () => {
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
+                        aria-hidden="true"
                     >
                         <path
                             stroke-linecap="round"
@@ -148,7 +151,7 @@ const DebugModal = () => {
                             d="M13 10V3L4 14h7v7l9-11h-7z"
                         />
                     </svg>
-                    Debug
+                    {t("debug.openButton")}
                 </button>
             </Show>
 
@@ -161,6 +164,7 @@ const DebugModal = () => {
                 footer={
                     <div class="flex gap-2 w-full justify-end">
                         <button
+                            type="button"
                             class="btn btn-sm"
                             onClick={refreshDebugInfo}
                             disabled={isLoading()}
@@ -168,6 +172,7 @@ const DebugModal = () => {
                             {isLoading() ? t("common.loading") : t("common.refresh")}
                         </button>
                         <button
+                            type="button"
                             class="btn btn-sm btn-primary"
                             onClick={exportDebugData}
                             disabled={isLoading() || !debugInfo()}
@@ -176,6 +181,7 @@ const DebugModal = () => {
                         </button>
                         <Show when={activeTab() === "logs" && logFileContent()}>
                             <button
+                                type="button"
                                 class="btn btn-sm btn-info"
                                 onClick={() => copyToClipboard(logFileContent())}
                             >
@@ -183,6 +189,7 @@ const DebugModal = () => {
                             </button>
                         </Show>
                         <button
+                            type="button"
                             class="btn btn-sm btn-outline"
                             onClick={() => setIsOpen(false)}
                         >
@@ -194,6 +201,7 @@ const DebugModal = () => {
                 {/* Tabs */}
                 <div class="tabs tabs-boxed mb-4">
                     <button
+                        type="button"
                         class="tab"
                         classList={{ "tab-active": activeTab() === "info" }}
                         onClick={() => setActiveTab("info")}
@@ -201,6 +209,7 @@ const DebugModal = () => {
                         {t("debug.tabSystemInfo")}
                     </button>
                     <button
+                        type="button"
                         class="tab"
                         classList={{ "tab-active": activeTab() === "logs" }}
                         onClick={() => setActiveTab("logs")}

@@ -1,4 +1,4 @@
-import { createSignal, onMount, createMemo, Show } from "solid-js";
+import { createSignal, onMount, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import Checkup, { CheckupItem } from "../components/page/doctor/Checkup";
 import Cleanup from "../components/page/doctor/Cleanup";
@@ -6,6 +6,7 @@ import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import operationsStore from "../stores/operations";
+import { ScoopPackage } from "../types/scoop";
 import { useI18n } from "../i18n";
 
 function DoctorPage() {
@@ -43,13 +44,29 @@ function DoctorPage() {
 
     const handleInstallHelper = async (helperId: string) => {
         setInstallingHelper(helperId);
-        try {
-            await invoke("install_package", { packageName: helperId, bucket: '' });
-            await runCheckup();
-            installedPackagesStore.reload();
-        } catch (err) {
-            console.error(`Failed to install ${helperId}:`, err);
-        } finally {
+        const helperPackage: ScoopPackage = {
+            name: helperId,
+            version: "",
+            source: "",
+            updated: "",
+            is_installed: false,
+            info: "",
+            match_source: "name",
+        };
+        const id = await operationsStore.queueInstall(
+            helperPackage,
+            undefined,
+            async (wasSuccess) => {
+                if (wasSuccess) {
+                    await runCheckup();
+                    installedPackagesStore.reload();
+                }
+                setInstallingHelper(null);
+            },
+            { skipScan: true },
+        );
+
+        if (!id) {
             setInstallingHelper(null);
         }
     };
@@ -64,10 +81,10 @@ function DoctorPage() {
 
     return (
         <div class="p-4">
-            <h1 class="text-3xl font-bold mb-6">{t("doctor.title")}</h1>
+            <h1 class="text-3xl font-bold tracking-tight mb-6">{t("doctor.title")}</h1>
 
-            <div class="space-y-8">
-                <Show when={needsAttention()}>
+            <div class="flex flex-col gap-8">
+                <div classList={{ "order-first": needsAttention(), "order-last": !needsAttention() }}>
                     <Checkup
                         checkupResult={checkupResult()}
                         isLoading={isCheckupLoading()}
@@ -76,25 +93,19 @@ function DoctorPage() {
                         onInstallHelper={handleInstallHelper}
                         installingHelper={installingHelper()}
                     />
-                </Show>
-
-                <Cleanup
-                    onCleanupApps={handleCleanupApps}
-                    onCleanupCache={handleCleanupCache}
-                />
-                <CacheManager />
-                <ShimManager />
-
-                <Show when={!needsAttention()}>
-                    <Checkup
-                        checkupResult={checkupResult()}
-                        isLoading={isCheckupLoading()}
-                        error={checkupError()}
-                        onRerun={runCheckup}
-                        onInstallHelper={handleInstallHelper}
-                        installingHelper={installingHelper()}
+                </div>
+                <div>
+                    <Cleanup
+                        onCleanupApps={handleCleanupApps}
+                        onCleanupCache={handleCleanupCache}
                     />
-                </Show>
+                </div>
+                <div>
+                    <CacheManager />
+                </div>
+                <div>
+                    <ShimManager />
+                </div>
             </div>
         </div>
     );

@@ -1,4 +1,4 @@
-import { createSignal, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { FolderCog } from "lucide-solid";
 import Card from "../../common/Card";
@@ -8,8 +8,12 @@ export default function ScoopConfiguration() {
     const { t } = useI18n();
     const [scoopPath, setScoopPath] = createSignal("");
     const [pathIsLoading, setPathIsLoading] = createSignal(true);
+    const [isSaving, setIsSaving] = createSignal(false);
     const [error, setError] = createSignal<string | null>(null);
     const [saved, setSaved] = createSignal(false);
+    const inputId = "settings-scoop-path";
+    const statusId = "settings-scoop-path-status";
+    let savedTimeout: number | undefined;
 
     const fetchScoopPath = async () => {
         setPathIsLoading(true);
@@ -27,25 +31,37 @@ export default function ScoopConfiguration() {
     };
 
     const handleSave = async () => {
+        if (pathIsLoading() || isSaving()) return;
         setError(null);
         setSaved(false);
+        setIsSaving(true);
         try {
             await invoke("set_scoop_path", { path: scoopPath() });
             setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
+            window.clearTimeout(savedTimeout);
+            savedTimeout = window.setTimeout(() => setSaved(false), 2000);
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
             console.error("Failed to save scoop path:", errorMsg);
             setError(t("settings.scoop.errorSave"));
+        } finally {
+            setIsSaving(false);
         }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Enter") handleSave();
+        if (e.key === "Enter") {
+            e.preventDefault();
+            handleSave();
+        }
     };
 
     onMount(() => {
         fetchScoopPath();
+    });
+
+    onCleanup(() => {
+        window.clearTimeout(savedTimeout);
     });
 
     return (
@@ -54,25 +70,37 @@ export default function ScoopConfiguration() {
             icon={FolderCog}
             description={t("settings.scoop.description")}
         >
-            <div class="flex items-center gap-2 max-w-lg">
-                <input
-                    type="text"
-                    placeholder={pathIsLoading() ? t("common.loading") : t("settings.scoop.placeholder")}
-                    class="input input-bordered input-sm flex-1 bg-base-100 font-mono text-sm"
-                    value={scoopPath()}
-                    onInput={(e) => setScoopPath(e.currentTarget.value)}
-                    onKeyDown={handleKeyDown}
-                    disabled={pathIsLoading()}
-                />
+            <div class="flex flex-col gap-2 max-w-lg sm:flex-row sm:items-center">
+                <label for={inputId} class="sr-only">{t("settings.scoop.title")}</label>
+                <div class="min-w-0 flex-1">
+                    <input
+                        id={inputId}
+                        type="text"
+                        placeholder={pathIsLoading() ? t("common.loading") : t("settings.scoop.placeholder")}
+                        class="input input-bordered input-sm w-full bg-base-100 font-mono text-sm focus:outline-none focus:border-base-content/20"
+                        value={scoopPath()}
+                        onInput={(e) => {
+                            setScoopPath(e.currentTarget.value);
+                            setError(null);
+                        }}
+                        onKeyDown={handleKeyDown}
+                        disabled={pathIsLoading()}
+                        aria-invalid={!!error()}
+                        aria-describedby={statusId}
+                    />
+                </div>
                 <button
-                    class="btn btn-primary btn-sm"
+                    type="button"
+                    class="btn btn-primary btn-sm sm:self-auto"
                     onClick={handleSave}
-                    disabled={pathIsLoading()}
+                    disabled={pathIsLoading() || isSaving()}
                 >
-                    {saved() ? t("common.saved") : t("common.save")}
+                    {isSaving() ? t("common.loading") : saved() ? t("common.saved") : t("common.save")}
                 </button>
             </div>
-            {error() && <p class="text-error text-xs mt-1">{error()}</p>}
+            <p id={statusId} class="text-xs mt-1 min-h-4" aria-live="polite">
+                {error() ? <span class="text-error">{error()}</span> : saved() ? <span class="text-success">{t("common.saved")}</span> : null}
+            </p>
         </Card>
     );
 }

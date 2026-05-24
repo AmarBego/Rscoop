@@ -13,13 +13,11 @@ interface TrayApp {
   iconDataUrl?: string | null;
 }
 
-type FilterState = "all" | "pinned" | "visible" | "hidden";
-
 // --- Deterministic colored swatch for the app icon fallback ---
 const SWATCH_COLORS = [
-  "#3b82f6", "#8b5cf6", "#ec4899", "#f43f5e", "#f97316",
-  "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981",
-  "#14b8a6", "#06b6d4", "#0ea5e9", "#6366f1",
+  "oklch(60% 0.17 254)", "oklch(56% 0.15 285)", "oklch(58% 0.16 338)", "oklch(58% 0.18 28)",
+  "oklch(63% 0.17 53)", "oklch(70% 0.16 88)", "oklch(68% 0.16 125)", "oklch(66% 0.14 155)",
+  "oklch(68% 0.12 190)", "oklch(64% 0.14 215)", "oklch(60% 0.14 235)", "oklch(58% 0.14 270)",
 ];
 
 function colorFor(name: string): string {
@@ -36,14 +34,15 @@ function AppIcon(props: { app: TrayApp; size?: number }) {
       when={props.app.iconDataUrl}
       fallback={
         <div
-          class="grid place-items-center text-white font-bold flex-shrink-0 select-none"
+          class="grid place-items-center font-bold flex-shrink-0 select-none"
           style={{
             width: `${size()}px`,
             height: `${size()}px`,
             "border-radius": "6px",
             background: colorFor(props.app.name),
+            color: "var(--color-app-swatch-content)",
             "font-size": `${Math.max(10, size() * 0.42)}px`,
-            "box-shadow": "inset 0 0 0 1px rgba(255,255,255,0.08)",
+            "box-shadow": "inset 0 0 0 1px oklch(100% 0 0 / 0.10)",
           }}
         >
           {letter()}
@@ -83,28 +82,27 @@ interface PreviewPalette {
 }
 
 const LIGHT_PALETTE: PreviewPalette = {
-  chromeBg: "#f4f5f7",
-  menuBg: "#fbfbfb",
-  menuBorder: "#d0d0d0",
-  menuShadow: "0 4px 12px rgba(0,0,0,0.12)",
-  text: "#1f1f1f",
-  textMuted: "#6c6c6c",
-  sep: "#e5e5e5",
-  pinGlyph: "#b0851f",
-  overlay: "#6c6c6c",
+  chromeBg: "var(--color-tray-preview-chrome)",
+  menuBg: "var(--color-tray-preview-menu)",
+  menuBorder: "var(--color-tray-preview-border)",
+  menuShadow: "var(--shadow-tray-preview-menu)",
+  text: "var(--color-tray-preview-text)",
+  textMuted: "var(--color-tray-preview-muted)",
+  sep: "var(--color-tray-preview-separator)",
+  pinGlyph: "var(--color-tray-preview-pin)",
+  overlay: "var(--color-tray-preview-overlay)",
 };
 
 const DARK_PALETTE: PreviewPalette = {
-  chromeBg:
-    "radial-gradient(ellipse at 30% 20%, rgba(59,130,246,0.10), transparent 60%), radial-gradient(ellipse at 80% 90%, rgba(59,130,246,0.04), transparent 55%), linear-gradient(180deg, #0a0d14, #070a10)",
-  menuBg: "#2c2c2c",
-  menuBorder: "#3a3a3a",
-  menuShadow: "0 4px 14px rgba(0,0,0,0.55)",
-  text: "#e8e8e8",
-  textMuted: "#9a9a9a",
-  sep: "#3a3a3a",
-  pinGlyph: "#f5a524",
-  overlay: "rgba(255,255,255,0.45)",
+  chromeBg: "var(--color-tray-preview-chrome)",
+  menuBg: "var(--color-tray-preview-menu)",
+  menuBorder: "var(--color-tray-preview-border)",
+  menuShadow: "var(--shadow-tray-preview-menu)",
+  text: "var(--color-tray-preview-text)",
+  textMuted: "var(--color-tray-preview-muted)",
+  sep: "var(--color-tray-preview-separator)",
+  pinGlyph: "var(--color-tray-preview-pin)",
+  overlay: "var(--color-tray-preview-overlay)",
 };
 
 function TrayPreview(props: {
@@ -165,24 +163,23 @@ function TrayPreview(props: {
 
   return (
     <div
-      class="relative p-5 flex justify-center"
+      class="relative p-3 sm:p-5 flex justify-center h-full min-h-[320px] sm:min-h-[380px]"
       style={{
         background: palette().chromeBg,
-        "min-height": "380px",
         "font-family": "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
       }}
     >
       <div
         class="overflow-y-auto"
         style={{
-          "min-width": "220px",
-          "max-width": "280px",
+          width: "min(230px, 100%)",
+          "min-width": "min(190px, 100%)",
           background: palette().menuBg,
           border: `1px solid ${palette().menuBorder}`,
           "border-radius": "4px",
           "box-shadow": palette().menuShadow,
           padding: "4px 0",
-          "max-height": "460px",
+          "max-height": "min(460px, calc(100vh - 340px))",
         }}
       >
         <Row>
@@ -249,7 +246,6 @@ export default function TrayMenuSettings() {
   const [pinned, setPinned] = createSignal(new Set<string>());
   const [hidden, setHidden] = createSignal(new Set<string>());
   const [query, setQuery] = createSignal("");
-  const [filterState, setFilterState] = createSignal<FilterState>("all");
   const [loading, setLoading] = createSignal(true);
 
   // --- Load ---
@@ -298,17 +294,6 @@ export default function TrayMenuSettings() {
     });
   }
 
-  function hideAll() {
-    const next = new Set(apps().map(a => a.name));
-    setHidden(next);
-    persist("tray.hiddenApps", next);
-  }
-
-  function unhideAll() {
-    setHidden(new Set<string>());
-    persist("tray.hiddenApps", new Set<string>());
-  }
-
   function reset() {
     setPinned(new Set<string>());
     setHidden(new Set<string>());
@@ -319,18 +304,8 @@ export default function TrayMenuSettings() {
   // --- Filter + sort ---
   const filtered = createMemo(() => {
     const q = query().trim().toLowerCase();
-    const state = filterState();
-    const p = pinned();
-    const h = hidden();
     return apps()
       .filter(a => (q ? a.displayName.toLowerCase().includes(q) : true))
-      .filter(a => {
-        if (state === "all") return true;
-        if (state === "pinned") return p.has(a.name);
-        if (state === "hidden") return h.has(a.name);
-        if (state === "visible") return !p.has(a.name) && !h.has(a.name);
-        return true;
-      })
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
   });
 
@@ -353,57 +328,31 @@ export default function TrayMenuSettings() {
     };
   });
 
-  const FILTER_PILLS: { key: FilterState; label: () => string }[] = [
-    { key: "all", label: () => t("tray.filter.all", { count: String(counts().total) }) },
-    { key: "pinned", label: () => t("tray.filter.pinned", { count: String(counts().pinnedTotal) }) },
-    { key: "visible", label: () => t("tray.filter.visible", { count: String(counts().visibleCount) }) },
-    { key: "hidden", label: () => t("tray.filter.hidden", { count: String(counts().hiddenCount) }) },
-  ];
-
   return (
     <div class="space-y-4">
-      {/* Intro card with counts */}
-      <div class="card bg-base-300 shadow-xl">
-        <div class="card-body p-4">
-          <h2 class="card-title text-xl flex items-center">
-            <ImageIcon class="w-6 h-6 mr-2 text-primary" />
+      <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div class="min-w-0">
+          <h2 class="text-lg sm:text-xl font-semibold flex items-center gap-2">
+            <ImageIcon class="w-5 h-5 text-primary shrink-0" />
             {t("tray.title")}
           </h2>
-          <p class="text-base-content/70 text-sm mb-3">{t("tray.description")}</p>
-          <div class="flex gap-2 flex-wrap items-center">
-            <span class="badge badge-warning badge-outline gap-1">
-              <Pin class="w-3 h-3" />
-              {t("tray.summary.pinned", { count: String(counts().pinnedCount) })}
-            </span>
-            <span class="badge badge-primary badge-outline gap-1">
-              <Eye class="w-3 h-3" />
-              {t("tray.summary.visible", { count: String(counts().visibleCount) })}
-            </span>
-            <span class="badge badge-ghost gap-1">
-              <EyeOff class="w-3 h-3" />
-              {t("tray.summary.hidden", { count: String(counts().hiddenCount) })}
-            </span>
-            <div class="flex-1" />
-            <span class="text-xs text-base-content/60">
-              {t("tray.summary.showing", {
-                count: String(counts().trayCount),
-                total: String(counts().total),
-              })}
-            </span>
-          </div>
+          <p class="text-sm text-base-content/60">{t("tray.description")}</p>
         </div>
+        <p class="text-xs text-base-content/60">
+          {t("tray.summary.showing", {
+            count: String(counts().trayCount),
+            total: String(counts().total),
+          })}
+        </p>
       </div>
 
-      {/* Split layout: list | preview. Stacks vertically below lg (1024px)
-          so the preview + toolbar don't crush each other at 800px windows. */}
-      <div class="grid gap-4 grid-cols-1 lg:grid-cols-[1fr_380px]">
+      {/* Split layout: list and preview. Stacks below md so narrow windows stay usable. */}
+      <div class="grid gap-4 grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
         {/* ===== LEFT: list ===== */}
         <div class="card bg-base-300 shadow-xl overflow-hidden">
-          {/* Toolbar — wraps at narrow widths: search takes full width,
-              action buttons drop to a second row. */}
           <div class="p-4 border-b border-base-content/10">
             <div class="flex gap-2 items-center flex-wrap">
-              <label class="input input-bordered flex items-center gap-2 input-sm min-w-[200px] basis-full sm:basis-auto sm:flex-1">
+              <label class="input input-bordered flex items-center gap-2 min-w-[200px] basis-full focus-within:outline-none focus-within:border-base-content/20 sm:basis-auto sm:flex-1">
                 <Search class="w-4 h-4 text-base-content/50 flex-shrink-0" />
                 <input
                   type="text"
@@ -413,14 +362,6 @@ export default function TrayMenuSettings() {
                   onInput={e => setQuery(e.currentTarget.value)}
                 />
               </label>
-              <button class="btn btn-sm" onClick={unhideAll} disabled={counts().hiddenCount === 0}>
-                <Eye class="w-4 h-4" />
-                {t("tray.unhideAll")}
-              </button>
-              <button class="btn btn-sm" onClick={hideAll}>
-                <EyeOff class="w-4 h-4" />
-                {t("tray.hideAll")}
-              </button>
               <button
                 class="btn btn-sm btn-ghost"
                 onClick={reset}
@@ -430,33 +371,16 @@ export default function TrayMenuSettings() {
                 {t("tray.reset")}
               </button>
             </div>
-            {/* Filter pills */}
-            <div class="flex gap-1.5 mt-3 flex-wrap">
-              <For each={FILTER_PILLS}>
-                {pill => (
-                  <button
-                    class="badge badge-sm cursor-pointer"
-                    classList={{
-                      "badge-primary": filterState() === pill.key,
-                      "badge-outline": filterState() !== pill.key,
-                    }}
-                    onClick={() => setFilterState(pill.key)}
-                  >
-                    {pill.label()}
-                  </button>
-                )}
-              </For>
-            </div>
           </div>
 
           {/* List */}
-          <div class="overflow-y-auto" style={{ "max-height": "520px" }}>
+          <div class="overflow-y-auto" style={{ "max-height": "min(520px, calc(100vh - 300px))" }}>
             <Show when={!loading()} fallback={
               <div class="p-10 text-center text-base-content/50 text-sm">
                 {t("tray.loading")}
               </div>
             }>
-              <Show when={filtered().length > 0} fallback={<EmptyState query={query()} filterState={filterState()} />}>
+              <Show when={filtered().length > 0} fallback={<EmptyState query={query()} />}>
                 <For each={filtered()}>
                   {app => {
                     const isPinned = () => pinned().has(app.name);
@@ -465,6 +389,7 @@ export default function TrayMenuSettings() {
                     return (
                       <div
                         class="flex items-center gap-3.5 p-2.5 px-4 border-b border-base-content/5"
+                        style={{ "min-height": "52px" }}
                         classList={{ "opacity-55": isHidden() }}
                       >
                         <AppIcon app={app} />
@@ -516,18 +441,15 @@ export default function TrayMenuSettings() {
           </div>
         </div>
 
-        {/* ===== RIGHT: preview (sticky only when side-by-side on lg+) ===== */}
-        <div class="lg:sticky lg:top-0 lg:self-start">
-          <div class="card bg-base-300 shadow-xl overflow-hidden">
+        {/* ===== RIGHT: preview (sticky only when side-by-side on md+) ===== */}
+        <div class="md:sticky md:top-0 h-full">
+          <div class="card bg-base-300 shadow-xl overflow-hidden h-full flex flex-col">
             <div class="p-3 px-4 border-b border-base-content/10 flex items-center gap-2">
               <ImageIcon class="w-4 h-4 text-primary" />
               <h3 class="font-semibold text-sm">{t("tray.preview.title")}</h3>
-              <div class="flex-1" />
-              <span class="badge badge-xs badge-success">{t("tray.preview.live")}</span>
             </div>
-            <TrayPreview apps={apps()} pinned={pinned()} hidden={hidden()} />
-            <div class="p-2.5 px-4 text-xs text-base-content/50 border-t border-base-content/10">
-              {t("tray.preview.hint")}
+            <div class="flex-1 min-h-0">
+              <TrayPreview apps={apps()} pinned={pinned()} hidden={hidden()} />
             </div>
           </div>
         </div>
@@ -536,18 +458,14 @@ export default function TrayMenuSettings() {
   );
 }
 
-function EmptyState(props: { query: string; filterState: FilterState }) {
+function EmptyState(props: { query: string }) {
   const { t } = useI18n();
   const msg = () => {
     if (props.query) return t("tray.empty.searchMsg", { query: props.query });
-    if (props.filterState === "hidden") return t("tray.empty.hiddenMsg");
-    if (props.filterState === "pinned") return t("tray.empty.pinnedMsg");
     return t("tray.empty.genericMsg");
   };
   const sub = () => {
     if (props.query) return t("tray.empty.searchSub");
-    if (props.filterState === "hidden") return t("tray.empty.hiddenSub");
-    if (props.filterState === "pinned") return t("tray.empty.pinnedSub");
     return t("tray.empty.genericSub");
   };
   return (

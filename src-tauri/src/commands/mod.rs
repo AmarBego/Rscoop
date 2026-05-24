@@ -21,5 +21,4 @@ pub mod settings;
 pub mod startup;
 pub mod status;
 pub mod updates;
-pub mod version;
 pub mod virustotal;

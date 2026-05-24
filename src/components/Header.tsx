@@ -1,4 +1,4 @@
-import { Component, For, onCleanup } from "solid-js";
+import { Component, For, createSignal } from "solid-js";
 import { View } from "../types/scoop.ts";
 import { Package, Search, Settings, Stethoscope, FolderOpen } from "lucide-solid";
 import installedPackagesStore from '../stores/installedPackagesStore';
@@ -11,6 +11,7 @@ interface HeaderProps {
 
 const Header: Component<HeaderProps> = (props) => {
   const { t } = useI18n();
+  const [hasPrefetchedInstalled, setHasPrefetchedInstalled] = createSignal(false);
   const navItems: { view: View; labelKey: string; icon: typeof Search }[] = [
     { view: "search", labelKey: "header.search", icon: Search },
     { view: "bucket", labelKey: "header.buckets", icon: FolderOpen },
@@ -19,48 +20,55 @@ const Header: Component<HeaderProps> = (props) => {
     { view: "settings", labelKey: "header.settings", icon: Settings },
   ];
 
-  const toggleCommandPalette = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-      e.preventDefault();
-      // The command palette component handles its own visibility
-    }
+  const prefetchInstalled = () => {
+    if (hasPrefetchedInstalled()) return;
+    setHasPrefetchedInstalled(true);
+    installedPackagesStore.fetch().catch(() => {
+      setHasPrefetchedInstalled(false);
+    });
   };
 
-  document.addEventListener("keydown", toggleCommandPalette);
-  onCleanup(() => document.removeEventListener("keydown", toggleCommandPalette));
-
   return (
-    <div class="navbar bg-base-400 border-b border-base-300 shadow-sm">
-      <div class="flex-1">
-        <a class="btn btn-ghost text-xl font-bold">{t("app.name")}</a>
+    <header class="navbar min-h-16 bg-base-400 border-b border-base-300 shadow-sm">
+      <div class="flex-1 min-w-0">
+        <span class="px-3 text-xl font-bold truncate">{t("app.name")}</span>
       </div>
-      <div class="flex-none">
-        <ul class="menu menu-horizontal px-1 gap-1">
+      <nav class="flex-none overflow-x-auto" aria-label={t("header.navigation")}>
+        <ul class="menu menu-horizontal px-1 gap-1 flex-nowrap">
           <For each={navItems}>
             {(item) => (
               <li>
                 <button
-                  class="btn btn-sm btn-ghost transition-colors duration-200"
+                  type="button"
+                  class="btn btn-ghost min-h-11 h-11 min-w-11 px-3 transition-colors duration-200"
                   classList={{
                     "bg-base-300 text-info font-semibold": props.currentView === item.view,
                     "hover:bg-base-300/50": props.currentView !== item.view,
                   }}
+                  aria-current={props.currentView === item.view ? "page" : undefined}
+                  aria-label={t(item.labelKey)}
+                  title={t(item.labelKey)}
                   onClick={() => props.onNavigate(item.view)}
                   onMouseEnter={() => {
                     if (item.view === 'installed') {
-                      installedPackagesStore.fetch();
+                      prefetchInstalled();
+                    }
+                  }}
+                  onFocus={() => {
+                    if (item.view === 'installed') {
+                      prefetchInstalled();
                     }
                   }}
                 >
-                  <item.icon class="w-4 h-4" />
-                  {t(item.labelKey)}
+                  <item.icon class="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <span class="hidden sm:inline whitespace-nowrap">{t(item.labelKey)}</span>
                 </button>
               </li>
             )}
           </For>
         </ul>
-      </div>
-    </div>
+      </nav>
+    </header>
   );
 };
 

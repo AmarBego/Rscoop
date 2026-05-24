@@ -1,12 +1,38 @@
-use git2::{Cred, CredentialType, FetchOptions, RemoteCallbacks, Repository};
+use git2::{
+    CheckoutNotificationType, Cred, CredentialType, FetchOptions, RemoteCallbacks, Repository,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, Mutex, OnceLock,
+};
 use tauri::{command, AppHandle, Manager, Runtime};
 
 use crate::commands::search::invalidate_manifest_cache;
+use crate::operations::{self, OperationKind};
 use crate::state::AppState;
 use crate::utils;
+
+static BUCKET_INSTALL_CANCEL: OnceLock<Mutex<Option<Arc<AtomicBool>>>> = OnceLock::new();
+
+fn bucket_install_cancel_slot() -> &'static Mutex<Option<Arc<AtomicBool>>> {
+    BUCKET_INSTALL_CANCEL.get_or_init(|| Mutex::new(None))
+}
+
+fn set_bucket_install_cancel_token(token: Option<Arc<AtomicBool>>) {
+    *bucket_install_cancel_slot().lock().unwrap() = token;
+}
+
+pub fn cancel_bucket_install() -> bool {
+    if let Some(token) = bucket_install_cancel_slot().lock().unwrap().as_ref() {
+        token.store(true, Ordering::Relaxed);
+        true
+    } else {
+        false
+    }
+}
 
 /// Creates git remote callbacks with credential handling for SSH and HTTPS.
 fn create_remote_callbacks() -> RemoteCallbacks<'static> {
@@ -23,6 +49,95 @@ fn create_remote_callbacks() -> RemoteCallbacks<'static> {
             Cred::default()
         }
     });
+    callbacks
+}
+
+fn create_remote_callbacks_with_progress(
+    app: Option<AppHandle>,
+    cancel_token: Option<Arc<AtomicBool>>,
+) -> RemoteCallbacks<'static> {
+    let mut callbacks = create_remote_callbacks();
+
+    if let Some(app) = app {
+        let sideband_cancel = cancel_token.clone();
+        let app_for_sideband = app.clone();
+        callbacks.sideband_progress(move |data| {
+            if sideband_cancel
+                .as_ref()
+                .map(|token| token.load(Ordering::Relaxed))
+                .unwrap_or(false)
+            {
+                return false;
+            }
+            if let Ok(text) = std::str::from_utf8(data) {
+                for line in text
+                    .split(['\r', '\n'])
+                    .map(str::trim)
+                    .filter(|line| !line.is_empty())
+                {
+                    operations::append_output(&app_for_sideband, line.to_string(), "stderr");
+                }
+            }
+            true
+        });
+
+        let transfer_cancel = cancel_token.clone();
+        let app_for_transfer = app.clone();
+        let mut last_transfer_pct: i32 = -10;
+        callbacks.transfer_progress(move |stats| {
+            if transfer_cancel
+                .as_ref()
+                .map(|token| token.load(Ordering::Relaxed))
+                .unwrap_or(false)
+            {
+                return false;
+            }
+            let total = stats.total_objects();
+            if total > 0 {
+                let received = stats.received_objects();
+                let pct = ((received * 100) / total) as i32;
+                operations::set_current_phase(
+                    &app_for_transfer,
+                    Some("Receiving objects".to_string()),
+                );
+                operations::set_progress_fraction(
+                    &app_for_transfer,
+                    Some((received as f32 / total as f32).clamp(0.0, 1.0)),
+                );
+                if (pct == 100 && last_transfer_pct != 100) || pct >= last_transfer_pct + 10 {
+                    last_transfer_pct = pct;
+                    operations::append_output(
+                        &app_for_transfer,
+                        format!("Receiving objects: {}% ({}/{})", pct, received, total),
+                        "stdout",
+                    );
+                }
+            }
+            true
+        });
+
+        let app_for_pack = app;
+        let mut last_pack_pct: i32 = -10;
+        callbacks.pack_progress(move |_stage, current, total| {
+            if total > 0 {
+                let pct = ((current * 100) / total) as i32;
+                operations::set_current_phase(&app_for_pack, Some("Indexing objects".to_string()));
+                operations::set_progress_fraction(
+                    &app_for_pack,
+                    Some((current as f32 / total as f32).clamp(0.0, 1.0)),
+                );
+                if (pct == 100 && last_pack_pct != 100) || pct >= last_pack_pct + 10 {
+                    last_pack_pct = pct;
+                    operations::append_output(
+                        &app_for_pack,
+                        format!("Indexing objects: {}% ({}/{})", pct, current, total),
+                        "stdout",
+                    );
+                }
+            }
+        });
+    }
+
     callbacks
 }
 
@@ -61,9 +176,13 @@ fn get_bucket_path<R: Runtime>(app: &AppHandle<R>, bucket_name: &str) -> Result<
     Ok(buckets_dir.join(bucket_name))
 }
 
-
 // Clone repository with progress callback
-fn clone_repository(url: &str, target_path: &Path) -> Result<Repository, String> {
+fn clone_repository(
+    url: &str,
+    target_path: &Path,
+    progress_app: Option<AppHandle>,
+    cancel_token: Option<Arc<AtomicBool>>,
+) -> Result<Repository, String> {
     log::info!("Cloning repository {} to {:?}", url, target_path);
 
     // Create parent directory if it doesn't exist
@@ -72,15 +191,9 @@ fn clone_repository(url: &str, target_path: &Path) -> Result<Repository, String>
             .map_err(|e| format!("Failed to create parent directory: {}", e))?;
     }
 
-    let mut remote_callbacks = create_remote_callbacks();
-
-    // Progress callback for logging
-    remote_callbacks.pack_progress(|_stage, current, total| {
-        if total > 0 {
-            let percentage = (current * 100) / total;
-            log::debug!("Clone progress: {}% ({}/{})", percentage, current, total);
-        }
-    });
+    let checkout_app = progress_app.clone();
+    let checkout_cancel = cancel_token.clone();
+    let remote_callbacks = create_remote_callbacks_with_progress(progress_app, cancel_token);
 
     // Set up fetch options
     let mut fetch_options = FetchOptions::new();
@@ -89,6 +202,47 @@ fn clone_repository(url: &str, target_path: &Path) -> Result<Repository, String>
     // Clone the repository
     let mut builder = git2::build::RepoBuilder::new();
     builder.fetch_options(fetch_options);
+    if let Some(app) = checkout_app {
+        let mut checkout_builder = git2::build::CheckoutBuilder::new();
+        let mut last_checkout_pct: i32 = -10;
+        let progress_cancel = checkout_cancel.clone();
+        checkout_builder.progress(move |_path, completed, total| {
+            if total > 0 {
+                if progress_cancel
+                    .as_ref()
+                    .map(|token| token.load(Ordering::Relaxed))
+                    .unwrap_or(false)
+                {
+                    operations::set_current_phase(&app, Some("Cancelling".to_string()));
+                    operations::set_progress_fraction(&app, None);
+                    return;
+                }
+                let pct = ((completed * 100) / total) as i32;
+                operations::set_current_phase(&app, Some("Checking out files".to_string()));
+                operations::set_progress_fraction(
+                    &app,
+                    Some((completed as f32 / total as f32).clamp(0.0, 1.0)),
+                );
+                if (pct == 100 && last_checkout_pct != 100) || pct >= last_checkout_pct + 10 {
+                    last_checkout_pct = pct;
+                    operations::append_output(
+                        &app,
+                        format!("Checking out files: {}% ({}/{})", pct, completed, total),
+                        "stdout",
+                    );
+                }
+            }
+        });
+        let notify_cancel = checkout_cancel;
+        checkout_builder.notify_on(CheckoutNotificationType::all());
+        checkout_builder.notify(move |_why, _path, _baseline, _target, _workdir| {
+            !notify_cancel
+                .as_ref()
+                .map(|token| token.load(Ordering::Relaxed))
+                .unwrap_or(false)
+        });
+        builder.with_checkout(checkout_builder);
+    }
 
     let repo = builder
         .clone(url, target_path)
@@ -108,9 +262,11 @@ fn remove_bucket_directory(bucket_path: &Path) -> Result<(), String> {
 }
 
 // Main function to install a bucket
-async fn install_bucket_internal<R: Runtime>(
-    app: &AppHandle<R>,
+async fn install_bucket_internal(
+    app: &AppHandle,
     options: BucketInstallOptions,
+    progress_app: Option<AppHandle>,
+    cancel_token: Option<Arc<AtomicBool>>,
 ) -> Result<BucketInstallResult, String> {
     let BucketInstallOptions { name, url, force } = options;
 
@@ -133,7 +289,11 @@ async fn install_bucket_internal<R: Runtime>(
                 bucket_name
             ),
             bucket_name: bucket_name.clone(),
-            bucket_path: Some(get_bucket_path(app, &bucket_name)?.to_string_lossy().to_string()),
+            bucket_path: Some(
+                get_bucket_path(app, &bucket_name)?
+                    .to_string_lossy()
+                    .to_string(),
+            ),
             manifest_count: None,
         });
     }
@@ -152,9 +312,15 @@ async fn install_bucket_internal<R: Runtime>(
     // Clone the repository
     let normalized_url_clone = normalized_url.clone();
     let bucket_path_clone = bucket_path.clone();
+    let cancel_token_clone = cancel_token.clone();
 
     let repo_result = tokio::task::spawn_blocking(move || {
-        clone_repository(&normalized_url_clone, &bucket_path_clone)
+        clone_repository(
+            &normalized_url_clone,
+            &bucket_path_clone,
+            progress_app,
+            cancel_token_clone,
+        )
     })
     .await
     .map_err(|e| e.to_string())?;
@@ -188,35 +354,73 @@ async fn install_bucket_internal<R: Runtime>(
             // Clean up on failure
             let _ = remove_bucket_directory(&bucket_path);
 
-            Err(format!("Failed to install bucket '{}': {}", bucket_name, e))
+            if cancel_token
+                .as_ref()
+                .map(|token| token.load(Ordering::Relaxed))
+                .unwrap_or(false)
+            {
+                Err(format!("Bucket install '{}' cancelled", bucket_name))
+            } else {
+                Err(format!("Failed to install bucket '{}': {}", bucket_name, e))
+            }
         }
     }
 }
 
 // Tauri command to install a bucket
 #[command]
-pub async fn install_bucket<R: Runtime>(
-    app: AppHandle<R>,
+pub async fn install_bucket(
+    app: AppHandle,
     options: BucketInstallOptions,
 ) -> Result<BucketInstallResult, String> {
     log::info!("Installing bucket: {} from {}", options.name, options.url);
 
-    match install_bucket_internal(&app, options).await {
+    let op_started = operations::start_synthetic(
+        &app,
+        "Installing bucket".to_string(),
+        OperationKind::Install,
+        None,
+    )
+    .is_some();
+    if op_started {
+        operations::append_output(&app, "Starting bucket install...".to_string(), "stdout");
+    }
+
+    let cancel_token = op_started.then(|| Arc::new(AtomicBool::new(false)));
+    set_bucket_install_cancel_token(cancel_token.clone());
+
+    let result = match install_bucket_internal(
+        &app,
+        options,
+        op_started.then(|| app.clone()),
+        cancel_token.clone(),
+    )
+    .await
+    {
         Ok(result) => {
             log::info!("Bucket installation result: {:?}", result);
-            Ok(result)
+            result
         }
         Err(e) => {
             log::error!("Bucket installation failed: {}", e);
-            Ok(BucketInstallResult {
+            BucketInstallResult {
                 success: false,
-                message: e,
+                message: e.clone(),
                 bucket_name: String::new(),
                 bucket_path: None,
                 manifest_count: None,
-            })
+            }
         }
+    };
+    set_bucket_install_cancel_token(None);
+
+    if op_started {
+        operations::set_current_phase(&app, None);
+        operations::set_progress_fraction(&app, None);
+        operations::finish_synthetic(&app, result.success, result.message.clone());
     }
+
+    Ok(result)
 }
 
 // Command to check if a bucket can be installed (validation only)
@@ -288,12 +492,11 @@ pub async fn validate_bucket_install<R: Runtime>(
 
 // Command to update a bucket (git pull)
 #[command]
-pub async fn update_bucket<R: Runtime>(
-    app: AppHandle<R>,
+pub async fn update_bucket(
+    app: AppHandle,
     bucket_name: String,
 ) -> Result<BucketInstallResult, String> {
     log::info!("Updating bucket: {}", bucket_name);
-
     let bucket_path = get_bucket_path(&app, &bucket_name)?;
 
     if !bucket_path.exists() {
@@ -328,7 +531,10 @@ pub async fn update_bucket<R: Runtime>(
         .map_err(|e| e.to_string())?
 }
 
-fn update_bucket_sync(bucket_name: &str, bucket_path: &Path) -> Result<BucketInstallResult, String> {
+fn update_bucket_sync(
+    bucket_name: &str,
+    bucket_path: &Path,
+) -> Result<BucketInstallResult, String> {
     // Try to update the repository using git2
     match Repository::open(bucket_path) {
         Ok(repo) => {
@@ -376,11 +582,18 @@ fn update_bucket_sync(bucket_name: &str, bucket_path: &Path) -> Result<BucketIns
                         let remote_branch_name = format!("origin/{}", branch_name);
                         match repo.find_branch(&remote_branch_name, git2::BranchType::Remote) {
                             Ok(remote_branch) => {
-                                let remote_commit = remote_branch.get().peel_to_commit().map_err(|e| {
-                                    format!("Failed to resolve remote commit for bucket '{}': {}", bucket_name, e)
-                                })?;
+                                let remote_commit =
+                                    remote_branch.get().peel_to_commit().map_err(|e| {
+                                        format!(
+                                            "Failed to resolve remote commit for bucket '{}': {}",
+                                            bucket_name, e
+                                        )
+                                    })?;
                                 let local_commit = head.peel_to_commit().map_err(|e| {
-                                    format!("Failed to resolve local commit for bucket '{}': {}", bucket_name, e)
+                                    format!(
+                                        "Failed to resolve local commit for bucket '{}': {}",
+                                        bucket_name, e
+                                    )
                                 })?;
 
                                 // Check if update is needed
@@ -484,9 +697,7 @@ fn update_bucket_sync(bucket_name: &str, bucket_path: &Path) -> Result<BucketIns
 /// Command to update all buckets sequentially.
 /// Returns a list of per-bucket results. Non-fatal errors are captured in each result.
 #[command]
-pub async fn update_all_buckets<R: Runtime>(
-    app: AppHandle<R>,
-) -> Result<Vec<BucketInstallResult>, String> {
+pub async fn update_all_buckets(app: AppHandle) -> Result<Vec<BucketInstallResult>, String> {
     log::info!("Updating all buckets (auto-update task)");
     let buckets_dir = match get_buckets_dir(&app) {
         Ok(p) => p,
@@ -577,4 +788,3 @@ pub async fn remove_bucket<R: Runtime>(
         }
     }
 }
-

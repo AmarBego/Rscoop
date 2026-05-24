@@ -61,7 +61,7 @@ function CacheManager() {
             setCacheContents(result);
         } catch (err) {
             console.error("Failed to fetch cache contents:", err);
-            setError(typeof err === 'string' ? err : "An unknown error occurred while fetching cache contents.");
+            setError(typeof err === 'string' ? err : t("common.unknownError"));
         } finally {
             setIsLoading(false);
         }
@@ -127,7 +127,7 @@ function CacheManager() {
                     await invoke("clear_cache", { files: selectedFiles });
                 } catch (err) {
                     console.error("Failed to clear selected cache items:", err);
-                    setError(typeof err === 'string' ? err : "An unknown error occurred while clearing cache.");
+                    setError(typeof err === 'string' ? err : t("common.unknownError"));
                 } finally {
                     await fetchCacheContents();
                 }
@@ -147,7 +147,7 @@ function CacheManager() {
                     await invoke("clear_cache", { files: null });
                 } catch (err) {
                     console.error("Failed to clear all cache items:", err);
-                    setError(typeof err === 'string' ? err : "An unknown error occurred while clearing cache.");
+                    setError(typeof err === 'string' ? err : t("common.unknownError"));
                 } finally {
                     await fetchCacheContents();
                 }
@@ -167,15 +167,17 @@ function CacheManager() {
                         <Show when={cacheContents().length > 0}>
                             <Show when={selectedItems().size > 0}>
                                 <button
+                                    type="button"
                                     class="btn btn-ghost btn-xs text-sm text-warning"
                                     onClick={handleClearSelected}
                                     disabled={isLoading()}
                                 >
-                                    <Trash2 class="w-3.5 h-3.5" />
+                                    <Trash2 class="w-3.5 h-3.5" aria-hidden="true" />
                                     {t("doctor.cacheRemoveSelected", { count: String(selectedItems().size) })}
                                 </button>
                             </Show>
                             <button
+                                type="button"
                                 class="btn btn-ghost btn-xs text-sm text-error"
                                 onClick={handleClearAll}
                                 disabled={isLoading()}
@@ -184,11 +186,13 @@ function CacheManager() {
                             </button>
                         </Show>
                         <button
+                            type="button"
                             class="btn btn-ghost btn-xs"
                             onClick={fetchCacheContents}
                             disabled={isLoading()}
+                            aria-label={t("common.refresh")}
                         >
-                            <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": isLoading() }} />
+                            <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": isLoading() }} aria-hidden="true" />
                         </button>
                     </div>
                 }
@@ -196,7 +200,8 @@ function CacheManager() {
                 <input
                     type="text"
                     placeholder={t("doctor.cacheFilterPlaceholder")}
-                    class="input input-bordered input-sm w-full mb-3 bg-base-100"
+                    aria-label={t("doctor.cacheFilterPlaceholder")}
+                    class="input input-sm w-full mb-3 bg-base-100 focus:outline-none focus:border-base-content/20"
                     value={filter()}
                     onInput={(e) => setFilter(e.currentTarget.value)}
                     disabled={isLoading() || !!error() || cacheContents().length === 0}
@@ -205,7 +210,7 @@ function CacheManager() {
                 <div class="max-h-[60vh] overflow-y-auto">
                     <Show when={error()}>
                         <div role="alert" class="alert alert-error">
-                            <TriangleAlert />
+                            <TriangleAlert aria-hidden="true" />
                             <span>{error()}</span>
                         </div>
                     </Show>
@@ -214,53 +219,54 @@ function CacheManager() {
                         <p class="text-sm text-base-content/50 py-4 text-center">{t("doctor.cacheNone")}</p>
                     </Show>
 
-                    <Show when={cacheContents().length > 0}>
-                        <div class="overflow-x-auto">
-                            <table class="table table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>
-                                            <label>
-                                                <input
-                                                    type="checkbox"
-                                                    class="checkbox checkbox-primary"
-                                                    checked={isAllSelected()}
-                                                    onChange={toggleSelectAll}
-                                                />
-                                            </label>
-                                        </th>
-                                        <th>{t("doctor.cacheTableName")}</th>
-                                        <th>{t("doctor.cacheTableVersion")}</th>
-                                        <th>{t("doctor.cacheTableSize")}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <For each={filteredCacheContents()}>
-                                        {(item) => {
-                                            const id = getCacheIdentifier(item);
-                                            return (
-                                                <tr class="hover">
-                                                    <td>
-                                                        <label>
-                                                            <input
-                                                                type="checkbox"
-                                                                class="checkbox checkbox-primary"
-                                                                checked={selectedItems().has(id)}
-                                                                onChange={() => toggleSelection(id)}
-                                                            />
-                                                        </label>
-                                                    </td>
-                                                    <td>{item.name}</td>
-                                                    <td>{item.version}</td>
-                                                    <td>{formatBytes(item.length)}</td>
-                                                </tr>
-                                            );
-                                        }}
-                                    </For>
-                                </tbody>
-                            </table>
-                        </div>
-                    </Show>
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <label>
+                                            <input
+                                                type="checkbox"
+                                                class="checkbox checkbox-primary"
+                                                checked={isAllSelected()}
+                                                onChange={toggleSelectAll}
+                                                aria-label={t("doctor.cacheSelectAll")}
+                                                disabled={isLoading() || !!error() || filteredCacheContents().length === 0}
+                                            />
+                                        </label>
+                                    </th>
+                                    <th>{t("doctor.cacheTableName")}</th>
+                                    <th>{t("doctor.cacheTableVersion")}</th>
+                                    <th>{t("doctor.cacheTableSize")}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <For each={filteredCacheContents()}>
+                                    {(item) => {
+                                        const id = getCacheIdentifier(item);
+                                        return (
+                                            <tr class="hover">
+                                                <td>
+                                                    <label>
+                                                        <input
+                                                            type="checkbox"
+                                                            class="checkbox checkbox-primary"
+                                                            checked={selectedItems().has(id)}
+                                                            onChange={() => toggleSelection(id)}
+                                                            aria-label={t("doctor.cacheSelectItem", { name: item.name, version: item.version })}
+                                                        />
+                                                    </label>
+                                                </td>
+                                                <td>{item.name}</td>
+                                                <td>{item.version}</td>
+                                                <td>{formatBytes(item.length)}</td>
+                                            </tr>
+                                        );
+                                    }}
+                                </For>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </Card>
 

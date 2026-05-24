@@ -71,9 +71,9 @@ function OperationBar() {
     if (isWarning()) return op()?.result?.message ?? op()?.title;
     if (isRunning()) {
       const stack = op()?.phaseStack ?? [];
-      if (stack.length > 0) return `${op()!.title} — ${stack[stack.length - 1]}`;
+      if (stack.length > 0) return `${op()!.title} › ${stack[stack.length - 1]}`;
       const phase = op()?.currentPhase;
-      return phase ? `${op()!.title} — ${formatPhase(phase)}` : op()!.title;
+      return phase ? `${op()!.title} › ${formatPhase(phase)}` : op()!.title;
     }
 
     // Single completed op still in current (no batch history)
@@ -154,7 +154,7 @@ function OperationBar() {
               </Show>
             </div>
 
-            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity">
               <Show when={!isRunning()}>
                 <button
                   class="btn btn-xs btn-ghost"
@@ -176,7 +176,7 @@ function OperationBar() {
           {/* Hover panel */}
           <Show when={hasCompleted() || operationsStore.queue().length > 0}>
             <div
-              class="absolute bottom-full left-0 right-0 bg-base-300 border-t border-base-content/10 px-4 py-2 opacity-0 group-hover:opacity-100 transition-opacity space-y-2"
+              class="absolute bottom-full left-0 right-0 bg-base-300 border-t border-base-content/10 px-4 py-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity space-y-2"
               style={{ "pointer-events": "auto" }}
             >
               <Show when={hasCompleted()}>
@@ -184,8 +184,9 @@ function OperationBar() {
                   <p class="text-xs text-base-content/40 mb-1">{t("operationbar.completed")}</p>
                   <For each={operationsStore.completed()}>
                     {(item) => (
-                      <div
-                        class="flex items-center gap-2 text-xs py-0.5 hover:text-base-content cursor-pointer"
+                      <button
+                        type="button"
+                        class="w-full text-left flex items-center gap-2 text-xs py-0.5 hover:text-base-content cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           setViewingLog(item);
@@ -199,7 +200,7 @@ function OperationBar() {
                           <TriangleAlert class="w-3 h-3 text-warning shrink-0" />
                         </Show>
                         <span class="truncate text-base-content/60">{formatTitle(item.title, item.success)}</span>
-                      </div>
+                      </button>
                     )}
                   </For>
                 </div>

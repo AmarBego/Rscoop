@@ -89,7 +89,9 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
                     show_or_create_main_window(app);
                     let app_clone = app.clone();
                     tauri::async_runtime::spawn(async move {
-                        if let Err(e) = crate::commands::search::warm_manifest_cache(app_clone).await {
+                        if let Err(e) =
+                            crate::commands::search::warm_manifest_cache(app_clone).await
+                        {
                             log::warn!("Failed to re-warm manifest cache on show: {}", e);
                         }
                     });
@@ -161,14 +163,9 @@ fn build_tray_menu(
     menu_items.push(Box::new(show));
     menu_items.push(Box::new(hide));
 
-    // Get Scoop apps shortcuts using the app state
-    let shortcuts_result = if let Some(app_state) = app.try_state::<AppState>() {
-        let scoop_path = app_state.scoop_path();
-        get_scoop_app_shortcuts_with_path(scoop_path.as_path())
-    } else {
-        // Fallback to automatic detection if state is not available
-        crate::utils::get_scoop_app_shortcuts()
-    };
+    // Get Scoop apps shortcuts using the resolved Scoop root from app state.
+    let scoop_path = app.state::<AppState>().scoop_path();
+    let shortcuts_result = get_scoop_app_shortcuts_with_path(scoop_path.as_path());
 
     if let Ok(shortcuts) = shortcuts_result {
         // Apply user curation: filter hidden, split pinned from visible.
@@ -187,8 +184,16 @@ fn build_tray_menu(
             .into_iter()
             .filter(|s| !pinned_set.contains(&s.name))
             .collect();
-        pinned.sort_by(|a, b| a.display_name.to_lowercase().cmp(&b.display_name.to_lowercase()));
-        unpinned.sort_by(|a, b| a.display_name.to_lowercase().cmp(&b.display_name.to_lowercase()));
+        pinned.sort_by(|a, b| {
+            a.display_name
+                .to_lowercase()
+                .cmp(&b.display_name.to_lowercase())
+        });
+        unpinned.sort_by(|a, b| {
+            a.display_name
+                .to_lowercase()
+                .cmp(&b.display_name.to_lowercase())
+        });
 
         let has_any = !pinned.is_empty() || !unpinned.is_empty();
         if has_any {
@@ -204,33 +209,32 @@ fn build_tray_menu(
                 map.clear();
 
                 let icon_cache = app.state::<IconCache>();
-                let mut push_app_item =
-                    |items: &mut Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>>,
-                     shortcut: &ScoopAppShortcut|
-                     -> tauri::Result<()> {
-                        let menu_id = format!("app_{}", shortcut.name);
-                        map.insert(menu_id.clone(), shortcut.clone());
+                let mut push_app_item = |items: &mut Vec<
+                    Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>,
+                >,
+                                         shortcut: &ScoopAppShortcut|
+                 -> tauri::Result<()> {
+                    let menu_id = format!("app_{}", shortcut.name);
+                    map.insert(menu_id.clone(), shortcut.clone());
 
-                        let cached = icon_cache.get_or_extract(&shortcut.target_path);
-                        if let Some(ci) = cached {
-                            let image = Image::new_owned(ci.rgba, ci.width, ci.height);
-                            let item = tauri::menu::IconMenuItemBuilder::with_id(
-                                &menu_id,
-                                &shortcut.display_name,
-                            )
-                            .icon(image)
-                            .build(app)?;
-                            items.push(Box::new(item));
-                        } else {
-                            let item = tauri::menu::MenuItemBuilder::with_id(
-                                &menu_id,
-                                &shortcut.display_name,
-                            )
-                            .build(app)?;
-                            items.push(Box::new(item));
-                        }
-                        Ok(())
-                    };
+                    let cached = icon_cache.get_or_extract(&shortcut.target_path);
+                    if let Some(ci) = cached {
+                        let image = Image::new_owned(ci.rgba, ci.width, ci.height);
+                        let item = tauri::menu::IconMenuItemBuilder::with_id(
+                            &menu_id,
+                            &shortcut.display_name,
+                        )
+                        .icon(image)
+                        .build(app)?;
+                        items.push(Box::new(item));
+                    } else {
+                        let item =
+                            tauri::menu::MenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
+                                .build(app)?;
+                        items.push(Box::new(item));
+                    }
+                    Ok(())
+                };
 
                 // Pinned group first
                 for shortcut in &pinned {
@@ -331,14 +335,14 @@ pub async fn refresh_tray_apps_menu(app: tauri::AppHandle) -> Result<(), String>
 /// as PNG data URLs) — used by the Tray Menu settings page.
 #[tauri::command]
 pub async fn get_tray_apps(app: tauri::AppHandle) -> Result<Vec<TrayAppDto>, String> {
-    let shortcuts = if let Some(app_state) = app.try_state::<AppState>() {
-        let scoop_path = app_state.scoop_path();
-        get_scoop_app_shortcuts_with_path(scoop_path.as_path())
-    } else {
-        crate::utils::get_scoop_app_shortcuts()
-    }?;
+    let scoop_path = app.state::<AppState>().scoop_path();
+    let shortcuts = get_scoop_app_shortcuts_with_path(scoop_path.as_path())?;
     let mut sorted = shortcuts;
-    sorted.sort_by(|a, b| a.display_name.to_lowercase().cmp(&b.display_name.to_lowercase()));
+    sorted.sort_by(|a, b| {
+        a.display_name
+            .to_lowercase()
+            .cmp(&b.display_name.to_lowercase())
+    });
 
     let icon_cache = app.state::<IconCache>();
     let dtos = sorted

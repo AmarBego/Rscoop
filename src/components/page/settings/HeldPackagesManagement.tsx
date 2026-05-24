@@ -31,10 +31,10 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
             <ul class="space-y-1">
               <For each={heldPackagesStore.packages}>
                 {(pkgName) => (
-                  <li class="flex justify-between items-center bg-base-100 px-3 py-1.5 rounded-lg">
-                    <span class="font-mono text-sm">{pkgName}</span>
+                  <li class="flex flex-col gap-2 bg-base-100 px-3 py-2 rounded-lg sm:flex-row sm:items-center sm:justify-between">
+                    <span class="font-mono text-sm break-all">{pkgName}</span>
                     <button
-                      class="btn btn-xs btn-ghost text-info"
+                      class="btn btn-xs btn-ghost text-info sm:shrink-0"
                       onClick={() => props.onUnhold(pkgName)}
                       aria-label={t("settings.heldPackages.unholdAriaLabel", { name: pkgName })}
                       disabled={props.operationInProgress}

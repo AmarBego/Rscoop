@@ -14,12 +14,12 @@ function Cleanup(props: CleanupProps) {
             title={t("doctor.cleanupTitle")}
             description={t("doctor.cleanupDescription")}
         >
-            <div class="flex gap-2">
-                <button class="btn btn-sm btn-outline" onClick={props.onCleanupApps}>
+            <div class="flex flex-wrap gap-2">
+                <button type="button" class="btn btn-sm btn-outline" onClick={props.onCleanupApps}>
                     <Trash2 class="w-3.5 h-3.5" />
                     {t("doctor.cleanupOldVersions")}
                 </button>
-                <button class="btn btn-sm btn-outline" onClick={props.onCleanupCache}>
+                <button type="button" class="btn btn-sm btn-outline" onClick={props.onCleanupCache}>
                     <Archive class="w-3.5 h-3.5" />
                     {t("doctor.cleanupOutdatedCache")}
                 </button>

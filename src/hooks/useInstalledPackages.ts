@@ -14,7 +14,6 @@ interface AppStatusInfo {
   name: string;
   installed_version: string;
   latest_version?: string;
-  missing_dependencies: string[];
   info: string[];
   is_outdated: boolean;
   is_failed: boolean;
