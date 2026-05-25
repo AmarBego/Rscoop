@@ -7,8 +7,9 @@ nav_order: 5
 
 # Settings
 
-Settings are split into six tabs: Automation, Management, Security, Window, Tray, and About.
+Settings are split into six tabs: Automation, Management, Security, Window, Tray,Export/Import and About.
 
+![Settings page](../assets/images/settings.png)
 ## Automation
 
 ### Auto Cleanup
@@ -25,7 +26,7 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 ### Bucket Auto Updater
 - Pick an update interval: off, 1h, 6h, 24h, 7d, or a custom interval in seconds
 - Optionally auto-update packages after bucket updates finish
-- The scheduler persists across restarts. If enough time passed while Rscoop was closed, it runs immediately on launch
+- The scheduler persists across restarts. If enough time passed while rScoop was closed, it runs immediately on launch
 - Debug mode (see Window tab) unlocks rapid test intervals like 10 seconds
 
 ## Management
@@ -39,7 +40,7 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 - Remove holds directly from here
 
 ### Export & Import
-- Export your entire Rscoop + Scoop setup to a portable JSON file
+- Export your entire rScoop + Scoop setup to a portable JSON file
 - Import on a new machine to replicate your environment
 - Pluggable group system: choose between Full profile (everything), Scoop-compatible (apps + buckets only), Just preferences, or Custom to pick exactly what you need
 - Import is additive and safe: nothing is uninstalled, apps are queued for background install, buckets are cloned, and settings are merged
@@ -49,7 +50,7 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 
 ### VirusTotal Integration
 - Enter your VirusTotal API key to enable pre-install scanning
-- Toggle auto-scan: when enabled, Rscoop scans first and only proceeds if clean
+- Toggle auto-scan: when enabled, rScoop scans first and only proceeds if clean
 - Set a threat tolerance (max detection count). Anything above gets blocked
 
 ## Window
@@ -65,10 +66,10 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 - Toggle close-to-tray vs. actually exiting when you close the window
 
 ### Startup
-- Enable or disable starting Rscoop automatically on Windows boot
+- Enable or disable starting rScoop automatically on Windows boot
 
 ### Default Launch Page
-- Pick which page Rscoop opens to (Search, Installed, Buckets, Doctor, or Settings)
+- Pick which page rScoop opens to (Search, Installed, Buckets, Doctor, or Settings)
 
 ### Debug Mode
 - Shows a debug button with cache state and system info
@@ -84,7 +85,7 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 
 ## About
 
-- Current Rscoop version and links to GitHub
+- Current rScoop version and links to GitHub
 - Manual update check (skipped if you installed via Scoop)
 - Release notes for available updates
 - Log viewer for inspecting recent operations

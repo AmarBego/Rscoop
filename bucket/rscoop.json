@@ -1,10 +1,10 @@
 {
-    "version": "1.6.1",
+    "version": "1.9.0",
     "description": "A desktop GUI for the Scoop package manager.",
     "homepage": "https://github.com/AmarBego/Rscoop",
     "license": "MIT",
-    "url": "https://github.com/AmarBego/Rscoop/releases/download/v1.6.1/rscoop.exe",
-    "hash": "066ef42a0871c4fd66661f4ae8e2ba7ef92d8f73a6ef1ff4ecf32d77238bc62e",
+    "url": "https://github.com/AmarBego/Rscoop/releases/download/v1.9.0/rscoop.exe",
+    "hash": "5eddce9401b33808cd2531730bd8237b8c064e07728f90f673b87450d0154a4e",
     "bin": "rscoop.exe",
     "shortcuts": [
         [

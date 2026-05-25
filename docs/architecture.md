@@ -6,7 +6,7 @@ nav_order: 5
 
 # Architecture
 
-Rscoop is a Tauri 2 app. Rust backend, SolidJS frontend, talking to each other over Tauri's IPC bridge.
+rScoop is a Tauri 2 app. Rust backend, SolidJS frontend, talking to each other over Tauri's IPC bridge.
 
 ## Rust backend
 
@@ -40,10 +40,10 @@ The frontend lives in `src/`. Four pages plus settings, each with its own compon
 
 ## Profile export & import
 
-The `commands/profile.rs` module handles serializing and restoring a user's Rscoop + Scoop setup:
+The `commands/profile.rs` module handles serializing and restoring a user's rScoop + Scoop setup:
 
-- **Export**: Gathers installed apps, buckets, held packages, Scoop global config, and Rscoop preferences. Each group is optional — the frontend picks which to include. Output is a versioned JSON document.
-- **Import**: Parses the JSON leniently (unknown fields ignored, malformed entries skipped), then applies groups in order: Rscoop settings → Scoop config → bucket cloning → app installs (queued into the operations system) → holds. Everything is additive — nothing is uninstalled.
+- **Export**: Gathers installed apps, buckets, held packages, Scoop global config, and rScoop preferences. Each group is optional — the frontend picks which to include. Output is a versioned JSON document.
+- **Import**: Parses the JSON leniently (unknown fields ignored, malformed entries skipped), then applies groups in order: rScoop settings → Scoop config → bucket cloning → app installs (queued into the operations system) → holds. Everything is additive — nothing is uninstalled.
 - The frontend has its own Export Profile and Import Profile modals that preview the file, let you pick groups, and show warnings before applying.
 
 ## Caching

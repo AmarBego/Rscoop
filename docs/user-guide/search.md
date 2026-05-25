@@ -9,7 +9,7 @@ nav_order: 1
 
 Type a query and get results from every bucket you have added.
 
-![Search results](/assets/images/search.png)
+![Search results](../assets/images/packagesearch.png)
 
 ## How it works
 
@@ -33,4 +33,4 @@ If VirusTotal scanning is enabled, the scan result shows up before the install s
 ## Tips
 
 - Click the help icon next to the search bar for advanced search syntax (quotes for exact matches, etc.).
-- Toggle the manifest view in the modal to see the raw JSON without leaving Rscoop.
+- Toggle the manifest view in the modal to see the raw JSON without leaving rScoop.

@@ -9,7 +9,7 @@ nav_order: 4
 
 The Doctor page is where you maintain your Scoop installation.
 
-![Doctor page](/assets/images/doctor.png)
+![Doctor page](../assets/images/doctor.png)
 
 ## Checkup
 

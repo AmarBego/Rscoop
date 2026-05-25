@@ -12,7 +12,7 @@ Open the **Doctor** page and run the checkup. It detects missing Git, 7-Zip, and
 
 ## Scoop path not found
 
-Go to **Settings > Management > Scoop Configuration** and check the detected path. If you installed Scoop somewhere non-standard, set the correct path there and restart Rscoop.
+Go to **Settings > Management > Scoop Configuration** and check the detected path. If you installed Scoop somewhere non-standard, set the correct path there and restart rScoop.
 
 ## Bucket search not working
 
@@ -34,4 +34,4 @@ Use the profile export/import feature:
 
 ## Still stuck?
 
-Open an issue on [GitHub](https://github.com/AmarBego/rscoop/issues) with the relevant log output and mention whether you installed Rscoop through Scoop or the standalone installer.
+Open an issue on [GitHub](https://github.com/AmarBego/rscoop/issues) with the relevant log output and mention whether you installed rScoop through Scoop or the standalone installer.

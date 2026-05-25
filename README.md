@@ -23,6 +23,17 @@ Use it to search across buckets, install and update apps, manage installed packa
 
 The app is built with Rust, SolidJS, and [Tauri 2](https://v2.tauri.app). It can stay in the system tray, send Windows notifications, and keep long-running installs or updates moving even after the main window is closed.
 
+## Install
+
+Requires [Scoop](https://scoop.sh).
+
+```powershell
+scoop bucket add rscoop https://github.com/AmarBego/Rscoop
+scoop install rscoop/rscoop
+```
+
+Or grab the `.msi` or portable `.exe` from [Releases](https://github.com/AmarBego/Rscoop/releases). Both auto-update from inside the app.
+
 ## Features
 
 **Package search**
@@ -61,23 +72,11 @@ Configure theme, startup behavior, tray behavior, auto-cleanup, bucket auto-upda
 
 | Installed Packages | System Doctor |
 |---|---|
-| ![Installed](pics/packagemodal.png) | ![Doctor](pics/doctor.png) |
+| ![Installed](pics/installedpackages.png) | ![Doctor](pics/doctor.png) |
 
 | Bucket Browser | Settings |
 |---|---|
-| ![Buckets](pics/bucket.png) | ![Settings](pics/settings.png) |
-
-## Install
-
-**Prerequisite:** [Scoop](https://scoop.sh) must already be installed and working.
-
-1. Open the [Releases](https://github.com/AmarBego/Rscoop/releases) page.
-2. Download the `.msi` installer or the portable `.exe`.
-3. Run the app. If SmartScreen appears, choose **More info** and then **Run anyway**.
-4. On first launch, let rScoop cache your bucket metadata.
-5. Open the Doctor page to check that your Scoop setup is healthy.
-
-rScoop includes built-in update checks and will notify you when a new release is available.
+| ![Buckets](pics/bucket.png) | ![Package Info](pics/packagemodal.png) |
 
 ## Translations
 

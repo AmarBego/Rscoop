@@ -9,12 +9,12 @@ nav_order: 2
 
 Everything Scoop has installed on your machine, in one view.
 
-![Installed packages](../assets/images/installed.png)
+![Installed packages](../assets/images/installedpackages.png)
 
 ## Filtering and layout
 
 - Filter by bucket or search by name
-- Switch between grid and list views
+- Switch between grid and a list view
 - The header shows how many packages have updates available
 
 ## Package operations
