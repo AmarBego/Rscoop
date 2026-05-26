@@ -5,7 +5,8 @@ use crate::commands::settings;
 use crate::state::AppState;
 use serde::Deserialize;
 use std::cmp::Ordering;
-use std::path::PathBuf;
+use std::collections::HashSet;
+use std::path::Path;
 use tauri::{AppHandle, Runtime, State};
 
 /// Compares two version strings numerically by splitting on `.` and `-`.
@@ -50,29 +51,22 @@ async fn run_auto_cleanup<R: Runtime>(
 
     log::info!("Running auto cleanup with settings: {:?}", settings);
 
-    // Get all installed packages to identify versioned installs
     let installed_packages = get_installed_packages_full(app.clone(), state.clone()).await?;
 
-    // Separate regular packages from versioned installs
     let regular_packages: Vec<String> = installed_packages
         .iter()
         .filter(|pkg| !pkg.is_versioned_install)
         .map(|pkg| pkg.name.clone())
         .collect();
 
-    let versioned_packages: Vec<String> = installed_packages
-        .iter()
-        .filter(|pkg| pkg.is_versioned_install)
-        .map(|pkg| pkg.name.clone())
-        .collect();
-
     log::info!(
-        "Found {} regular packages and {} versioned installs",
+        "Auto cleanup scanning {} regular packages ({} versioned installs are protected)",
         regular_packages.len(),
-        versioned_packages.len()
+        installed_packages
+            .len()
+            .saturating_sub(regular_packages.len())
     );
 
-    // Run cleanup operations based on settings
     let scoop_path = state.scoop_path();
 
     if settings.cleanup_old_versions && !regular_packages.is_empty() {
@@ -80,13 +74,14 @@ async fn run_auto_cleanup<R: Runtime>(
             "Running auto cleanup of old versions (preserving {} versions)",
             settings.preserve_version_count
         );
-        cleanup_old_versions_smart(
+        let removed = cleanup_old_versions(
             &scoop_path,
             &regular_packages,
             settings.preserve_version_count,
-        )
-        .await?;
-        invalidate_installed_cache(state.clone()).await;
+        )?;
+        if removed > 0 {
+            invalidate_installed_cache(state.clone()).await;
+        }
     }
 
     if settings.cleanup_cache && !regular_packages.is_empty() {
@@ -102,12 +97,13 @@ async fn run_auto_cleanup<R: Runtime>(
 ///
 /// This function reads the version directories for each package and removes the oldest
 /// versions while keeping the specified number of recent versions.
-async fn cleanup_old_versions_smart(
-    scoop_path: &PathBuf,
+fn cleanup_old_versions(
+    scoop_path: &Path,
     packages: &[String],
     keep_count: usize,
-) -> Result<(), String> {
+) -> Result<usize, String> {
     let apps_path = scoop_path.join("apps");
+    let mut removed_count = 0usize;
 
     for package_name in packages {
         let package_path = apps_path.join(package_name);
@@ -124,17 +120,15 @@ async fn cleanup_old_versions_smart(
                 versions_to_remove.len()
             );
 
-            remove_specific_versions(scoop_path, package_name, &versions_to_remove).await;
+            removed_count +=
+                remove_specific_versions(scoop_path, package_name, &versions_to_remove);
         }
     }
 
-    Ok(())
+    Ok(removed_count)
 }
 
-fn get_versions_to_remove(
-    package_path: &PathBuf,
-    keep_count: usize,
-) -> Result<Vec<String>, String> {
+fn get_versions_to_remove(package_path: &Path, keep_count: usize) -> Result<Vec<String>, String> {
     // Resolve which version the "current" junction points to so we never delete it.
     let current_link = package_path.join("current");
     let active_version = std::fs::read_link(&current_link)
@@ -142,7 +136,7 @@ fn get_versions_to_remove(
         .and_then(|target| target.file_name().map(|n| n.to_string_lossy().to_string()));
 
     // Read all version directories (excluding "current" symlink)
-    let mut versions: Vec<String> = std::fs::read_dir(package_path)
+    let versions: Vec<String> = std::fs::read_dir(package_path)
         .map_err(|e| format!("Failed to read package directory: {}", e))?
         .filter_map(|entry| {
             let entry = entry.ok()?;
@@ -157,33 +151,33 @@ fn get_versions_to_remove(
         })
         .collect();
 
-    // Sort newest first so we can keep the top N
-    versions.sort_by(|a, b| compare_versions(b, a));
-
-    // Always protect the active version, then keep the newest `keep_count`
-    // versions on top of that.
-    let mut kept = 0usize;
-    let to_remove: Vec<String> = versions
-        .into_iter()
-        .filter(|v| {
-            // Always keep the active version
-            if active_version.as_deref() == Some(v.as_str()) {
-                return false; // don't remove
-            }
-            if kept < keep_count {
-                kept += 1;
-                false // keep this one
-            } else {
-                true // remove
-            }
-        })
-        .collect();
-
-    Ok(to_remove)
+    Ok(select_versions_to_remove(
+        versions,
+        active_version,
+        keep_count,
+    ))
 }
 
-async fn remove_specific_versions(scoop_path: &PathBuf, package_name: &str, versions: &[String]) {
+fn select_versions_to_remove(
+    mut versions: Vec<String>,
+    active_version: Option<String>,
+    keep_count: usize,
+) -> Vec<String> {
+    versions.sort_by(|a, b| compare_versions(b, a));
+    let mut versions_to_keep: HashSet<String> = versions.iter().take(keep_count).cloned().collect();
+    if let Some(active) = active_version {
+        versions_to_keep.insert(active);
+    }
+
+    versions
+        .into_iter()
+        .filter(|version| !versions_to_keep.contains(version))
+        .collect()
+}
+
+fn remove_specific_versions(scoop_path: &Path, package_name: &str, versions: &[String]) -> usize {
     let package_dir = scoop_path.join("apps").join(package_name);
+    let mut removed = 0usize;
 
     for version in versions {
         let version_dir = package_dir.join(version);
@@ -197,8 +191,11 @@ async fn remove_specific_versions(scoop_path: &PathBuf, package_name: &str, vers
             );
         } else {
             log::debug!("Successfully removed version {}", version);
+            removed += 1;
         }
     }
+
+    removed
 }
 
 /// Cleans up the cache for specified packages.
@@ -273,6 +270,52 @@ fn read_cleanup_settings<R: Runtime>(app: &AppHandle<R>) -> Result<CleanupSettin
             .unwrap_or(true),
         preserve_version_count: get_val("cleanup.preserveVersionCount")
             .and_then(|v| v.as_u64())
-            .unwrap_or(3) as usize,
+            .and_then(|v| usize::try_from(v).ok())
+            .map(|v| v.clamp(1, 10))
+            .unwrap_or(3),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn keeps_requested_number_of_newest_versions() {
+        let to_remove = select_versions_to_remove(
+            vec![
+                "1.0.0".to_string(),
+                "2.0.0".to_string(),
+                "3.0.0".to_string(),
+                "4.0.0".to_string(),
+            ],
+            Some("4.0.0".to_string()),
+            2,
+        );
+
+        assert_eq!(to_remove, vec!["2.0.0".to_string(), "1.0.0".to_string()]);
+    }
+
+    #[test]
+    fn protects_active_version_even_when_it_is_not_newest() {
+        let to_remove = select_versions_to_remove(
+            vec![
+                "1.0.0".to_string(),
+                "2.0.0".to_string(),
+                "3.0.0".to_string(),
+                "4.0.0".to_string(),
+            ],
+            Some("1.0.0".to_string()),
+            2,
+        );
+
+        assert_eq!(to_remove, vec!["2.0.0".to_string()]);
+    }
+
+    #[test]
+    fn compares_version_segments_numerically() {
+        assert_eq!(compare_versions("10.0", "2.0"), Ordering::Greater);
+        assert_eq!(compare_versions("1.2.0", "1.10.0"), Ordering::Less);
+        assert_eq!(compare_versions("1.0-2", "1.0-1"), Ordering::Greater);
+    }
 }

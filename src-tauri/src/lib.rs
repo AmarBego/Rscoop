@@ -23,8 +23,14 @@ pub fn run() {
     #[cfg(windows)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            // When a second instance is attempted, show (or recreate) the main window
-            tray::show_or_create_main_window(app);
+            // When a second instance is attempted, show the main window unless
+            // it is the Windows startup entry that should stay in the tray.
+            if !_argv
+                .iter()
+                .any(|arg| arg == commands::startup::START_MINIMIZED_ARG)
+            {
+                tray::show_or_create_main_window(app);
+            }
         }));
     }
 
@@ -101,10 +107,21 @@ pub fn run() {
             app.manage(tray::PendingNavigation::default());
 
     // Set up system tray
-    let _ = tray::setup_system_tray(&app.handle());
+    if let Err(e) = tray::setup_system_tray(&app.handle()) {
+        log::error!("Failed to set up system tray: {}", e);
+    }
 
     // Spawn background task for auto bucket updates
     scheduler::start_background_tasks(app.handle().clone());
+
+    let start_minimized = std::env::args()
+        .any(|arg| arg == commands::startup::START_MINIMIZED_ARG);
+    if !start_minimized {
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
 
     Ok(())
 })
@@ -220,6 +237,7 @@ pub fn run() {
             commands::settings::has_virustotal_api_key,
             commands::settings::set_virustotal_api_key,
             commands::doctor::checkup::run_scoop_checkup,
+            commands::doctor::checkup::open_windows_settings_page,
             commands::doctor::cache::list_cache_contents,
             commands::doctor::cache::clear_cache,
             commands::doctor::shim::list_shims,
@@ -253,6 +271,7 @@ pub fn run() {
             commands::release_notes::get_release_notes,
             commands::startup::is_auto_start_enabled,
             commands::startup::set_auto_start_enabled,
+            commands::startup::set_auto_start_enabled_with_options,
             commands::profile::export_profile,
             commands::profile::save_profile_file,
             commands::profile::read_profile_file_at,

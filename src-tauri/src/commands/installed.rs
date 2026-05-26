@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::UNIX_EPOCH;
+use std::time::{Duration, UNIX_EPOCH};
 use tauri::{AppHandle, Runtime, State};
 
 /// Helper to get modification time of a path (file or directory) in milliseconds.
@@ -332,8 +332,7 @@ pub async fn refresh_installed_packages<R: Runtime>(
 ) -> Result<Vec<ScoopPackage>, String> {
     log::info!("=== INSTALLED REFRESH === refresh_installed_packages called");
 
-    // Check if we should debounce this refresh call
-    if state.should_debounce_refresh() {
+    if !state.claim_installed_refresh(Duration::from_secs(1)) {
         log::debug!(
             "=== INSTALLED REFRESH === Debouncing refresh (less than 1 second since last refresh)"
         );
@@ -341,8 +340,6 @@ pub async fn refresh_installed_packages<R: Runtime>(
         // Just return whatever the standard cache-aware fetch would return.
         return scan_installed_packages_internal(app, &state, false).await;
     }
-
-    state.update_refresh_time();
 
     // First invalidate the cache
     log::info!("=== INSTALLED REFRESH === Invalidating cache");

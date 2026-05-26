@@ -1,9 +1,8 @@
 use crate::models::ScoopPackage;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::RwLock;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::{Mutex as StdMutex, RwLock};
+use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
 #[derive(Clone)]
@@ -26,8 +25,8 @@ pub struct AppState {
     pub installed_packages: Mutex<Option<InstalledPackagesCache>>,
     /// A cache for package versions, invalidated when installed packages change
     pub package_versions: Mutex<Option<PackageVersionsCache>>,
-    /// Timestamp (ms) of the last installed packages refresh to prevent rapid consecutive calls
-    last_refresh_time: AtomicU64,
+    /// Last explicit installed-package refresh accepted by the backend.
+    last_installed_refresh_at: StdMutex<Option<Instant>>,
 }
 
 impl AppState {
@@ -37,7 +36,7 @@ impl AppState {
             scoop_path: RwLock::new(initial_scoop_path),
             installed_packages: Mutex::new(None),
             package_versions: Mutex::new(None),
-            last_refresh_time: AtomicU64::new(0),
+            last_installed_refresh_at: StdMutex::new(None),
         }
     }
 
@@ -54,33 +53,23 @@ impl AppState {
         *self.scoop_path.write().unwrap_or_else(|e| e.into_inner()) = new_path;
     }
 
-    /// Gets the timestamp of the last installed packages refresh in milliseconds
-    pub fn last_refresh_time(&self) -> u64 {
-        self.last_refresh_time.load(Ordering::Relaxed)
-    }
+    /// Claims an explicit refresh slot. Returns false when the caller is
+    /// inside the debounce window and should use the normal cache-aware fetch.
+    pub fn claim_installed_refresh(&self, debounce_window: Duration) -> bool {
+        let now = Instant::now();
+        let mut last_refresh = self
+            .last_installed_refresh_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
 
-    /// Updates the timestamp of the last installed packages refresh
-    pub fn update_refresh_time(&self) {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-        self.last_refresh_time.store(now, Ordering::Relaxed);
-    }
-
-    /// Checks if a refresh should be debounced (less than 1 second since last refresh)
-    pub fn should_debounce_refresh(&self) -> bool {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0);
-        let last_refresh = self.last_refresh_time();
-
-        // If last_refresh is 0, it's the first run, so don't debounce
-        if last_refresh == 0 {
+        if last_refresh
+            .map(|previous| now.duration_since(previous) < debounce_window)
+            .unwrap_or(false)
+        {
             return false;
         }
 
-        now.saturating_sub(last_refresh) < 1000 // Debounce within 1 second
+        *last_refresh = Some(now);
+        true
     }
 }

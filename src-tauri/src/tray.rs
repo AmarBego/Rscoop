@@ -53,12 +53,18 @@ pub fn setup_system_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         Arc::new(Mutex::new(HashMap::new()));
     app.manage(shortcuts_map.clone());
 
-    // Build the dynamic menu
     let menu = build_tray_menu(app, shortcuts_map.clone())?;
+    let icon = match app.default_window_icon() {
+        Some(icon) => icon.clone(),
+        None => {
+            log::error!("Cannot create tray icon because no default window icon is configured");
+            return Ok(());
+        }
+    };
 
     let _tray = TrayIconBuilder::with_id("main")
-        .tooltip("Rscoop - Scoop Package Manager")
-        .icon(app.default_window_icon().unwrap().clone())
+        .tooltip("rScoop - Scoop Package Manager")
+        .icon(icon)
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
@@ -152,14 +158,15 @@ fn build_tray_menu(
     shortcuts_map: Arc<Mutex<HashMap<String, ScoopAppShortcut>>>,
 ) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     // Basic menu items
-    let show = tauri::menu::MenuItemBuilder::with_id("show", "Show Rscoop").build(app)?;
-    let hide = tauri::menu::MenuItemBuilder::with_id("hide", "Hide Rscoop").build(app)?;
+    let show = tauri::menu::MenuItemBuilder::with_id("show", "Show rScoop").build(app)?;
+    let hide = tauri::menu::MenuItemBuilder::with_id("hide", "Hide rScoop").build(app)?;
     let refresh_apps =
         tauri::menu::MenuItemBuilder::with_id("refresh_apps", "Refresh Apps").build(app)?;
     let edit_tray =
         tauri::menu::MenuItemBuilder::with_id("edit_tray", "Edit Tray Menu…").build(app)?;
 
     let mut menu_items: Vec<Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>> = Vec::new();
+    let mut next_shortcuts_map: HashMap<String, ScoopAppShortcut> = HashMap::new();
     menu_items.push(Box::new(show));
     menu_items.push(Box::new(hide));
 
@@ -205,51 +212,45 @@ fn build_tray_menu(
                 .build(app)?;
             menu_items.push(Box::new(apps_label));
 
-            if let Ok(mut map) = shortcuts_map.lock() {
-                map.clear();
+            let icon_cache = app.state::<IconCache>();
+            let mut push_app_item = |items: &mut Vec<
+                Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>,
+            >,
+                                     shortcut: &ScoopAppShortcut|
+             -> tauri::Result<()> {
+                let menu_id = format!("app_{}", shortcut.name);
+                next_shortcuts_map.insert(menu_id.clone(), shortcut.clone());
 
-                let icon_cache = app.state::<IconCache>();
-                let mut push_app_item = |items: &mut Vec<
-                    Box<dyn tauri::menu::IsMenuItem<tauri::Wry>>,
-                >,
-                                         shortcut: &ScoopAppShortcut|
-                 -> tauri::Result<()> {
-                    let menu_id = format!("app_{}", shortcut.name);
-                    map.insert(menu_id.clone(), shortcut.clone());
-
-                    let cached = icon_cache.get_or_extract(&shortcut.target_path);
-                    if let Some(ci) = cached {
-                        let image = Image::new_owned(ci.rgba, ci.width, ci.height);
-                        let item = tauri::menu::IconMenuItemBuilder::with_id(
-                            &menu_id,
-                            &shortcut.display_name,
-                        )
-                        .icon(image)
-                        .build(app)?;
-                        items.push(Box::new(item));
-                    } else {
-                        let item =
-                            tauri::menu::MenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
-                                .build(app)?;
-                        items.push(Box::new(item));
-                    }
-                    Ok(())
-                };
-
-                // Pinned group first
-                for shortcut in &pinned {
-                    push_app_item(&mut menu_items, shortcut)?;
+                let cached = icon_cache.get_or_extract(&shortcut.target_path);
+                if let Some(ci) = cached {
+                    let image = Image::new_owned(ci.rgba, ci.width, ci.height);
+                    let item =
+                        tauri::menu::IconMenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
+                            .icon(image)
+                            .build(app)?;
+                    items.push(Box::new(item));
+                } else {
+                    let item =
+                        tauri::menu::MenuItemBuilder::with_id(&menu_id, &shortcut.display_name)
+                            .build(app)?;
+                    items.push(Box::new(item));
                 }
+                Ok(())
+            };
 
-                // Separator between pinned and the rest if both non-empty
-                if !pinned.is_empty() && !unpinned.is_empty() {
-                    let sep = tauri::menu::PredefinedMenuItem::separator(app)?;
-                    menu_items.push(Box::new(sep));
-                }
+            // Pinned group first
+            for shortcut in &pinned {
+                push_app_item(&mut menu_items, shortcut)?;
+            }
 
-                for shortcut in &unpinned {
-                    push_app_item(&mut menu_items, shortcut)?;
-                }
+            // Separator between pinned and the rest if both non-empty
+            if !pinned.is_empty() && !unpinned.is_empty() {
+                let sep = tauri::menu::PredefinedMenuItem::separator(app)?;
+                menu_items.push(Box::new(sep));
+            }
+
+            for shortcut in &unpinned {
+                push_app_item(&mut menu_items, shortcut)?;
             }
         }
     } else if let Err(e) = shortcuts_result {
@@ -274,7 +275,12 @@ fn build_tray_menu(
         menu_builder = menu_builder.item(&*item);
     }
 
-    menu_builder.build()
+    let menu = menu_builder.build()?;
+    match shortcuts_map.lock() {
+        Ok(mut map) => *map = next_shortcuts_map,
+        Err(e) => log::warn!("Failed to update tray shortcut map: {}", e),
+    }
+    Ok(menu)
 }
 
 /// Refresh the tray menu with updated Scoop apps
@@ -306,8 +312,8 @@ pub fn show_system_notification_blocking(app: &tauri::AppHandle) {
     // Show a nice native dialog with information about tray behavior
     let result = app
         .dialog()
-        .message("Rscoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?")
-        .title("Rscoop - Minimized to Tray")
+        .message("rScoop has been minimized to the system tray and will continue running in the background.\n\nYou can:\n• Click the tray icon to restore the window\n• Right-click the tray icon to access the context menu\n• Change this behavior in Settings > Window Behavior\n\nWhat would you like to do?")
+        .title("rScoop - Minimized to Tray")
         .kind(MessageDialogKind::Info)
         .buttons(MessageDialogButtons::OkCancelCustom("Close and Disable Tray".to_string(), "Keep in Tray".to_string()))
         .blocking_show();
@@ -390,7 +396,7 @@ pub fn show_or_create_main_window(app: &tauri::AppHandle) {
     }
 
     match WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-        .title("rscoop")
+        .title("rScoop")
         .inner_size(800.0, 600.0)
         .build()
     {

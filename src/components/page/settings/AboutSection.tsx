@@ -234,21 +234,21 @@ export default function AboutSection(props: AboutSectionProps) {
         <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
+            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch(console.error)}
           >
             <GithubIcon class="w-4 h-4" />
             {t("about.github")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://amarbego.github.io/Rscoop/').catch(console.error)}
+            onClick={() => openUrl('https://amarbego.github.io/rScoop/').catch(console.error)}
           >
             <BookOpen class="w-4 h-4" />
             {t("about.docs")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://github.com/AmarBego/Rscoop').catch(console.error)}
+            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch(console.error)}
           >
             <Star class="w-4 h-4" />
             {t("about.star")}

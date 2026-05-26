@@ -1,6 +1,7 @@
 import { createSignal, onMount, createMemo } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import Checkup, { CheckupItem } from "../components/page/doctor/Checkup";
+import Checkup, { checkupFixKey } from "../components/page/doctor/Checkup";
+import type { CheckupItem } from "../components/page/doctor/Checkup";
 import Cleanup from "../components/page/doctor/Cleanup";
 import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
@@ -11,7 +12,7 @@ import { useI18n } from "../i18n";
 
 function DoctorPage() {
     const { t } = useI18n();
-    const [installingHelper, setInstallingHelper] = createSignal<string | null>(null);
+    const [runningFix, setRunningFix] = createSignal<string | null>(null);
 
     const [checkupResult, setCheckupResult] = createSignal<CheckupItem[]>([]);
     const [isCheckupLoading, setIsCheckupLoading] = createSignal(true);
@@ -25,8 +26,8 @@ function DoctorPage() {
             setCheckupResult(result);
         } catch (err) {
             const errorMsg = err instanceof Error ? err.message : String(err);
-            console.error("Failed to run sfsu checkup:", errorMsg);
-            setCheckupError("Could not run sfsu checkup. Please ensure 'sfsu' is installed and accessible in your PATH.");
+            console.error("Failed to run system checkup:", errorMsg);
+            setCheckupError("Could not run the system checkup.");
             setCheckupResult([]);
         } finally {
             setIsCheckupLoading(false);
@@ -42,10 +43,9 @@ function DoctorPage() {
         return checkupResult().some(item => !item.status);
     });
 
-    const handleInstallHelper = async (helperId: string) => {
-        setInstallingHelper(helperId);
+    const installPackageFix = async (packageName: string) => {
         const helperPackage: ScoopPackage = {
-            name: helperId,
+            name: packageName,
             version: "",
             source: "",
             updated: "",
@@ -61,13 +61,51 @@ function DoctorPage() {
                     await runCheckup();
                     installedPackagesStore.reload();
                 }
-                setInstallingHelper(null);
+                setRunningFix(null);
             },
             { skipScan: true },
         );
 
         if (!id) {
-            setInstallingHelper(null);
+            setRunningFix(null);
+        }
+    };
+
+    const handleRunFix = async (item: CheckupItem) => {
+        if (!item.fix) return;
+        const key = checkupFixKey(item);
+        setRunningFix(key);
+
+        try {
+            switch (item.fix.kind) {
+                case "install-package":
+                    await installPackageFix(item.fix.package);
+                    return;
+                case "install-bucket": {
+                    const result = await invoke<{ success: boolean; message: string }>("install_bucket", {
+                        options: {
+                            name: item.fix.name,
+                            url: item.fix.url,
+                            force: false,
+                        },
+                    });
+                    if (result.success) {
+                        await runCheckup();
+                    } else {
+                        setCheckupError(result.message);
+                    }
+                    break;
+                }
+                case "open-settings":
+                    await invoke("open_windows_settings_page", { page: item.fix.page });
+                    break;
+            }
+        } catch (err) {
+            const errorMsg = err instanceof Error ? err.message : String(err);
+            console.error("Failed to run checkup fix:", errorMsg);
+            setCheckupError(errorMsg);
+        } finally {
+            if (runningFix() === key) setRunningFix(null);
         }
     };
 
@@ -90,8 +128,8 @@ function DoctorPage() {
                         isLoading={isCheckupLoading()}
                         error={checkupError()}
                         onRerun={runCheckup}
-                        onInstallHelper={handleInstallHelper}
-                        installingHelper={installingHelper()}
+                        onRunFix={handleRunFix}
+                        runningFix={runningFix()}
                     />
                 </div>
                 <div>

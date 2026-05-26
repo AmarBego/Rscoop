@@ -942,7 +942,8 @@ pub fn start_synthetic(
     let id = {
         let state = manager(app);
         let mut m = state.lock().unwrap();
-        if m.current.is_some() {
+        archive_finished_current(&mut m);
+        if m.current.is_some() || !m.queue.is_empty() {
             return None;
         }
         let id = m.gen_id();

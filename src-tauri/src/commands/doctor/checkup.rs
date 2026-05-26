@@ -25,6 +25,36 @@ pub struct CheckupItem {
     pub text: String,
     /// An optional suggestion for the user to fix a failed check.
     pub suggestion: Option<String>,
+    /// Optional structured action the frontend can render as a one-click fix.
+    pub fix: Option<CheckupFix>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+pub enum CheckupFix {
+    InstallPackage {
+        label: String,
+        package: String,
+    },
+    InstallBucket {
+        label: String,
+        name: String,
+        url: String,
+    },
+    OpenSettings {
+        label: String,
+        page: String,
+    },
+}
+
+impl CheckupFix {
+    fn install_package(package: impl Into<String>) -> Self {
+        let package = package.into();
+        Self::InstallPackage {
+            label: format!("Install {}", package),
+            package,
+        }
+    }
 }
 
 /// Checks if Git is installed and available in the PATH.
@@ -48,6 +78,11 @@ async fn check_git_installed(app: AppHandle) -> CheckupItem {
                     .to_string(),
             )
         },
+        fix: if git_installed {
+            None
+        } else {
+            Some(CheckupFix::install_package("git"))
+        },
     }
 }
 
@@ -65,6 +100,15 @@ fn check_main_bucket_installed(scoop_path: &Path) -> CheckupItem {
                 "The main bucket is essential for many packages. To add it, run: scoop bucket add main"
                     .to_string(),
             )
+        },
+        fix: if main_bucket_installed {
+            None
+        } else {
+            Some(CheckupFix::InstallBucket {
+                label: "Add main bucket".to_string(),
+                name: "main".to_string(),
+                url: "https://github.com/ScoopInstaller/Main".to_string(),
+            })
         },
     }
 }
@@ -94,9 +138,38 @@ fn check_missing_helpers(scoop_path: &Path) -> Vec<CheckupItem> {
                         helper
                     ))
                 },
+                fix: if is_installed {
+                    None
+                } else {
+                    Some(CheckupFix::install_package(helper))
+                },
             }
         })
         .collect()
+}
+
+#[tauri::command]
+pub fn open_windows_settings_page(page: String) -> Result<(), String> {
+    let uri = match page.as_str() {
+        "developers" => "ms-settings:developers",
+        "disks-and-volumes" => "ms-settings:disksandvolumes",
+        _ => return Err(format!("Unsupported Windows Settings page: {}", page)),
+    };
+
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer.exe")
+            .arg(uri)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open Windows Settings: {}", e))
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = uri;
+        Err("Windows Settings pages can only be opened on Windows".to_string())
+    }
 }
 
 /// Runs the Scoop checkup process, performing various system checks.

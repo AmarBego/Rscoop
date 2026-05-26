@@ -1,13 +1,19 @@
 import { For, Show } from "solid-js";
-import { CircleCheckBig, CircleX, TriangleAlert, RefreshCw, Download } from "lucide-solid";
+import { CircleCheckBig, CircleX, TriangleAlert, RefreshCw, Download, ExternalLink } from "lucide-solid";
 import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
+
+export type CheckupFix =
+    | { kind: "install-package"; label: string; package: string }
+    | { kind: "install-bucket"; label: string; name: string; url: string }
+    | { kind: "open-settings"; label: string; page: string };
 
 export interface CheckupItem {
     id: string | null;
     status: boolean;
     text: string;
     suggestion: string | null;
+    fix: CheckupFix | null;
 }
 
 interface CheckupProps {
@@ -15,8 +21,31 @@ interface CheckupProps {
     isLoading: boolean;
     error: string | null;
     onRerun: () => void;
-    onInstallHelper: (id: string) => void;
-    installingHelper: string | null;
+    onRunFix: (item: CheckupItem) => void;
+    runningFix: string | null;
+}
+
+export function checkupFixKey(item: CheckupItem): string {
+    const fix = item.fix;
+    if (!fix) return item.text;
+    switch (fix.kind) {
+        case "install-package":
+            return `install-package:${fix.package}`;
+        case "install-bucket":
+            return `install-bucket:${fix.name}`;
+        case "open-settings":
+            return `open-settings:${fix.page}`;
+    }
+}
+
+function FixIcon(props: { fix: CheckupFix }) {
+    switch (props.fix.kind) {
+        case "install-package":
+        case "install-bucket":
+            return <Download class="w-3 h-3 mr-1" />;
+        case "open-settings":
+            return <ExternalLink class="w-3 h-3 mr-1" />;
+    }
 }
 
 function Checkup(props: CheckupProps) {
@@ -60,21 +89,25 @@ function Checkup(props: CheckupProps) {
                                         <CircleCheckBig class="w-5 h-5 mr-3 text-success" />
                                     </Show>
                                     <span class="flex-grow">{item.text}</span>
-                                    <Show when={item.id && !item.status}>
+                                    <Show when={item.fix && !item.status}>
                                         <button
                                             type="button"
                                             class="btn btn-xs btn-outline btn-primary"
-                                            onClick={() => props.onInstallHelper(item.id!)}
-                                            disabled={!!props.installingHelper}
+                                            onClick={() => props.onRunFix(item)}
+                                            disabled={!!props.runningFix}
                                         >
-                                            <Show when={props.installingHelper === item.id} fallback={
+                                            <Show when={props.runningFix === checkupFixKey(item)} fallback={
                                                 <>
-                                                    <Download class="w-3 h-3 mr-1" />
-                                                    {t("common.install")}
+                                                    <FixIcon fix={item.fix!} />
+                                                    {item.fix!.label}
                                                 </>
                                             }>
                                                 <span class="loading loading-spinner loading-xs"></span>
-                                                {t("common.installing")}
+                                                <Show when={item.fix?.kind === "install-package" || item.fix?.kind === "install-bucket"} fallback={
+                                                    <>{t("common.opening")}</>
+                                                }>
+                                                    {t("common.installing")}
+                                                </Show>
                                             </Show>
                                         </button>
                                     </Show>

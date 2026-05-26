@@ -237,7 +237,7 @@ function App() {
 
             <Show when={!isReady() && !error()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
-                    <h1 class="text-2xl font-bold mb-4">Rscoop</h1>
+                    <h1 class="text-2xl font-bold mb-4">rScoop</h1>
                     <p>Getting things ready...</p>
                     <span class="loading loading-spinner loading-lg mt-4"></span>
                 </div>

@@ -1,21 +1,16 @@
-### Release Notes 1.9.0
+### Release Notes 1.9.1
 
-#### Design overhaul
-- Easier navigation across settings, buckets, package details, and tray menu controls.
-- Better spacing and denser layouts with less empty space.
-- More compact installed package cards.
-- Less low-value text and fewer noisy states.
-- Cleaner redraws after actions, with less page flicker.
+#### Feature
+- rScoop can now launch minimized to the tray from Windows startup.
 
-#### Bucket installs
-- Bucket installs now show progress, success, and errors in the operation view.
-- Cancelling a bucket install now stops the clone and cleans up partial files.
+#### Fixes
+- Auto bucket updates now skip themselves while another operation is running.
+- Scheduled update timing is recorded after work finishes, so the next run is based on real completion time.
+- Auto cleanup now keeps the configured number of recent versions and always protects the active version.
+- Package and cache state are refreshed before cleanup decisions, reducing stale cleanup behavior.
+- Tray setup now logs failures, avoids icon unwraps, and keeps shortcut menu state consistent if rebuilds fail.
 
-#### Package details
-- Bucket manifests moved into modal tabs instead of a separate button flow.
-
-#### Refactor
-- Backend drift removed
-- Repeating calls/logic removed
-
-Miss the old spacious layout? make an issue on github to request a toggle
+#### Improvements
+- System Doctor checks can now offer direct fixes for missing packages, the main bucket, and relevant Windows Settings pages.
+- Tray menu editing now uses the same settings card pattern as the rest of Settings.
+- The app selector and tray preview share the same height, with overflow handled inside the selector.

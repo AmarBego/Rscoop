@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Pin, PinOff, Eye, EyeOff, Search, RotateCcw, Image as ImageIcon } from "lucide-solid";
 import { useI18n } from "../../../i18n";
 import settingsStore from "../../../stores/settings";
+import Card from "../../common/Card";
 
 // --- Types (mirror TrayAppDto in Rust) ---
 interface TrayApp {
@@ -163,14 +164,14 @@ function TrayPreview(props: {
 
   return (
     <div
-      class="relative p-3 sm:p-5 flex justify-center h-full min-h-[320px] sm:min-h-[380px]"
+      class="relative p-3 sm:p-5 flex justify-center h-full min-h-0"
       style={{
         background: palette().chromeBg,
         "font-family": "'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif",
       }}
     >
       <div
-        class="overflow-y-auto"
+        class="overflow-y-auto h-full"
         style={{
           width: "min(230px, 100%)",
           "min-width": "min(190px, 100%)",
@@ -179,14 +180,14 @@ function TrayPreview(props: {
           "border-radius": "4px",
           "box-shadow": palette().menuShadow,
           padding: "4px 0",
-          "max-height": "min(460px, calc(100vh - 340px))",
+          "max-height": "100%",
         }}
       >
         <Row>
-          <span class="flex-1">Show Rscoop</span>
+          <span class="flex-1">Show rScoop</span>
         </Row>
         <Row>
-          <span class="flex-1">Hide Rscoop</span>
+          <span class="flex-1">Hide rScoop</span>
         </Row>
 
         <Show when={hasAnyApps()}>
@@ -328,28 +329,30 @@ export default function TrayMenuSettings() {
     };
   });
 
+  const panelHeight = "min(560px, max(440px, calc(100vh - 300px)))";
+
   return (
-    <div class="space-y-4">
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div class="min-w-0">
-          <h2 class="text-lg sm:text-xl font-semibold flex items-center gap-2">
-            <ImageIcon class="w-5 h-5 text-primary shrink-0" />
-            {t("tray.title")}
-          </h2>
-          <p class="text-sm text-base-content/60">{t("tray.description")}</p>
-        </div>
-        <p class="text-xs text-base-content/60">
+    <Card
+      title={t("tray.title")}
+      icon={ImageIcon}
+      description={t("tray.description")}
+      class="overflow-hidden"
+      headerAction={
+        <span class="text-xs text-base-content/60">
           {t("tray.summary.showing", {
             count: String(counts().trayCount),
             total: String(counts().total),
           })}
-        </p>
-      </div>
-
+        </span>
+      }
+    >
       {/* Split layout: list and preview. Stacks below md so narrow windows stay usable. */}
-      <div class="grid gap-4 grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
+      <div class="grid items-stretch gap-4 grid-cols-1 md:grid-cols-[minmax(0,1fr)_320px]">
         {/* ===== LEFT: list ===== */}
-        <div class="card bg-base-300 shadow-xl overflow-hidden">
+        <section
+          class="rounded-lg border border-base-content/10 bg-base-100/45 overflow-hidden flex flex-col"
+          style={{ height: panelHeight }}
+        >
           <div class="p-4 border-b border-base-content/10">
             <div class="flex gap-2 items-center flex-wrap">
               <label class="input input-bordered flex items-center gap-2 min-w-[200px] basis-full focus-within:outline-none focus-within:border-base-content/20 sm:basis-auto sm:flex-1">
@@ -374,7 +377,7 @@ export default function TrayMenuSettings() {
           </div>
 
           {/* List */}
-          <div class="overflow-y-auto" style={{ "max-height": "min(520px, calc(100vh - 300px))" }}>
+          <div class="flex-1 min-h-0 overflow-y-auto">
             <Show when={!loading()} fallback={
               <div class="p-10 text-center text-base-content/50 text-sm">
                 {t("tray.loading")}
@@ -439,11 +442,11 @@ export default function TrayMenuSettings() {
               </Show>
             </Show>
           </div>
-        </div>
+        </section>
 
         {/* ===== RIGHT: preview (sticky only when side-by-side on md+) ===== */}
-        <div class="md:sticky md:top-0 h-full">
-          <div class="card bg-base-300 shadow-xl overflow-hidden h-full flex flex-col">
+        <div class="md:sticky md:top-0" style={{ height: panelHeight }}>
+          <section class="rounded-lg border border-base-content/10 bg-base-100/45 overflow-hidden h-full flex flex-col">
             <div class="p-3 px-4 border-b border-base-content/10 flex items-center gap-2">
               <ImageIcon class="w-4 h-4 text-primary" />
               <h3 class="font-semibold text-sm">{t("tray.preview.title")}</h3>
@@ -451,10 +454,10 @@ export default function TrayMenuSettings() {
             <div class="flex-1 min-h-0">
               <TrayPreview apps={apps()} pinned={pinned()} hidden={hidden()} />
             </div>
-          </div>
+          </section>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 

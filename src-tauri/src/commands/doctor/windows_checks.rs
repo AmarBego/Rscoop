@@ -3,6 +3,7 @@
 //! This module contains checks that are specific to the Windows operating system,
 //! such as verifying registry keys and filesystem properties.
 
+use super::checkup::CheckupFix;
 use super::checkup::CheckupItem;
 use std::path::Path;
 
@@ -28,6 +29,14 @@ pub fn check_windows_developer_mode() -> CheckupItem {
         status,
         text: "Windows Developer Mode is enabled".to_string(),
         suggestion: if status { None } else { suggestion },
+        fix: if status {
+            None
+        } else {
+            Some(CheckupFix::OpenSettings {
+                label: "Open Developer Mode".to_string(),
+                page: "developers".to_string(),
+            })
+        },
     }
 }
 
@@ -36,7 +45,8 @@ pub fn check_windows_developer_mode() -> CheckupItem {
 pub fn check_long_paths_enabled() -> CheckupItem {
     let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
     let key_path = r"SYSTEM\CurrentControlSet\Control\FileSystem";
-    let suggestion = Some("Enable long paths by running this command in an administrator PowerShell: Set-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\FileSystem' -Name 'LongPathsEnabled' -Value 1".to_string());
+    let suggestion =
+        Some("Enable long paths from Windows Settings > System > For developers.".to_string());
 
     let status = match hklm.open_subkey(key_path) {
         Ok(key) => key
@@ -50,6 +60,14 @@ pub fn check_long_paths_enabled() -> CheckupItem {
         status,
         text: "Long paths are enabled".to_string(),
         suggestion: if status { None } else { suggestion },
+        fix: if status {
+            None
+        } else {
+            Some(CheckupFix::OpenSettings {
+                label: "Open Developer Mode".to_string(),
+                page: "developers".to_string(),
+            })
+        },
     }
 }
 
@@ -140,6 +158,14 @@ pub fn check_scoop_on_ntfs(scoop_path: &Path) -> CheckupItem {
             None
         } else {
             Some("Scoop requires an NTFS volume to work properly. Please ensure the Scoop directory is on an NTFS partition.".to_string())
+        },
+        fix: if is_ntfs {
+            None
+        } else {
+            Some(CheckupFix::OpenSettings {
+                label: "Open disks settings".to_string(),
+                page: "disks-and-volumes".to_string(),
+            })
         },
     }
 }

@@ -1,4 +1,4 @@
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 import { Recycle } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
@@ -8,11 +8,9 @@ import { useI18n } from "../../../i18n";
 function AutoCleanupSettings() {
     const { t } = useI18n();
     const { settings, setCleanupSettings } = settingsStore;
-    const [localVersionCount, setLocalVersionCount] = createSignal(settings.cleanup.preserveVersionCount);
 
     const handleVersionCountChange = (value: number) => {
         const clamped = Math.max(1, Math.min(10, value));
-        setLocalVersionCount(clamped);
         setCleanupSettings({ preserveVersionCount: clamped });
     };
 
@@ -56,18 +54,18 @@ function AutoCleanupSettings() {
                             <div class="flex items-center gap-2">
                                 <button
                                     class="btn btn-xs btn-ghost font-mono"
-                                    onClick={() => handleVersionCountChange(localVersionCount() - 1)}
-                                    disabled={localVersionCount() <= 1}
+                                    onClick={() => handleVersionCountChange(settings.cleanup.preserveVersionCount - 1)}
+                                    disabled={settings.cleanup.preserveVersionCount <= 1}
                                 >
                                     -
                                 </button>
                                 <span class="text-sm font-mono w-6 text-center font-semibold text-primary">
-                                    {localVersionCount()}
+                                    {settings.cleanup.preserveVersionCount}
                                 </span>
                                 <button
                                     class="btn btn-xs btn-ghost font-mono"
-                                    onClick={() => handleVersionCountChange(localVersionCount() + 1)}
-                                    disabled={localVersionCount() >= 10}
+                                    onClick={() => handleVersionCountChange(settings.cleanup.preserveVersionCount + 1)}
+                                    disabled={settings.cleanup.preserveVersionCount >= 10}
                                 >
                                     +
                                 </button>

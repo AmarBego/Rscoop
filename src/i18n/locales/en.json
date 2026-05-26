@@ -16,6 +16,7 @@
   "common.dismiss": "Dismiss",
   "common.install": "Install",
   "common.installing": "Installing...",
+  "common.opening": "Opening...",
   "common.uninstall": "Uninstall",
   "common.remove": "Remove",
   "common.removing": "Removing...",
@@ -275,6 +276,8 @@
 
   "settings.startup.title": "Startup Settings",
   "settings.startup.description": "Configure whether Rscoop should automatically start when Windows boots.",
+  "settings.startup.minimized": "Start minimized",
+  "settings.startup.minimizedDescription": "Keep the window hidden on Windows startup while background updates and notifications keep running.",
 
   "settings.debug.title": "Debug Mode",
   "settings.debug.description": "Enable debug mode to access detailed system information, logs, and troubleshooting tools.",
