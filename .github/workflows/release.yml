@@ -11,42 +11,128 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    environment: release
     env:
       NODE_VERSION: '20'
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        # actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
         with:
           toolchain: stable
 
       # Cache Rust dependencies and build artifacts (cargo registry, git, and target dir)
       # Swatinem/rust-cache handles lockfile hashing and cache priming automatically.
       - name: Cache Rust build
-        uses: Swatinem/rust-cache@v2
+        # Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
         with:
           workspaces: |
             src-tauri -> target
 
-      - name: Install system dependencies (UPX)
+      - name: Verify release metadata
+        id: meta
         shell: pwsh
         run: |
-          choco install upx -y --no-progress
-          if (-not (Get-Command upx -ErrorAction SilentlyContinue)) {
-            Write-Host "First attempt failed, retrying..."
-            choco install upx -y --no-progress
+          $cfg = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          $cargo = Get-Content src-tauri/Cargo.toml -Raw
+
+          if ($cargo -notmatch '(?m)^version\s*=\s*"([^"]+)"') {
+            throw "Could not read package version from src-tauri/Cargo.toml"
           }
-          if (-not (Get-Command upx -ErrorAction SilentlyContinue)) {
-            throw "UPX installation failed"
+          $cargoVersion = $Matches[1]
+
+          if ($cfg.version -ne $pkg.version) {
+            throw "Version mismatch: tauri.conf.json=$($cfg.version), package.json=$($pkg.version)"
           }
+          if ($cfg.version -ne $cargoVersion) {
+            throw "Version mismatch: tauri.conf.json=$($cfg.version), Cargo.toml=$cargoVersion"
+          }
+
+          $expectedTag = "v$($cfg.version)"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "Tag mismatch: expected $expectedTag, got $env:GITHUB_REF_NAME"
+          }
+
+          "version=$($cfg.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "product=$($cfg.productName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Detect Windows signing certificate
+        id: signing
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $hasCertificate = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)
+          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)
+
+          if ($hasCertificate -xor $hasPassword) {
+            throw "Set both WINDOWS_CERTIFICATE and WINDOWS_CERTIFICATE_PASSWORD, or neither."
+          }
+
+          if ($hasCertificate -and $hasPassword) {
+            "enabled=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "Windows Authenticode signing is enabled."
+          } else {
+            "enabled=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            Write-Host "Windows Authenticode signing is disabled; release artifacts will rely on Tauri updater signatures."
+          }
+
+      - name: Import Windows signing certificate
+        id: import_cert
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $certDir = Join-Path $env:RUNNER_TEMP "rscoop-codesign"
+          New-Item -ItemType Directory -Force -Path $certDir | Out-Null
+          $pfxPath = Join-Path $certDir "certificate.pfx"
+          $encodedCertificate = $env:WINDOWS_CERTIFICATE -replace "-----BEGIN CERTIFICATE-----", "" -replace "-----END CERTIFICATE-----", "" -replace "\s", ""
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($encodedCertificate))
+
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $certs = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          $cert = @($certs | Where-Object { $_.HasPrivateKey } | Select-Object -First 1)[0]
+          if (-not $cert.Thumbprint) {
+            throw "Certificate import did not return a thumbprint"
+          }
+
+          "thumbprint=$($cert.Thumbprint)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Configure Windows code signing
+        if: steps.signing.outputs.enabled == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          $timestampUrl = if ([string]::IsNullOrWhiteSpace($env:WINDOWS_TIMESTAMP_URL)) {
+            "http://timestamp.digicert.com"
+          } else {
+            $env:WINDOWS_TIMESTAMP_URL
+          }
+
+          $configPath = "src-tauri/tauri.conf.json"
+          $config = Get-Content $configPath | ConvertFrom-Json
+          $config.bundle.windows | Add-Member -NotePropertyName "certificateThumbprint" -NotePropertyValue "${{ steps.import_cert.outputs.thumbprint }}" -Force
+          $config.bundle.windows | Add-Member -NotePropertyName "digestAlgorithm" -NotePropertyValue "sha256" -Force
+          $config.bundle.windows | Add-Member -NotePropertyName "timestampUrl" -NotePropertyValue $timestampUrl -Force
+
+          $config | ConvertTo-Json -Depth 100 | Set-Content -Path $configPath
 
       - name: Install project dependencies
         run: npm ci
@@ -57,17 +143,6 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run tauri -- build
-
-      - name: Extract metadata (product name & version)
-        id: meta
-        shell: pwsh
-        run: |
-          $cfg = Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json
-          "version=$($cfg.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "product=$($cfg.productName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-      - name: Compress executable with UPX
-        run: upx --best --lzma src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
 
       - name: Generate updater artifacts
         id: updater
@@ -90,7 +165,8 @@ jobs:
           Set-Content -Path "./update.json" -Value $json
 
       - name: Create GitHub Release with artifacts
-        uses: ncipollo/release-action@v1
+        # ncipollo/release-action@v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
@@ -104,4 +180,13 @@ jobs:
             ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig,
             ./update.json
           artifactErrorsFailBuild: true
+
+      - name: Remove Windows signing certificate
+        if: always() && steps.import_cert.outputs.thumbprint != ''
+        shell: pwsh
+        run: |
+          $certPath = "Cert:\CurrentUser\My\${{ steps.import_cert.outputs.thumbprint }}"
+          if (Test-Path $certPath) {
+            Remove-Item -Path $certPath -Force
+          }
 

@@ -41,6 +41,28 @@ npm run tauri build
 
 Output goes to `src-tauri/target/release/bundle`.
 
+## Release requirements
+
+Release builds run from tags that match the app version, for example `v1.9.1`.
+The release workflow verifies that `package.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json` all use the same version before publishing artifacts.
+
+The GitHub `release` environment must provide these secrets for Tauri updater signing:
+
+- `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` for Tauri updater signatures.
+
+Optional Windows Authenticode signing secrets:
+
+- `WINDOWS_CERTIFICATE`, a base64-encoded Windows code-signing `.pfx`.
+- `WINDOWS_CERTIFICATE_PASSWORD`, the `.pfx` password.
+
+If one Windows certificate secret is set, both must be set. If neither is set, the release still builds unsigned Windows artifacts while preserving Tauri updater signatures.
+
+Optional environment variable for Authenticode signing:
+
+- `WINDOWS_TIMESTAMP_URL`, defaulting to `http://timestamp.digicert.com` when unset.
+
+Keep the release environment protected with required reviewers. If the Tauri updater private key ever needs rotation, ship a bridge release signed by the old key that updates the public key in `tauri.conf.json`, then sign later releases with the new key.
+
 ## Directory layout
 
 | Folder | What's in it |

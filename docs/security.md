@@ -16,6 +16,12 @@ rScoop doesn't reimplement package logic. Every install, update, and uninstall d
 
 Logging goes through `tauri-plugin-log` to both stdout and a log file at `%LOCALAPPDATA%\rscoop\logs\rscoop.log`.
 
+## Application updates
+
+Standalone rScoop builds use Tauri's updater with signed update artifacts. The updater public key is pinned in the application config, and release builds generate updater metadata from the signed MSI artifact.
+
+Windows release artifacts can also be Authenticode-signed in CI when a Windows code-signing certificate is configured. Release jobs run in the protected GitHub `release` environment and require the Tauri updater signing key before publishing.
+
 ## Privacy
 
 rScoop doesn't send telemetry or collect personal data. The only network requests it makes are:

@@ -218,6 +218,8 @@ pub fn run() {
             commands::installed::get_installed_packages_full,
             commands::installed::refresh_installed_packages,
             commands::installed::get_package_path,
+            commands::path::open_package_path,
+            commands::path::open_bucket_path,
             commands::info::get_package_info,
             commands::manifest::get_package_manifest,
             commands::updates::check_for_updates,
