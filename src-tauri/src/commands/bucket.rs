@@ -24,14 +24,14 @@ fn get_git_info(bucket_path: &Path) -> (Option<String>, Option<String>) {
 
     // Get remote URL
     if let Ok(remote) = repo.find_remote("origin") {
-        if let Some(url) = remote.url() {
+        if let Ok(url) = remote.url() {
             git_url = Some(url.to_string());
         }
     }
 
     // Get current branch
     if let Ok(head) = repo.head() {
-        if let Some(name) = head.shorthand() {
+        if let Ok(name) = head.shorthand() {
             git_branch = Some(name.to_string());
         }
     }

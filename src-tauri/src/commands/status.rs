@@ -42,8 +42,8 @@ fn has_local_remote_update(repo_path: &Path) -> bool {
     };
 
     let branch_name = match head.shorthand() {
-        Some(name) => name,
-        None => return false,
+        Ok(name) => name,
+        Err(_) => return false,
     };
 
     let local_oid = match head.target() {
