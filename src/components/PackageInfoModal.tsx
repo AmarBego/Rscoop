@@ -9,6 +9,7 @@ import Modal from "./common/Modal";
 import { Dropdown, DropdownItem } from "./common/Dropdown";
 import { openPath } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 
 hljs.registerLanguage('json', json);
 
@@ -252,9 +253,16 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   const handleCopy = async () => {
     const content = manifestContent();
     if (content) {
-      await navigator.clipboard.writeText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      try {
+        await navigator.clipboard.writeText(content);
+        setManifestError(null);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        const errorMsg = getErrorMessage(err);
+        console.error("Failed to copy manifest to clipboard:", errorMsg);
+        setManifestError(`Failed to copy manifest to clipboard: ${errorMsg}`);
+      }
     }
   };
 

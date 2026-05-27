@@ -2,6 +2,7 @@ import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
 import { View } from "../types/scoop";
+import { getErrorMessage } from "../utils/errors";
 
 const LOCAL_STORAGE_KEY = 'rscoop-settings';
 
@@ -69,49 +70,54 @@ const defaultSettings: Settings = {
 
 function createSettingsStore() {
   const getInitialSettings = (): Settings => {
-    const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (stored) {
-      // Deep merge stored settings with defaults to handle new/missing keys
-      const storedSettings = JSON.parse(stored);
-      return {
-        ...defaultSettings,
-        virustotal: {
-          ...defaultSettings.virustotal,
-          ...storedSettings.virustotal,
-        },
-        window: {
-          ...defaultSettings.window,
-          ...storedSettings.window,
-        },
-        theme: storedSettings.theme || defaultSettings.theme,
-        debug: {
-          ...defaultSettings.debug,
-          ...storedSettings.debug,
-        },
-        cleanup: {
-          ...defaultSettings.cleanup,
-          ...storedSettings.cleanup,
-        },
-        operations: {
-          ...defaultSettings.operations,
-          ...storedSettings.operations,
-        },
-        buckets: {
-          ...defaultSettings.buckets,
-          ...storedSettings.buckets,
-        },
-        language: storedSettings.language || defaultSettings.language,
-        defaultLaunchPage: storedSettings.defaultLaunchPage || defaultSettings.defaultLaunchPage,
-      };
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (stored) {
+        // Deep merge stored settings with defaults to handle new/missing keys
+        const storedSettings = JSON.parse(stored);
+        return {
+          ...defaultSettings,
+          virustotal: {
+            ...defaultSettings.virustotal,
+            ...storedSettings.virustotal,
+          },
+          window: {
+            ...defaultSettings.window,
+            ...storedSettings.window,
+          },
+          theme: storedSettings.theme || defaultSettings.theme,
+          debug: {
+            ...defaultSettings.debug,
+            ...storedSettings.debug,
+          },
+          cleanup: {
+            ...defaultSettings.cleanup,
+            ...storedSettings.cleanup,
+          },
+          operations: {
+            ...defaultSettings.operations,
+            ...storedSettings.operations,
+          },
+          buckets: {
+            ...defaultSettings.buckets,
+            ...storedSettings.buckets,
+          },
+          language: storedSettings.language || defaultSettings.language,
+          defaultLaunchPage: storedSettings.defaultLaunchPage || defaultSettings.defaultLaunchPage,
+        };
+      }
+    } catch (error) {
+      console.warn(`Failed to load settings from localStorage: ${getErrorMessage(error)}`);
     }
     return defaultSettings;
   };
 
-  const [settings, setSettings] = createStore<Settings>(getInitialSettings());
+  const initialSettings = getInitialSettings();
+  const [settings, setSettings] = createStore<Settings>(initialSettings);
 
   // Sync frontend-only localStorage settings to the Tauri store on
   // startup so the Rust scheduler and other backend code can read them.
-  const initial = getInitialSettings();
+  const initial = initialSettings;
   for (const [key, value] of Object.entries(initial.cleanup)) {
     invoke("set_config_value", { key: `cleanup.${key}`, value }).catch(() => {});
   }
@@ -125,7 +131,11 @@ function createSettingsStore() {
   const saveSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch (error) {
+        console.warn(`Failed to save settings to localStorage: ${getErrorMessage(error)}`);
+      }
       return updated;
     });
   };
