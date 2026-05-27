@@ -1,3 +1,5 @@
+import { getErrorMessage } from "./errors";
+
 export function formatIsoDate(isoString: string): string {
   if (!isoString) {
     return 'N/A';
@@ -12,7 +14,7 @@ export function formatIsoDate(isoString: string): string {
     const year = date.getFullYear();
     return `${day}-${month}-${year}`;
   } catch (error) {
-    console.error('Failed to format date:', isoString, error);
+    console.error('Failed to format date:', isoString, getErrorMessage(error));
     return 'Invalid Date';
   }
-} 
+}

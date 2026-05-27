@@ -1,10 +1,11 @@
-import { createSignal, onMount, For, Show, createMemo } from "solid-js";
+import { createSignal, onMount, For, Show, createMemo, type JSX } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Trash2, RefreshCw, TriangleAlert } from "lucide-solid";
 import { formatBytes } from "../../../utils/format";
 import ConfirmationModal from "../../ConfirmationModal";
 import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 interface CacheEntry {
     name: string;
@@ -34,7 +35,7 @@ function CacheManager() {
     const [confirmationDetails, setConfirmationDetails] = createSignal({
         onConfirm: () => { },
         title: "",
-        content: null as any,
+        content: null as JSX.Element,
     });
 
     const filteredCacheContents = createMemo(() => {
@@ -60,8 +61,9 @@ function CacheManager() {
             const result = await invoke<CacheEntry[]>("list_cache_contents");
             setCacheContents(result);
         } catch (err) {
-            console.error("Failed to fetch cache contents:", err);
-            setError(typeof err === 'string' ? err : t("common.unknownError"));
+            const errorMsg = getErrorMessage(err, t("common.unknownError"));
+            console.error("Failed to fetch cache contents:", errorMsg);
+            setError(errorMsg);
         } finally {
             setIsLoading(false);
         }
@@ -126,8 +128,9 @@ function CacheManager() {
                 try {
                     await invoke("clear_cache", { files: selectedFiles });
                 } catch (err) {
-                    console.error("Failed to clear selected cache items:", err);
-                    setError(typeof err === 'string' ? err : t("common.unknownError"));
+                    const errorMsg = getErrorMessage(err, t("common.unknownError"));
+                    console.error("Failed to clear selected cache items:", errorMsg);
+                    setError(errorMsg);
                 } finally {
                     await fetchCacheContents();
                 }
@@ -146,8 +149,9 @@ function CacheManager() {
                 try {
                     await invoke("clear_cache", { files: null });
                 } catch (err) {
-                    console.error("Failed to clear all cache items:", err);
-                    setError(typeof err === 'string' ? err : t("common.unknownError"));
+                    const errorMsg = getErrorMessage(err, t("common.unknownError"));
+                    console.error("Failed to clear all cache items:", errorMsg);
+                    setError(errorMsg);
                 } finally {
                     await fetchCacheContents();
                 }

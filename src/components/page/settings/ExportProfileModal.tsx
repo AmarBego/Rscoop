@@ -1,8 +1,7 @@
-import { createSignal, createMemo, For, Show, onCleanup } from "solid-js";
+import { createSignal, createMemo, For, Show, onCleanup, type JSX } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import {
-    Package,
     Upload,
     Check,
     AlertTriangle,
@@ -10,6 +9,8 @@ import {
 } from "lucide-solid";
 import Modal from "../../common/Modal";
 import { useI18n } from "../../../i18n";
+import { writeClipboardText } from "../../../utils/clipboard";
+import { getErrorMessage } from "../../../utils/errors";
 
 const SCHEMA_VERSION = "1.0";
 
@@ -110,7 +111,7 @@ export default function ExportProfileModal(props: Props) {
             await invoke("save_profile_file", { path, content: json });
             setSavedPath(path);
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(getErrorMessage(e));
         } finally {
             setBusy(false);
         }
@@ -124,12 +125,12 @@ export default function ExportProfileModal(props: Props) {
                 groups: Array.from(selected()),
                 includeSecrets: includeSecrets(),
             });
-            await navigator.clipboard.writeText(json);
+            await writeClipboardText(json);
             setSavedPath("__clipboard__");
             window.clearTimeout(feedbackTimeout);
             feedbackTimeout = window.setTimeout(() => setSavedPath(null), 2000);
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(getErrorMessage(e));
         } finally {
             setBusy(false);
         }
@@ -300,7 +301,7 @@ export default function ExportProfileModal(props: Props) {
 function PresetButton(p: {
     active: boolean;
     onClick: () => void;
-    children: any;
+    children: JSX.Element;
 }) {
     return (
         <button

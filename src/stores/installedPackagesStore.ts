@@ -2,6 +2,7 @@ import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, UpdatablePackage } from "../types/scoop";
 import heldStore from "./held";
+import { getErrorMessage } from "../utils/errors";
 
 export interface DisplayPackage extends ScoopPackage {
   available_version?: string;
@@ -26,7 +27,7 @@ const checkForUpdates = async () => {
       available_version: updatableMap.get(p.name)
     })));
   } catch (err) {
-    console.error("Failed to check for updates:", err);
+    console.error("Failed to check for updates:", getErrorMessage(err));
   } finally {
     setIsCheckingForUpdates(false);
   }
@@ -39,7 +40,7 @@ const fetchVersionedPackages = async () => {
     });
     setVersionedPackages(versioned);
   } catch (err) {
-    console.error("Failed to fetch versioned packages:", err);
+    console.error("Failed to fetch versioned packages:", getErrorMessage(err));
   }
 };
 
@@ -63,8 +64,9 @@ const fetchInstalledPackages = async () => {
       fetchVersionedPackages()
     ]);
   } catch (err) {
-    console.error("Failed to fetch installed packages:", err);
-    setError("Failed to load installed packages");
+    const errorMsg = getErrorMessage(err, "Failed to load installed packages");
+    console.error("Failed to fetch installed packages:", errorMsg);
+    setError(errorMsg);
     setPackages([]);
   } finally {
     setLoading(false);
@@ -87,8 +89,9 @@ const reload = async () => {
       fetchVersionedPackages()
     ]);
   } catch (err) {
-    console.error("Failed to reload installed packages:", err);
-    setError("Failed to reload installed packages");
+    const errorMsg = getErrorMessage(err, "Failed to reload installed packages");
+    console.error("Failed to reload installed packages:", errorMsg);
+    setError(errorMsg);
     setPackages([]);
   } finally {
     setLoading(false);
@@ -112,8 +115,9 @@ const refetch = async () => {
       fetchVersionedPackages()
     ]);
   } catch (err) {
-    console.error("Failed to refresh installed packages:", err);
-    setError("Failed to refresh installed packages");
+    const errorMsg = getErrorMessage(err, "Failed to refresh installed packages");
+    console.error("Failed to refresh installed packages:", errorMsg);
+    setError(errorMsg);
     setPackages([]);
   } finally {
     setLoading(false);
@@ -140,4 +144,4 @@ const installedPackagesStore = {
   fetchVersionedPackages,
 };
 
-export default installedPackagesStore; 
+export default installedPackagesStore;

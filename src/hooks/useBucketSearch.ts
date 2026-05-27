@@ -1,5 +1,6 @@
 import { createSignal, createResource, createEffect, on } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { getErrorMessage } from "../utils/errors";
 
 export interface SearchableBucket {
   name: string;
@@ -13,11 +14,13 @@ export interface SearchableBucket {
   is_verified: boolean;
 }
 
+export type BucketSortKey = "stars" | "relevance" | "apps" | "name";
+
 export interface BucketSearchRequest {
   query?: string;
   include_expanded: boolean;
   max_results?: number;
-  sort_by?: string;
+  sort_by?: BucketSortKey;
   disable_chinese_buckets?: boolean;
   minimum_stars?: number;
 }
@@ -35,10 +38,18 @@ export interface ExpandedSearchInfo {
   description: string;
 }
 
+export interface BucketSearchResultsSnapshot {
+  results: SearchableBucket[];
+  totalCount: number;
+  isSearching: boolean;
+  error: string | null;
+  isExpandedSearch: boolean;
+}
+
 export function useBucketSearch() {
   const [searchQuery, setSearchQuery] = createSignal<string>("");
   const [includeExpanded, setIncludeExpanded] = createSignal(false);
-  const [sortBy, setSortBy] = createSignal<string>("stars"); // Default to stars instead of relevance
+  const [sortBy, setSortBy] = createSignal<BucketSortKey>("stars"); // Default to stars instead of relevance
   const [maxResults, setMaxResults] = createSignal<number>(50);
   const [disableChineseBuckets, setDisableChineseBuckets] = createSignal(false);
   const [minimumStars, setMinimumStars] = createSignal(2);
@@ -65,7 +76,7 @@ export function useBucketSearch() {
       
       return exists;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return false;
     }
@@ -93,7 +104,7 @@ export function useBucketSearch() {
         return buckets;
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return [];
     }
@@ -104,7 +115,7 @@ export function useBucketSearch() {
     try {
       return await invoke<ExpandedSearchInfo>("get_expanded_search_info");
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return null;
     }
@@ -115,7 +126,7 @@ export function useBucketSearch() {
     query?: string,
     useExpanded?: boolean,
     maxRes?: number,
-    sort?: string,
+    sort?: BucketSortKey,
     disableChinese?: boolean,
     minStars?: number
   ) => {
@@ -146,7 +157,7 @@ export function useBucketSearch() {
       
       return response;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return null;
     } finally {
@@ -180,7 +191,7 @@ export function useBucketSearch() {
       await loadDefaults();
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return false;
     }
@@ -211,7 +222,7 @@ export function useBucketSearch() {
         return buckets;
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return [];
     }

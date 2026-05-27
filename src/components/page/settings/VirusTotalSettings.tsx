@@ -5,6 +5,7 @@ import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 export default function VirusTotalSettings() {
     const { t } = useI18n();
@@ -32,7 +33,7 @@ export default function VirusTotalSettings() {
                 setVirusTotalSettings({ enabled: true });
             }
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to fetch API key:", errorMsg);
             setError(t("settings.virustotal.errorLoad"));
         } finally {
@@ -71,7 +72,7 @@ export default function VirusTotalSettings() {
             window.clearTimeout(savedTimeout);
             savedTimeout = window.setTimeout(() => setSaved(false), 2000);
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to save API key:", errorMsg);
             setError(t("settings.virustotal.errorSave"));
         } finally {
@@ -94,7 +95,7 @@ export default function VirusTotalSettings() {
             window.clearTimeout(savedTimeout);
             savedTimeout = window.setTimeout(() => setSaved(false), 2000);
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to clear API key:", errorMsg);
             setError(t("settings.virustotal.errorSave"));
         } finally {

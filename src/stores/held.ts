@@ -1,6 +1,7 @@
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
+import { getErrorMessage } from "../utils/errors";
 
 function createHeldPackagesStore() {
   const [store, setStore] = createStore<{
@@ -20,7 +21,7 @@ function createHeldPackagesStore() {
       setStore("packages", heldPackages);
       setStore("error", null);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       console.error("Failed to fetch held packages:", errorMsg);
       setStore("error", "Could not load the list of held packages.");
     } finally {
@@ -37,4 +38,4 @@ function createHeldPackagesStore() {
   return { store, isHeld, refetch: fetchHeldPackages };
 }
 
-export default createRoot(createHeldPackagesStore); 
+export default createRoot(createHeldPackagesStore);

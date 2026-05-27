@@ -6,6 +6,7 @@ import { Sparkles, X } from "lucide-solid";
 import { marked } from "marked";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 
 const LAST_SEEN_KEY = "app.lastSeenVersion";
 
@@ -37,7 +38,7 @@ export default function UpdateBanner() {
         await invoke("set_config_value", { key: LAST_SEEN_KEY, value: current });
       }
     } catch (e) {
-      console.error("UpdateBanner init failed:", e);
+      console.error("UpdateBanner init failed:", getErrorMessage(e));
     }
   });
 
@@ -49,7 +50,7 @@ export default function UpdateBanner() {
       try {
         await invoke("set_config_value", { key: LAST_SEEN_KEY, value: v });
       } catch (e) {
-        console.error("Failed to save lastSeenVersion:", e);
+        console.error("Failed to save lastSeenVersion:", getErrorMessage(e));
       }
     }
   }
@@ -69,7 +70,7 @@ export default function UpdateBanner() {
         setNotesHtml("<p>No release notes available for this version.</p>");
       }
     } catch (e) {
-      console.error("Failed to load release notes:", e);
+      console.error("Failed to load release notes:", getErrorMessage(e));
       setNotesHtml("<p>Failed to load release notes.</p>");
     } finally {
       setLoadingNotes(false);
@@ -119,7 +120,7 @@ export default function UpdateBanner() {
               const href = anchor.getAttribute("href");
               if (!href || href.startsWith("#")) return;
               e.preventDefault();
-              openUrl(href).catch(err => console.error("Failed to open URL:", err));
+              openUrl(href).catch(err => console.error("Failed to open URL:", getErrorMessage(err)));
             }}
           />
           <style>{`

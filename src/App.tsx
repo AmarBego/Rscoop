@@ -17,9 +17,9 @@ import i18n from "./i18n";
 import { info, error as logError } from "@tauri-apps/plugin-log";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import installedPackagesStore from "./stores/installedPackagesStore";
 import settingsStore from "./stores/settings";
+import { getErrorMessage } from "./utils/errors";
 
 function App() {
     // Initialize with the user's default launch page (do not persist view across sessions)
@@ -63,7 +63,7 @@ function App() {
             await update()!.downloadAndInstall();
             await relaunch();
         } catch (e) {
-            console.error("Failed to install update", e);
+            console.error("Failed to install update", getErrorMessage(e));
             setError("Failed to install the update. Please try restarting the application.");
             setIsInstalling(false);
         }
@@ -76,7 +76,7 @@ function App() {
             const isScoop = await invoke<boolean>("is_scoop_installation");
             setIsScoopInstalled(isScoop);
         } catch (e) {
-            console.error("Failed to check Scoop installation:", e);
+            console.error("Failed to check Scoop installation:", getErrorMessage(e));
         }
 
         // Setup event listeners FIRST so early backend emits are captured
@@ -91,7 +91,7 @@ function App() {
                 });
                 unlistenFunctions.push(unlisten);
             } catch (e) {
-                logError(`Failed to register scoop-ready listener: ${e}`);
+                logError(`Failed to register scoop-ready listener: ${getErrorMessage(e)}`);
             }
 
             // Also listen for cold-start-finished for compatibility
@@ -102,7 +102,7 @@ function App() {
                 });
                 unlistenFunctions.push(unlisten);
             } catch (e) {
-                logError(`Failed to register cold-start-finished listener: ${e}`);
+                logError(`Failed to register cold-start-finished listener: ${getErrorMessage(e)}`);
             }
 
             return () => {
@@ -111,7 +111,7 @@ function App() {
                     try {
                         unlisten();
                     } catch (e) {
-                        logError(`Failed to unlisten: ${e}`);
+                        logError(`Failed to unlisten: ${getErrorMessage(e)}`);
                     }
                 });
             };
@@ -130,7 +130,7 @@ function App() {
                     setPendingSettingsTab(tab);
                 }
             } catch (e) {
-                logError(`Failed to consume pending settings tab: ${e}`);
+                logError(`Failed to consume pending settings tab: ${getErrorMessage(e)}`);
             }
         };
         await navigateToSettingsTab();
@@ -139,7 +139,7 @@ function App() {
                 navigateToSettingsTab();
             });
         } catch (e) {
-            logError(`Failed to register navigate-to-settings-tab listener: ${e}`);
+            logError(`Failed to register navigate-to-settings-tab listener: ${getErrorMessage(e)}`);
         }
 
         // Deferred / concurrent update check logic (network) with timeout; triggered after ready event
@@ -162,7 +162,7 @@ function App() {
                     info("Application is up to date.");
                 }
             } catch (e) {
-                console.error("Failed to check for updates", e);
+                console.error("Failed to check for updates", getErrorMessage(e));
             }
         };
 
@@ -181,7 +181,7 @@ function App() {
                         installedPackagesStore.fetch()
                             .then(() => info("Initial fetch completed successfully"))
                             .catch(err => {
-                                logError(`Failed to fetch installed packages on cold start: ${err}`);
+                                logError(`Failed to fetch installed packages on cold start: ${getErrorMessage(err)}`);
                             });
                     }, 100);
                     // Kick off update check shortly after readiness if applicable

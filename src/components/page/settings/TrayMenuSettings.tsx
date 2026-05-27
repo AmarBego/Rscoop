@@ -1,9 +1,10 @@
-import { createSignal, createMemo, onMount, For, Show } from "solid-js";
+import { createSignal, createMemo, onMount, For, Show, type JSX } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Pin, PinOff, Eye, EyeOff, Search, RotateCcw, Image as ImageIcon } from "lucide-solid";
 import { useI18n } from "../../../i18n";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
+import { getErrorMessage } from "../../../utils/errors";
 
 // --- Types (mirror TrayAppDto in Rust) ---
 interface TrayApp {
@@ -131,7 +132,7 @@ function TrayPreview(props: {
   const hasAnyApps = createMemo(() => pinnedApps().length + visibleApps().length > 0);
 
   // Shared row renderer — matches the flat Win10/11 aesthetic.
-  const Row = (p: { children: any; muted?: boolean }) => (
+  const Row = (p: { children: JSX.Element; muted?: boolean }) => (
     <div
       class="flex items-center gap-2 whitespace-nowrap"
       style={{
@@ -261,7 +262,7 @@ export default function TrayMenuSettings() {
       setPinned(new Set(pinnedList ?? []));
       setHidden(new Set(hiddenList ?? []));
     } catch (e) {
-      console.error("Failed to load tray apps/prefs:", e);
+      console.error("Failed to load tray apps/prefs:", getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -273,7 +274,7 @@ export default function TrayMenuSettings() {
       await invoke("set_config_value", { key, value: [...set] });
       await invoke("refresh_tray_apps_menu");
     } catch (e) {
-      console.error(`Failed to save ${key}:`, e);
+      console.error(`Failed to save ${key}:`, getErrorMessage(e));
     }
   }
 

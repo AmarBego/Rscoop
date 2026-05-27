@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage } from "../types/scoop";
 import { usePackageInfo } from "./usePackageInfo";
 import operationsStore from "../stores/operations";
+import { getErrorMessage } from "../utils/errors";
 
 const MIN_SEARCH_TERM_LENGTH = 2;
 
@@ -32,7 +33,7 @@ export function useSearch() {
             });
             setResults(response.packages);
         } catch (error) {
-            console.error("Search error:", error);
+            console.error("Search error:", getErrorMessage(error));
         } finally {
             setLoading(false);
         }

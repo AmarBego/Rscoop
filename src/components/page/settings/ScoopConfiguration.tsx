@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { FolderCog } from "lucide-solid";
 import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 export default function ScoopConfiguration() {
     const { t } = useI18n();
@@ -22,7 +23,7 @@ export default function ScoopConfiguration() {
             const path = await invoke<string | null>("get_scoop_path", {});
             setScoopPath(path ?? "");
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to fetch scoop path:", errorMsg);
             setError(t("settings.scoop.errorLoad"));
         } finally {
@@ -41,7 +42,7 @@ export default function ScoopConfiguration() {
             window.clearTimeout(savedTimeout);
             savedTimeout = window.setTimeout(() => setSaved(false), 2000);
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to save scoop path:", errorMsg);
             setError(t("settings.scoop.errorSave"));
         } finally {

@@ -7,21 +7,13 @@ const GithubIcon = (props: { class?: string }) => (
 );
 
 import { createSignal, Show } from "solid-js";
-import { check } from '@tauri-apps/plugin-updater';
+import { check, type DownloadEvent, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { ask, message } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import pkgJson from "../../../../package.json";
 import { useI18n } from "../../../i18n";
-
-// Define the types we need
-interface UpdateEvent {
-  event: 'Started' | 'Progress' | 'Finished';
-  data: {
-    contentLength?: number;
-    chunkLength?: number;
-  };
-}
+import { getErrorMessage } from "../../../utils/errors";
 
 export interface AboutSectionRef {
   checkForUpdates: (manual: boolean) => Promise<void>;
@@ -35,7 +27,7 @@ export interface AboutSectionProps {
 export default function AboutSection(props: AboutSectionProps) {
   const { t } = useI18n();
   const [updateStatus, setUpdateStatus] = createSignal<'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'error'>('idle');
-  const [updateInfo, setUpdateInfo] = createSignal<any>(null);
+  const [updateInfo, setUpdateInfo] = createSignal<Update | null>(null);
   const [updateError, setUpdateError] = createSignal<string | null>(null);
   const [downloadProgress, setDownloadProgress] = createSignal<{ downloaded: number; total: number | null }>({ downloaded: 0, total: null });
 
@@ -87,15 +79,17 @@ export default function AboutSection(props: AboutSectionProps) {
         }
       }
     } catch (error) {
-      console.error('Failed to check for updates:', error);
+      const errorMsg = getErrorMessage(error);
+      console.error('Failed to check for updates:', errorMsg);
       setUpdateStatus('error');
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      setUpdateError(errorMsg);
     }
   };
 
   const installAvailableUpdate = async () => {
     try {
-      if (!updateInfo()) {
+      const update = updateInfo();
+      if (!update) {
         throw new Error("No update information available");
       }
 
@@ -103,7 +97,7 @@ export default function AboutSection(props: AboutSectionProps) {
       setDownloadProgress({ downloaded: 0, total: null });
 
       // Download and install the update with progress reporting
-      await updateInfo().downloadAndInstall((event: UpdateEvent) => {
+      await update.downloadAndInstall((event: DownloadEvent) => {
         switch (event.event) {
           case 'Started':
             setDownloadProgress({
@@ -135,9 +129,10 @@ export default function AboutSection(props: AboutSectionProps) {
 
       await relaunch();
     } catch (error) {
-      console.error('Failed to install update:', error);
+      const errorMsg = getErrorMessage(error);
+      console.error('Failed to install update:', errorMsg);
       setUpdateStatus('error');
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      setUpdateError(errorMsg);
     }
   };
 
@@ -187,7 +182,7 @@ export default function AboutSection(props: AboutSectionProps) {
             {updateStatus() === 'available' && (
               <div class="space-y-2">
                 <div class="flex items-center justify-center gap-3">
-                  <span class="text-sm text-success">{t("about.versionAvailable", { version: updateInfo()?.version })}</span>
+                  <span class="text-sm text-success">{t("about.versionAvailable", { version: updateInfo()?.version ?? "" })}</span>
                   <button class="btn btn-xs btn-primary" onClick={installAvailableUpdate}>{t("common.install")}</button>
                 </div>
                 <Show when={updateInfo()?.body}>
@@ -234,21 +229,21 @@ export default function AboutSection(props: AboutSectionProps) {
         <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch(console.error)}
+            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch((error) => console.error(getErrorMessage(error)))}
           >
             <GithubIcon class="w-4 h-4" />
             {t("about.github")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://amarbego.github.io/rScoop/').catch(console.error)}
+            onClick={() => openUrl('https://amarbego.github.io/rScoop/').catch((error) => console.error(getErrorMessage(error)))}
           >
             <BookOpen class="w-4 h-4" />
             {t("about.docs")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch(console.error)}
+            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch((error) => console.error(getErrorMessage(error)))}
           >
             <Star class="w-4 h-4" />
             {t("about.star")}

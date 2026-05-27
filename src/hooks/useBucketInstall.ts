@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { getErrorMessage } from "../utils/errors";
 
 export interface BucketInstallOptions {
   name: string;
@@ -81,7 +82,7 @@ export function useBucketInstall() {
       
       return result;
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Validation failed";
+      const errorMsg = getErrorMessage(error, "Validation failed");
       setState(prev => ({
         ...prev,
         isValidating: false,
@@ -119,7 +120,7 @@ export function useBucketInstall() {
       
       return result;
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Installation failed";
+      const errorMsg = getErrorMessage(error, "Installation failed");
       console.error(`❌ Installation failed for ${bucketName}:`, errorMsg);
       setState(prev => ({
         ...prev,
@@ -157,7 +158,7 @@ export function useBucketInstall() {
       
       return result;
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : "Removal failed";
+      const errorMsg = getErrorMessage(error, "Removal failed");
       console.error(`❌ Removal failed for ${bucketName}:`, errorMsg);
       setState(prev => ({
         ...prev,

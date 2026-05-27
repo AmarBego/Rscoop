@@ -4,6 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Download, Check, AlertTriangle, FileJson } from "lucide-solid";
 import Modal from "../../common/Modal";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 interface ProfileSummary {
     schema: string;
@@ -64,7 +65,7 @@ export default function ImportProfileModal(props: Props) {
             const s = await invoke<ProfileSummary>("inspect_profile", { json: text });
             setSummary(s);
         } catch (e) {
-            setParseError(e instanceof Error ? e.message : String(e));
+            setParseError(getErrorMessage(e));
         }
     };
 
@@ -117,7 +118,7 @@ export default function ImportProfileModal(props: Props) {
                 setTimeout(closeAndReset, 800);
             }
         } catch (e) {
-            setError(e instanceof Error ? e.message : String(e));
+            setError(getErrorMessage(e));
         } finally {
             setBusy(false);
         }
