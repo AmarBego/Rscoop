@@ -57,7 +57,7 @@ export default function AboutSection(props: AboutSectionProps) {
 
       const update = await check();
 
-      if (update?.available) {
+      if (update) {
         setUpdateStatus('available');
         setUpdateInfo(update);
 

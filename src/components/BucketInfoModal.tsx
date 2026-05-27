@@ -7,9 +7,10 @@ import hljs from 'highlight.js/lib/core';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
 import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";
+import { invoke } from "@tauri-apps/api/core";
 import Modal from "./common/Modal";
 import { Dropdown, DropdownItem } from "./common/Dropdown";
-import { openUrl, openPath } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../i18n";
 
 hljs.registerLanguage('bash', bash);
@@ -216,9 +217,9 @@ function BucketInfoModal(props: BucketInfoModalProps) {
           <DropdownItem
             icon={<ExternalLink class="w-4 h-4" aria-hidden="true" />}
             onClick={async () => {
-              if (props.bucket?.path) {
+              if (props.bucket?.name) {
                 try {
-                  await openPath(props.bucket.path);
+                  await invoke("open_bucket_path", { bucketName: props.bucket.name });
                 } catch (error) {
                   console.error('Failed to open path:', error);
                 }

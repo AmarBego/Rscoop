@@ -5,7 +5,7 @@
   "identifier": "com.rscoop.app",
   "build": {
     "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "devUrl": "http://127.0.0.1:5173",
     "beforeBuildCommand": "npm run build",
     "frontendDist": "../dist"
   },
@@ -19,7 +19,12 @@
       }
     ],
     "security": {
-      "csp": null,
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "style-src": "'unsafe-inline' 'self'"
+      },
       "capabilities": [
         "default"
       ]
@@ -50,6 +55,7 @@
       "icons/icon.ico"
     ],
     "windows": {
+      "allowDowngrades": false,
       "wix": {
         "fragmentPaths": [
           "./windows/fragments/env-refresh.wxs"

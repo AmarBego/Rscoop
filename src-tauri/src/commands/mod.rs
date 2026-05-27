@@ -12,6 +12,7 @@ pub mod installed;
 pub mod linker;
 pub mod manifest;
 pub mod operations;
+pub mod path;
 pub mod profile;
 pub mod release_notes;
 pub mod scoop;

@@ -4,7 +4,7 @@ use regex::Regex;
 use std::collections::HashSet;
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 use url::Url;
 
@@ -12,6 +12,53 @@ use url::Url;
 /// (i.e. not empty and not the sentinel value "none").
 pub fn is_valid_bucket(bucket: &str) -> bool {
     !bucket.is_empty() && !bucket.eq_ignore_ascii_case("none")
+}
+
+pub fn validate_scoop_child_dir(
+    parent: &Path,
+    child_name: &str,
+    child_kind: &str,
+) -> Result<PathBuf, String> {
+    let child_name = child_name.trim();
+
+    if child_name.is_empty() {
+        return Err(format!("{} name cannot be empty", child_kind));
+    }
+
+    let child_path = Path::new(child_name);
+    let components = child_path.components().collect::<Vec<_>>();
+    if child_path.is_absolute()
+        || components.len() != 1
+        || components
+            .iter()
+            .any(|component| !matches!(component, Component::Normal(_)))
+    {
+        return Err(format!("Invalid {} name: {}", child_kind, child_name));
+    }
+
+    let parent = parent
+        .canonicalize()
+        .map_err(|e| format!("Failed to resolve {} directory: {}", parent.display(), e))?;
+    let candidate = parent.join(child_name);
+
+    if !candidate.is_dir() {
+        return Err(format!("{} '{}' does not exist", child_kind, child_name));
+    }
+
+    let candidate = candidate.canonicalize().map_err(|e| {
+        format!(
+            "Failed to resolve {} path '{}': {}",
+            child_kind,
+            candidate.display(),
+            e
+        )
+    })?;
+
+    if !candidate.starts_with(&parent) {
+        return Err(format!("{} path escapes the Scoop directory", child_kind));
+    }
+
+    Ok(candidate)
 }
 
 #[derive(Debug, Clone, serde::Serialize)]

@@ -7,7 +7,6 @@ import { Copy, Download, Ellipsis, FileText, Trash2, ExternalLink, Check } from 
 import { invoke } from "@tauri-apps/api/core";
 import Modal from "./common/Modal";
 import { Dropdown, DropdownItem } from "./common/Dropdown";
-import { openPath } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../i18n";
 
 hljs.registerLanguage('json', json);
@@ -332,10 +331,9 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           onClick={async () => {
             if (props.pkg) {
               try {
-                const packagePath = await invoke<string>("get_package_path", {
+                await invoke("open_package_path", {
                   packageName: props.pkg.name
                 });
-                await openPath(packagePath);
               } catch (error) {
                 console.error('Failed to open package path:', error);
               }
