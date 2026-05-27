@@ -1,6 +1,6 @@
 [package]
 name = "rscoop"
-version = "1.9.2"
+version = "1.9.3"
 description = "A modern, powerful GUI for Scoop"
 authors = ["AmarBego"]
 license = "MIT"
@@ -51,7 +51,7 @@ tauri-plugin-dialog = "2.7.1"
 tauri-plugin-process = "2.3.1"
 lnk = "0.6.4"
 tauri-plugin-opener = "2.5.4"
-git2 = "0.21.0"
+git2 = { version = "0.21.0", features = ["https"] }
 url = "2.5.8"
 
 [target."cfg(windows)".dependencies]
