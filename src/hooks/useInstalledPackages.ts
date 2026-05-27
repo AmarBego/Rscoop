@@ -6,6 +6,7 @@ import installedPackagesStore from "../stores/installedPackagesStore";
 import { usePackageInfo } from "./usePackageInfo";
 import operationsStore from "../stores/operations";
 import { ScoopPackage } from "../types/scoop";
+import { getErrorMessage } from "../utils/errors";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
@@ -64,8 +65,9 @@ export function useInstalledPackages() {
       const status = await invoke<ScoopStatus>("check_scoop_status");
       setScoopStatus(status);
     } catch (err) {
-      console.error("Failed to check scoop status:", err);
-      setStatusError(err as string);
+      const errorMsg = getErrorMessage(err);
+      console.error("Failed to check scoop status:", errorMsg);
+      setStatusError(errorMsg);
     } finally {
       setStatusLoading(false);
     }
@@ -104,7 +106,7 @@ export function useInstalledPackages() {
     try {
       await invoke("hold_package", { packageName: pkgName });
     } catch (err) {
-      console.error(`Failed to hold package ${pkgName}:`, err);
+      console.error(`Failed to hold package ${pkgName}:`, getErrorMessage(err));
     } finally {
       await heldStore.refetch();
       installedPackagesStore.checkForUpdates();
@@ -117,7 +119,7 @@ export function useInstalledPackages() {
     try {
       await invoke("unhold_package", { packageName: pkgName });
     } catch (err) {
-      console.error(`Failed to unhold package ${pkgName}:`, err);
+      console.error(`Failed to unhold package ${pkgName}:`, getErrorMessage(err));
     } finally {
       await heldStore.refetch();
       installedPackagesStore.checkForUpdates();
@@ -134,7 +136,7 @@ export function useInstalledPackages() {
         global: false, // TODO: Add support for global packages
       });
     } catch (err) {
-      console.error(`Failed to switch package ${pkgName} to version ${version}:`, err);
+      console.error(`Failed to switch package ${pkgName} to version ${version}:`, getErrorMessage(err));
     } finally {
       // Refresh packages list to reflect any changes
       await refetch();

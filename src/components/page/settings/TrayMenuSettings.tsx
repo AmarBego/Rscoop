@@ -4,6 +4,7 @@ import { Pin, PinOff, Eye, EyeOff, Search, RotateCcw, Image as ImageIcon } from 
 import { useI18n } from "../../../i18n";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
+import { getErrorMessage } from "../../../utils/errors";
 
 // --- Types (mirror TrayAppDto in Rust) ---
 interface TrayApp {
@@ -261,7 +262,7 @@ export default function TrayMenuSettings() {
       setPinned(new Set(pinnedList ?? []));
       setHidden(new Set(hiddenList ?? []));
     } catch (e) {
-      console.error("Failed to load tray apps/prefs:", e);
+      console.error("Failed to load tray apps/prefs:", getErrorMessage(e));
     } finally {
       setLoading(false);
     }
@@ -273,7 +274,7 @@ export default function TrayMenuSettings() {
       await invoke("set_config_value", { key, value: [...set] });
       await invoke("refresh_tray_apps_menu");
     } catch (e) {
-      console.error(`Failed to save ${key}:`, e);
+      console.error(`Failed to save ${key}:`, getErrorMessage(e));
     }
   }
 

@@ -11,6 +11,7 @@ import Modal from "./common/Modal";
 import { Dropdown, DropdownItem } from "./common/Dropdown";
 import { openUrl, openPath } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
@@ -141,8 +142,9 @@ function BucketInfoModal(props: BucketInfoModalProps) {
         setOperationError(result.message);
       }
     } catch (error) {
-      console.error('Failed to install bucket:', error);
-      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
+      const errorMsg = getErrorMessage(error, t("common.unknownError"));
+      console.error('Failed to install bucket:', errorMsg);
+      setOperationError(errorMsg);
     }
   };
 
@@ -165,8 +167,9 @@ function BucketInfoModal(props: BucketInfoModalProps) {
         setOperationError(result.message);
       }
     } catch (error) {
-      console.error('Failed to remove bucket:', error);
-      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
+      const errorMsg = getErrorMessage(error, t("common.unknownError"));
+      console.error('Failed to remove bucket:', errorMsg);
+      setOperationError(errorMsg);
     }
   };
   const orderedDetails = createMemo(() => {
@@ -220,7 +223,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                 try {
                   await openPath(props.bucket.path);
                 } catch (error) {
-                  console.error('Failed to open path:', error);
+                  console.error('Failed to open path:', getErrorMessage(error));
                 }
               }
             }}
@@ -236,7 +239,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
               try {
                 await openUrl(url);
               } catch (error) {
-                console.error('Failed to open URL:', error);
+                console.error('Failed to open URL:', getErrorMessage(error));
               }
             }
           }}

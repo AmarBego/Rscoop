@@ -4,6 +4,7 @@ import { info } from "@tauri-apps/plugin-log";
 import settingsStore from "../stores/settings";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
+import { writeClipboardText } from "../utils/clipboard";
 import { getErrorMessage } from "../utils/errors";
 
 function FingerprintDisplay(props: { fingerprint: string | null }) {
@@ -104,7 +105,7 @@ const DebugModal = () => {
 
     const copyToClipboard = async (text: string) => {
         try {
-            await navigator.clipboard.writeText(text);
+            await writeClipboardText(text);
             info("Debug information copied to clipboard");
             return true;
         } catch (e) {

@@ -9,6 +9,7 @@ import installedPackagesStore from "../stores/installedPackagesStore";
 import operationsStore from "../stores/operations";
 import { ScoopPackage } from "../types/scoop";
 import { useI18n } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 
 function DoctorPage() {
     const { t } = useI18n();
@@ -25,7 +26,7 @@ function DoctorPage() {
             const result = await invoke<CheckupItem[]>("run_scoop_checkup");
             setCheckupResult(result);
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to run system checkup:", errorMsg);
             setCheckupError("Could not run the system checkup.");
             setCheckupResult([]);
@@ -101,7 +102,7 @@ function DoctorPage() {
                     break;
             }
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to run checkup fix:", errorMsg);
             setCheckupError(errorMsg);
         } finally {

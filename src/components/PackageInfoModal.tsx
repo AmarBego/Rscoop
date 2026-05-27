@@ -9,6 +9,7 @@ import Modal from "./common/Modal";
 import { Dropdown, DropdownItem } from "./common/Dropdown";
 import { openPath } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../i18n";
+import { writeClipboardText } from "../utils/clipboard";
 import { getErrorMessage } from "../utils/errors";
 
 hljs.registerLanguage('json', json);
@@ -236,7 +237,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       });
       setManifestContent(result);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       console.error(`Failed to fetch manifest for ${pkg.name}:`, errorMsg);
       setManifestError(`Failed to load manifest for ${pkg.name}: ${errorMsg}`);
     } finally {
@@ -254,7 +255,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     const content = manifestContent();
     if (content) {
       try {
-        await navigator.clipboard.writeText(content);
+        await writeClipboardText(content);
         setManifestError(null);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -293,7 +294,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       });
       setVersionInfo(result);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       console.error(`Failed to fetch versions for ${pkg.name}:`, errorMsg);
       setVersionError(`Failed to load versions for ${pkg.name}: ${errorMsg}`);
     } finally {
@@ -320,7 +321,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       props.onSwitchVersion?.(pkg, targetVersion);
 
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       console.error(`Failed to switch ${pkg.name} to version ${targetVersion}:`, errorMsg);
       setVersionError(`Failed to switch to version ${targetVersion}: ${errorMsg}`);
     } finally {
@@ -345,7 +346,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                 });
                 await openPath(packagePath);
               } catch (error) {
-                console.error('Failed to open package path:', error);
+                console.error('Failed to open package path:', getErrorMessage(error));
               }
             }
           }}
@@ -363,7 +364,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                 });
                 console.log("Package structure debug:", debug);
               } catch (error) {
-                console.error('Debug failed:', error);
+                console.error('Debug failed:', getErrorMessage(error));
               }
             }
           }}

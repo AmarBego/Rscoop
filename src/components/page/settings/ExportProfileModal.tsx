@@ -9,6 +9,7 @@ import {
 } from "lucide-solid";
 import Modal from "../../common/Modal";
 import { useI18n } from "../../../i18n";
+import { writeClipboardText } from "../../../utils/clipboard";
 import { getErrorMessage } from "../../../utils/errors";
 
 const SCHEMA_VERSION = "1.0";
@@ -124,7 +125,7 @@ export default function ExportProfileModal(props: Props) {
                 groups: Array.from(selected()),
                 includeSecrets: includeSecrets(),
             });
-            await navigator.clipboard.writeText(json);
+            await writeClipboardText(json);
             setSavedPath("__clipboard__");
             window.clearTimeout(feedbackTimeout);
             feedbackTimeout = window.setTimeout(() => setSavedPath(null), 2000);

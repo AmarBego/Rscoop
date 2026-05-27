@@ -1,5 +1,6 @@
 import { createSignal, createResource, createEffect, on } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { getErrorMessage } from "../utils/errors";
 
 export interface SearchableBucket {
   name: string;
@@ -65,7 +66,7 @@ export function useBucketSearch() {
       
       return exists;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return false;
     }
@@ -93,7 +94,7 @@ export function useBucketSearch() {
         return buckets;
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return [];
     }
@@ -104,7 +105,7 @@ export function useBucketSearch() {
     try {
       return await invoke<ExpandedSearchInfo>("get_expanded_search_info");
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return null;
     }
@@ -146,7 +147,7 @@ export function useBucketSearch() {
       
       return response;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return null;
     } finally {
@@ -180,7 +181,7 @@ export function useBucketSearch() {
       await loadDefaults();
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return false;
     }
@@ -211,7 +212,7 @@ export function useBucketSearch() {
         return buckets;
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
+      const errorMsg = getErrorMessage(err);
       setError(errorMsg);
       return [];
     }

@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage } from "../types/scoop";
 import installedPackagesStore from "./installedPackagesStore";
 import settingsStore from "./settings";
+import { getErrorMessage } from "../utils/errors";
 
 export interface ScanWarning {
   detectionsFound: boolean;
@@ -164,7 +165,7 @@ function createOperationsStore() {
     const remaining: FinishCallback[] = [];
     for (const fc of finishCallbacks) {
       if (fc.predicate(op)) {
-        try { fc.cb(op.success); } catch (e) { console.error("finish callback threw:", e); }
+        try { fc.cb(op.success); } catch (e) { console.error("finish callback threw:", getErrorMessage(e)); }
       } else {
         remaining.push(fc);
       }
@@ -214,7 +215,7 @@ function createOperationsStore() {
       const snap = await invoke<StateSnapshot>("get_operation_state");
       applySnapshot(snap);
     } catch (e) {
-      console.error("Failed to hydrate operation state:", e);
+      console.error("Failed to hydrate operation state:", getErrorMessage(e));
     }
   }
 
@@ -287,7 +288,7 @@ function createOperationsStore() {
       const id = await invoke<string>("enqueue_operation", { action });
       return id;
     } catch (e) {
-      console.error("enqueue_operation failed:", e);
+      console.error("enqueue_operation failed:", getErrorMessage(e));
       return null;
     }
   }
@@ -333,7 +334,7 @@ function createOperationsStore() {
     try {
       await invoke("confirm_install_anyway");
     } catch (e) {
-      console.error("confirm_install_anyway failed:", e);
+      console.error("confirm_install_anyway failed:", getErrorMessage(e));
     }
   }
 
@@ -379,7 +380,7 @@ function createOperationsStore() {
     try {
       await invoke("run_pending_chain");
     } catch (e) {
-      console.error("run_pending_chain failed:", e);
+      console.error("run_pending_chain failed:", getErrorMessage(e));
     }
   }
 
@@ -393,16 +394,16 @@ function createOperationsStore() {
     await enqueue({ type: action });
   }
 
-  function close(wasSuccess: boolean) {
+  function close(_wasSuccess: boolean) {
     setCurrent(null);
     setIsMinimized(false);
     // Tell Rust to archive the finished op into completed history.
-    invoke("dismiss_current_operation").catch(err => console.error("dismiss failed:", err));
+    invoke("dismiss_current_operation").catch(err => console.error("dismiss failed:", getErrorMessage(err)));
   }
 
   function dismissAll() {
     invoke("dismiss_current_operation").catch(() => {});
-    invoke("clear_completed_operations").catch(err => console.error("clear_completed failed:", err));
+    invoke("clear_completed_operations").catch(err => console.error("clear_completed failed:", getErrorMessage(err)));
     if (!current()) setIsMinimized(false);
   }
 
@@ -419,7 +420,7 @@ function createOperationsStore() {
     try {
       await invoke("cancel_current_operation");
     } catch (e) {
-      console.error("cancel_current_operation failed:", e);
+      console.error("cancel_current_operation failed:", getErrorMessage(e));
     }
   }
 

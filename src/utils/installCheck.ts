@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { getErrorMessage } from "./errors";
 
 /**
  * Checks if the current working directory mismatches the installation directory.
@@ -11,7 +12,7 @@ export async function checkCwdMismatch(): Promise<boolean> {
     try {
         return await invoke<boolean>("is_cwd_mismatch");
     } catch (e) {
-        console.error("Failed to check CWD mismatch:", e);
+        console.error("Failed to check CWD mismatch:", getErrorMessage(e));
         return false;
     }
 }

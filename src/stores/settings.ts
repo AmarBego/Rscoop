@@ -178,7 +178,7 @@ function createSettingsStore() {
     // Sync to Tauri store so the backend can read cleanup settings
     for (const [key, value] of Object.entries(merged)) {
       invoke("set_config_value", { key: `cleanup.${key}`, value }).catch((e) =>
-        console.error(`Failed to sync cleanup setting cleanup.${key}:`, e)
+        console.error(`Failed to sync cleanup setting cleanup.${key}:`, getErrorMessage(e))
       );
     }
   };
@@ -188,7 +188,7 @@ function createSettingsStore() {
     saveSettings({ buckets: merged });
     for (const [key, value] of Object.entries(merged)) {
       invoke("set_config_value", { key: `buckets.${key}`, value }).catch((e) =>
-        console.error(`Failed to sync bucket setting buckets.${key}:`, e)
+        console.error(`Failed to sync bucket setting buckets.${key}:`, getErrorMessage(e))
       );
     }
   };
@@ -198,7 +198,7 @@ function createSettingsStore() {
     saveSettings({ operations: merged });
     for (const [key, value] of Object.entries(merged)) {
       invoke("set_config_value", { key: `operations.${key}`, value }).catch((e) =>
-        console.error(`Failed to sync operations setting operations.${key}:`, e)
+        console.error(`Failed to sync operations setting operations.${key}:`, getErrorMessage(e))
       );
     }
   };

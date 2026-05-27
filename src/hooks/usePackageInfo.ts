@@ -1,6 +1,7 @@
 import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { ScoopPackage, ScoopInfo } from "../types/scoop";
+import { getErrorMessage } from "../utils/errors";
 
 export function usePackageInfo() {
     const [selectedPackage, setSelectedPackage] = createSignal<ScoopPackage | null>(null);
@@ -25,7 +26,7 @@ export function usePackageInfo() {
             });
             setInfo(infoResponse);
         } catch (err) {
-            setError(String(err));
+            setError(getErrorMessage(err));
         } finally {
             setLoading(false);
         }

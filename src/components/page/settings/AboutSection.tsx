@@ -13,6 +13,7 @@ import { ask, message } from '@tauri-apps/plugin-dialog';
 import { openUrl } from '@tauri-apps/plugin-opener';
 import pkgJson from "../../../../package.json";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 // Define the types we need
 interface UpdateEvent {
@@ -87,9 +88,10 @@ export default function AboutSection(props: AboutSectionProps) {
         }
       }
     } catch (error) {
-      console.error('Failed to check for updates:', error);
+      const errorMsg = getErrorMessage(error);
+      console.error('Failed to check for updates:', errorMsg);
       setUpdateStatus('error');
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      setUpdateError(errorMsg);
     }
   };
 
@@ -135,9 +137,10 @@ export default function AboutSection(props: AboutSectionProps) {
 
       await relaunch();
     } catch (error) {
-      console.error('Failed to install update:', error);
+      const errorMsg = getErrorMessage(error);
+      console.error('Failed to install update:', errorMsg);
       setUpdateStatus('error');
-      setUpdateError(error instanceof Error ? error.message : String(error));
+      setUpdateError(errorMsg);
     }
   };
 
@@ -234,21 +237,21 @@ export default function AboutSection(props: AboutSectionProps) {
         <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch(console.error)}
+            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch((error) => console.error(getErrorMessage(error)))}
           >
             <GithubIcon class="w-4 h-4" />
             {t("about.github")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://amarbego.github.io/rScoop/').catch(console.error)}
+            onClick={() => openUrl('https://amarbego.github.io/rScoop/').catch((error) => console.error(getErrorMessage(error)))}
           >
             <BookOpen class="w-4 h-4" />
             {t("about.docs")}
           </button>
           <button
             class="btn btn-sm btn-ghost"
-            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch(console.error)}
+            onClick={() => openUrl('https://github.com/AmarBego/rScoop').catch((error) => console.error(getErrorMessage(error)))}
           >
             <Star class="w-4 h-4" />
             {t("about.star")}

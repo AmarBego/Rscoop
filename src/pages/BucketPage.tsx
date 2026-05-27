@@ -12,6 +12,7 @@ import BucketSearchResults from "../components/page/buckets/BucketSearchResults"
 import AddBucketModal from "../components/page/buckets/AddBucketModal";
 import { SearchableBucket } from "../hooks/useBucketSearch";
 import { useI18n } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 
 interface BucketUpdateResult {
   success: boolean;
@@ -150,7 +151,7 @@ function BucketPage() {
       setManifests(bucketManifests);
       console.log(`Successfully fetched ${bucketManifests.length} manifests for bucket:`, bucketName);
     } catch (error) {
-      console.error('Failed to fetch manifests for bucket:', bucketName, error);
+      console.error('Failed to fetch manifests for bucket:', bucketName, getErrorMessage(error));
     } finally {
       setManifestsLoading(false);
     }
@@ -180,8 +181,9 @@ function BucketPage() {
         }
       }
     } catch (error) {
-      console.error('Failed to update bucket:', bucketName, error);
-      setUpdateError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
+      const errorMsg = getErrorMessage(error, t("common.unknownError"));
+      console.error('Failed to update bucket:', bucketName, errorMsg);
+      setUpdateError(errorMsg);
     } finally {
       setUpdatingBuckets(prev => {
         const newSet = new Set(prev);
@@ -213,7 +215,7 @@ function BucketPage() {
           packageInfo.updateSelectedPackage(match);
         }
       } catch (e) {
-        console.error("Failed to check package status", e);
+        console.error("Failed to check package status", getErrorMessage(e));
       }
     }
   };
