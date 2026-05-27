@@ -1,4 +1,4 @@
-import { createSignal, createMemo, onMount, For, Show } from "solid-js";
+import { createSignal, createMemo, onMount, For, Show, type JSX } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Pin, PinOff, Eye, EyeOff, Search, RotateCcw, Image as ImageIcon } from "lucide-solid";
 import { useI18n } from "../../../i18n";
@@ -132,7 +132,7 @@ function TrayPreview(props: {
   const hasAnyApps = createMemo(() => pinnedApps().length + visibleApps().length > 0);
 
   // Shared row renderer — matches the flat Win10/11 aesthetic.
-  const Row = (p: { children: any; muted?: boolean }) => (
+  const Row = (p: { children: JSX.Element; muted?: boolean }) => (
     <div
       class="flex items-center gap-2 whitespace-nowrap"
       style={{

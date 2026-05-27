@@ -11,7 +11,7 @@ import { getErrorMessage } from "../utils/errors";
 type SortKey = 'name' | 'version' | 'source' | 'updated';
 
 // Types for scoop status
-interface AppStatusInfo {
+export interface AppStatusInfo {
   name: string;
   installed_version: string;
   latest_version?: string;
@@ -23,7 +23,7 @@ interface AppStatusInfo {
   is_removed: boolean;
 }
 
-interface ScoopStatus {
+export interface ScoopStatus {
   scoop_needs_update: boolean;
   bucket_needs_update: boolean;
   network_failure: boolean;

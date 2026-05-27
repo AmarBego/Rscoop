@@ -1,4 +1,4 @@
-import { createSignal, createMemo, For, Show, onCleanup } from "solid-js";
+import { createSignal, createMemo, For, Show, onCleanup, type JSX } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import {
@@ -301,7 +301,7 @@ export default function ExportProfileModal(props: Props) {
 function PresetButton(p: {
     active: boolean;
     onClick: () => void;
-    children: any;
+    children: JSX.Element;
 }) {
     return (
         <button

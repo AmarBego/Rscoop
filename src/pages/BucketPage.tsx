@@ -10,7 +10,7 @@ import BucketSearch from "../components/page/buckets/BucketSearch";
 import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
 import AddBucketModal from "../components/page/buckets/AddBucketModal";
-import { SearchableBucket } from "../hooks/useBucketSearch";
+import { BucketSearchResultsSnapshot, SearchableBucket } from "../hooks/useBucketSearch";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/errors";
 
@@ -61,12 +61,12 @@ function BucketPage() {
     }
   };
 
-  const handleSearchResults = (results: any) => {
-    setSearchResults(results.results || []);
-    setSearchTotalCount(results.totalCount || 0);
-    setSearchLoading(results.isSearching || false);
-    setSearchError(results.error || null);
-    setIsExpandedSearch(results.isExpandedSearch || false);
+  const handleSearchResults = (results: BucketSearchResultsSnapshot) => {
+    setSearchResults(results.results);
+    setSearchTotalCount(results.totalCount);
+    setSearchLoading(results.isSearching);
+    setSearchError(results.error);
+    setIsExpandedSearch(results.isExpandedSearch);
   };
 
   const handleViewBucket = async (bucket: BucketInfo) => {

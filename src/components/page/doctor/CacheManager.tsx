@@ -1,4 +1,4 @@
-import { createSignal, onMount, For, Show, createMemo } from "solid-js";
+import { createSignal, onMount, For, Show, createMemo, type JSX } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { Trash2, RefreshCw, TriangleAlert } from "lucide-solid";
 import { formatBytes } from "../../../utils/format";
@@ -35,7 +35,7 @@ function CacheManager() {
     const [confirmationDetails, setConfirmationDetails] = createSignal({
         onConfirm: () => { },
         title: "",
-        content: null as any,
+        content: null as JSX.Element,
     });
 
     const filteredCacheContents = createMemo(() => {

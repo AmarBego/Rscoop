@@ -6,6 +6,17 @@ import { getErrorMessage } from "../utils/errors";
 
 const LOCAL_STORAGE_KEY = 'rscoop-settings';
 
+export type BucketAutoUpdateInterval =
+  | "off"
+  | "24h"
+  | "7d"
+  | "1d"
+  | "1w"
+  | "1h"
+  | "6h"
+  | `${number}`
+  | `custom:${number}`;
+
 interface Settings {
   virustotal: {
     enabled: boolean;
@@ -30,7 +41,7 @@ interface Settings {
     backgroundByDefault: boolean;
   };
   buckets: {
-    autoUpdateInterval: string; // "off" | "1h" | "6h" | "24h"
+    autoUpdateInterval: BucketAutoUpdateInterval;
     autoUpdatePackagesEnabled: boolean;
   };
   language: string;

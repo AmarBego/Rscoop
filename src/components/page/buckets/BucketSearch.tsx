@@ -1,6 +1,6 @@
 import { Accessor, Show, createSignal, createEffect, createUniqueId } from "solid-js";
 import { Search, X, TriangleAlert, LoaderCircle, ChevronDown } from "lucide-solid";
-import { useBucketSearch } from "../../../hooks/useBucketSearch";
+import { BucketSearchResultsSnapshot, BucketSortKey, ExpandedSearchInfo, useBucketSearch } from "../../../hooks/useBucketSearch";
 import { useI18n } from "../../../i18n";
 import Modal from "../../common/Modal";
 import { Dropdown, DropdownItem } from "../../common/Dropdown";
@@ -8,7 +8,7 @@ import { Dropdown, DropdownItem } from "../../common/Dropdown";
 interface BucketSearchProps {
   isActive: Accessor<boolean>;
   onToggle: () => void;
-  onSearchResults?: (results: any) => void;
+  onSearchResults?: (results: BucketSearchResultsSnapshot) => void;
 }
 
 function BucketSearch(props: BucketSearchProps) {
@@ -16,7 +16,7 @@ function BucketSearch(props: BucketSearchProps) {
   const bucketSearch = useBucketSearch();
   const [searchInput, setSearchInput] = createSignal("");
   const [showExpandedDialog, setShowExpandedDialog] = createSignal(false);
-  const [expandedInfo, setExpandedInfo] = createSignal<any>(null);
+  const [expandedInfo, setExpandedInfo] = createSignal<ExpandedSearchInfo | null>(null);
   const [tempDisableChineseBuckets, setTempDisableChineseBuckets] = createSignal(false);
   const [tempMinimumStars, setTempMinimumStars] = createSignal(2);
   const communityChineseId = createUniqueId();
@@ -148,7 +148,7 @@ function BucketSearch(props: BucketSearchProps) {
               <div class="flex items-center gap-2">
                 <span class="text-base-content/70">{t("buckets.sortBy")}</span>
                 {(() => {
-                  const sortOptions: { value: string; labelKey: string }[] = [
+                  const sortOptions: { value: BucketSortKey; labelKey: string }[] = [
                     { value: "stars", labelKey: "buckets.sortStars" },
                     { value: "relevance", labelKey: "buckets.sortRelevance" },
                     { value: "apps", labelKey: "buckets.sortApps" },
@@ -158,7 +158,7 @@ function BucketSearch(props: BucketSearchProps) {
                     const match = sortOptions.find(o => o.value === bucketSearch.sortBy());
                     return match ? t(match.labelKey) : bucketSearch.sortBy();
                   };
-                  const setSort = async (value: string) => {
+                  const setSort = async (value: BucketSortKey) => {
                     bucketSearch.setSortBy(value);
                     if (searchInput().trim()) {
                       await bucketSearch.searchBuckets(searchInput());
@@ -264,7 +264,10 @@ function BucketSearch(props: BucketSearchProps) {
         }
       >
             <p class="text-sm text-base-content/70 mb-4">
-              {t("buckets.communityDialogText", { totalBuckets: expandedInfo()?.total_buckets?.toLocaleString(), sizeMb: expandedInfo()?.estimated_size_mb })}
+              {t("buckets.communityDialogText", {
+                totalBuckets: expandedInfo()?.total_buckets.toLocaleString() ?? "0",
+                sizeMb: expandedInfo()?.estimated_size_mb ?? 0,
+              })}
             </p>
 
             {/* Filters */}

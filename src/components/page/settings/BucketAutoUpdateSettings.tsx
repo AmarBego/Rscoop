@@ -2,15 +2,40 @@ import { createSignal, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCcw, ChevronDown } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
+import { BucketAutoUpdateInterval } from "../../../stores/settings";
 import Card from "../../common/Card";
 import { Dropdown, DropdownItem } from "../../common/Dropdown";
 import { useI18n } from "../../../i18n";
 
-const PRESET_VALUES = [
+type IntervalUnit = "minutes" | "hours" | "days" | "weeks";
+
+const PRESET_VALUES: { value: BucketAutoUpdateInterval }[] = [
     { value: "off" },
     { value: "24h" },
     { value: "7d" },
 ];
+
+function isBucketAutoUpdateInterval(value: string): value is BucketAutoUpdateInterval {
+    return (
+        value === "off" ||
+        value === "24h" ||
+        value === "7d" ||
+        value === "1d" ||
+        value === "1w" ||
+        value === "1h" ||
+        value === "6h" ||
+        /^\d+$/.test(value) ||
+        /^custom:\d+$/.test(value)
+    );
+}
+
+function hasStringValue(value: unknown): value is { value: string } {
+    return typeof value === "object" && value !== null && "value" in value && typeof value.value === "string";
+}
+
+function customInterval(seconds: number): BucketAutoUpdateInterval {
+    return `custom:${seconds}` as BucketAutoUpdateInterval;
+}
 
 export default function BucketAutoUpdateSettings() {
     const { t } = useI18n();
@@ -25,11 +50,10 @@ export default function BucketAutoUpdateSettings() {
         setError(null);
         try {
             const value = await invoke<unknown>("get_config_value", { key: "buckets.autoUpdateInterval" });
-            if (typeof value === "string") {
+            if (typeof value === "string" && isBucketAutoUpdateInterval(value)) {
                 setBucketSettings({ autoUpdateInterval: value });
-            } else if (value && typeof value === "object" && (value as any).value) {
-                const v = (value as any).value;
-                if (typeof v === "string") setBucketSettings({ autoUpdateInterval: v });
+            } else if (hasStringValue(value) && isBucketAutoUpdateInterval(value.value)) {
+                setBucketSettings({ autoUpdateInterval: value.value });
             }
         } catch {
             setError(null);
@@ -38,7 +62,7 @@ export default function BucketAutoUpdateSettings() {
         }
     };
 
-    const persistInterval = async (newValue: string) => {
+    const persistInterval = async (newValue: BucketAutoUpdateInterval) => {
         setSaving(true);
         setError(null);
         try {
@@ -163,8 +187,8 @@ export default function BucketAutoUpdateSettings() {
 // --- Custom interval editor ---
 
 interface CustomIntervalEditorProps {
-    currentValue: string;
-    onPersist: (newValue: string) => Promise<void> | void;
+    currentValue: BucketAutoUpdateInterval;
+    onPersist: (newValue: BucketAutoUpdateInterval) => Promise<void> | void;
     disabled?: boolean;
     debug?: boolean;
 }
@@ -181,13 +205,13 @@ function parseSeconds(value: string): number | null {
 function CustomIntervalEditor(props: CustomIntervalEditorProps) {
     const { t } = useI18n();
     const [quantity, setQuantity] = createSignal(1);
-    const [unit, setUnit] = createSignal("days");
+    const [unit, setUnit] = createSignal<IntervalUnit>("days");
     const [error, setError] = createSignal<string | null>(null);
     const [saved, setSaved] = createSignal(false);
     const inputId = "settings-bucket-custom-interval-quantity";
     const statusId = "settings-bucket-custom-interval-status";
 
-    const unitSeconds = (u: string) => ({ minutes: 60, hours: 3600, days: 86400, weeks: 604800 }[u] || 0);
+    const unitSeconds = (u: IntervalUnit) => ({ minutes: 60, hours: 3600, days: 86400, weeks: 604800 }[u]);
 
     onMount(() => {
         const secs = parseSeconds(props.currentValue);
@@ -209,7 +233,7 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
             return;
         }
         setError(null);
-        await props.onPersist(`custom:${secs}`);
+        await props.onPersist(customInterval(secs));
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
     };
@@ -266,7 +290,7 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
 
 // --- Active badge ---
 
-function ActiveBadge(props: { value: string }) {
+function ActiveBadge(props: { value: BucketAutoUpdateInterval }) {
     const label = () => formatInterval(props.value);
     return (
         <span class="text-xs font-medium px-2 py-1 rounded bg-base-100 text-base-content/70">
@@ -275,7 +299,7 @@ function ActiveBadge(props: { value: string }) {
     );
 }
 
-function formatInterval(raw: string): string {
+function formatInterval(raw: BucketAutoUpdateInterval): string {
     if (!raw || raw === "off") return "Off";
     if (raw === "24h" || raw === "1d") return "24h";
     if (raw === "7d" || raw === "1w") return "7d";

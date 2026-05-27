@@ -14,11 +14,13 @@ export interface SearchableBucket {
   is_verified: boolean;
 }
 
+export type BucketSortKey = "stars" | "relevance" | "apps" | "name";
+
 export interface BucketSearchRequest {
   query?: string;
   include_expanded: boolean;
   max_results?: number;
-  sort_by?: string;
+  sort_by?: BucketSortKey;
   disable_chinese_buckets?: boolean;
   minimum_stars?: number;
 }
@@ -36,10 +38,18 @@ export interface ExpandedSearchInfo {
   description: string;
 }
 
+export interface BucketSearchResultsSnapshot {
+  results: SearchableBucket[];
+  totalCount: number;
+  isSearching: boolean;
+  error: string | null;
+  isExpandedSearch: boolean;
+}
+
 export function useBucketSearch() {
   const [searchQuery, setSearchQuery] = createSignal<string>("");
   const [includeExpanded, setIncludeExpanded] = createSignal(false);
-  const [sortBy, setSortBy] = createSignal<string>("stars"); // Default to stars instead of relevance
+  const [sortBy, setSortBy] = createSignal<BucketSortKey>("stars"); // Default to stars instead of relevance
   const [maxResults, setMaxResults] = createSignal<number>(50);
   const [disableChineseBuckets, setDisableChineseBuckets] = createSignal(false);
   const [minimumStars, setMinimumStars] = createSignal(2);
@@ -116,7 +126,7 @@ export function useBucketSearch() {
     query?: string,
     useExpanded?: boolean,
     maxRes?: number,
-    sort?: string,
+    sort?: BucketSortKey,
     disableChinese?: boolean,
     minStars?: number
   ) => {

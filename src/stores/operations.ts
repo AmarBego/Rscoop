@@ -271,10 +271,13 @@ function createOperationsStore() {
 
   // --- Enqueue helpers ---
 
-  interface EnqueueAction {
-    type: string;
-    [k: string]: any;
-  }
+  type EnqueueAction =
+    | { type: "scan-and-install"; package: string; bucket: string; version: string | null }
+    | { type: "install"; package: string; bucket: string; version: string | null }
+    | { type: "update"; package: string }
+    | { type: "update-all" }
+    | { type: "uninstall"; package: string; bucket: string; auto_clear_cache: boolean }
+    | { type: "cleanup-apps" | "cleanup-cache" };
 
   async function enqueue(action: EnqueueAction): Promise<string | null> {
     const { settings } = settingsStore;
