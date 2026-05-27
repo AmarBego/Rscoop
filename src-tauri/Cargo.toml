@@ -17,19 +17,19 @@ name = "rscoop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.1", features = [] }
+tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
-tauri = { version = "2.11.1", features = ["tray-icon"] }
+tauri = { version = "2.11.2", features = ["tray-icon"] }
 tauri-plugin-shell = "2.3.5"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
-log = "0.4.29"
+serde_json = "1.0.150"
+log = "0.4.30"
 tauri-plugin-log = { version = "2.8.0" }
 winreg = "0.56.0"
-reqwest = { version = "0.13.3", features = ["json", "blocking"] }
+reqwest = { version = "0.13.4", features = ["json", "blocking"] }
 csv = "1.4.0"
-tauri-plugin-store = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
+tauri-plugin-store = "2.4.3"
 tokio = { version = "1.52.3", features = ["full"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 dirs = "6.0.0"
@@ -51,7 +51,7 @@ tauri-plugin-dialog = "2.7.1"
 tauri-plugin-process = "2.3.1"
 lnk = "0.6.4"
 tauri-plugin-opener = "2.5.4"
-git2 = "0.20.4"
+git2 = "0.21.0"
 url = "2.5.8"
 
 [target."cfg(windows)".dependencies]

@@ -3,6 +3,7 @@ import {
   Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, Activity
 } from 'lucide-solid';
 import { useI18n } from "../../../i18n";
+import type { ScoopStatus } from "../../../hooks/useInstalledPackages";
 import { Dropdown, DropdownItem, DropdownTitle } from "../../common/Dropdown";
 
 interface InstalledPageHeaderProps {
@@ -10,7 +11,7 @@ interface InstalledPageHeaderProps {
   onUpdateAll: () => void;
   onCheckStatus?: () => void;
   statusLoading?: Accessor<boolean>;
-  scoopStatus?: Accessor<any>;
+  scoopStatus?: Accessor<ScoopStatus | null>;
 
   uniqueBuckets: Accessor<string[]>;
   selectedBucket: Accessor<string>;

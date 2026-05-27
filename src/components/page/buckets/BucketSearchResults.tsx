@@ -5,6 +5,7 @@ import { useBucketInstall } from "../../../hooks/useBucketInstall";
 import { ExternalLink, Star, Package, GitFork, Shield, LoaderCircle, TriangleAlert } from "lucide-solid";
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 interface BucketSearchResultsProps {
   buckets: SearchableBucket[];
@@ -54,8 +55,9 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         setOperationError(result.message);
       }
     } catch (error) {
-      console.error('Failed to install bucket:', error);
-      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
+      const errorMsg = getErrorMessage(error, t("common.unknownError"));
+      console.error('Failed to install bucket:', errorMsg);
+      setOperationError(errorMsg);
     }
   };
 
@@ -76,8 +78,9 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         setOperationError(result.message);
       }
     } catch (error) {
-      console.error('Failed to remove bucket:', error);
-      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
+      const errorMsg = getErrorMessage(error, t("common.unknownError"));
+      console.error('Failed to remove bucket:', errorMsg);
+      setOperationError(errorMsg);
     }
   };
 

@@ -5,6 +5,7 @@ import ShimDetailsModal from "./ShimDetailsModal";
 import AddShimModal from "./AddShimModal";
 import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 export interface Shim {
     name: string;
@@ -42,8 +43,9 @@ function ShimManager() {
             const result = await invoke<Shim[]>("list_shims");
             setAllShims(result.sort((a, b) => a.name.localeCompare(b.name)));
         } catch (err) {
-            console.error("Failed to fetch shims:", err);
-            setError(typeof err === 'string' ? err : t("common.unknownError"));
+            const errorMsg = getErrorMessage(err, t("common.unknownError"));
+            console.error("Failed to fetch shims:", errorMsg);
+            setError(errorMsg);
         } finally {
             setIsLoading(false);
         }
@@ -59,8 +61,9 @@ function ShimManager() {
             await fetchShims();
             setIsAddModalOpen(false);
         } catch (err) {
-            console.error(`Failed to add shim ${name}:`, err);
-            setMutationError(typeof err === 'string' ? err : t("common.unknownError"));
+            const errorMsg = getErrorMessage(err, t("common.unknownError"));
+            console.error(`Failed to add shim ${name}:`, errorMsg);
+            setMutationError(errorMsg);
         } finally {
             setIsProcessing(false);
         }
@@ -74,8 +77,9 @@ function ShimManager() {
             await fetchShims();
             setSelectedShim(null);
         } catch (err) {
-            console.error(`Failed to remove shim ${shimName}:`, err);
-            setMutationError(typeof err === 'string' ? err : t("common.unknownError"));
+            const errorMsg = getErrorMessage(err, t("common.unknownError"));
+            console.error(`Failed to remove shim ${shimName}:`, errorMsg);
+            setMutationError(errorMsg);
         } finally {
             setIsProcessing(false);
         }
@@ -98,8 +102,9 @@ function ShimManager() {
             }
 
         } catch (err) {
-            console.error(`Failed to alter shim ${shimName}:`, err);
-            setMutationError(typeof err === 'string' ? err : t("common.unknownError"));
+            const errorMsg = getErrorMessage(err, t("common.unknownError"));
+            console.error(`Failed to alter shim ${shimName}:`, errorMsg);
+            setMutationError(errorMsg);
         } finally {
             setIsProcessing(false);
         }

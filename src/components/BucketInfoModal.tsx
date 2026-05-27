@@ -7,10 +7,12 @@ import hljs from 'highlight.js/lib/core';
 import bash from 'highlight.js/lib/languages/bash';
 import json from 'highlight.js/lib/languages/json';
 import { Ellipsis, GitBranch, ExternalLink, Download, Trash2, LoaderCircle } from "lucide-solid";
+import { invoke } from "@tauri-apps/api/core";
 import Modal from "./common/Modal";
 import { Dropdown, DropdownItem } from "./common/Dropdown";
-import { openUrl, openPath } from '@tauri-apps/plugin-opener';
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { useI18n } from "../i18n";
+import { getErrorMessage } from "../utils/errors";
 
 hljs.registerLanguage('bash', bash);
 hljs.registerLanguage('json', json);
@@ -141,8 +143,9 @@ function BucketInfoModal(props: BucketInfoModalProps) {
         setOperationError(result.message);
       }
     } catch (error) {
-      console.error('Failed to install bucket:', error);
-      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
+      const errorMsg = getErrorMessage(error, t("common.unknownError"));
+      console.error('Failed to install bucket:', errorMsg);
+      setOperationError(errorMsg);
     }
   };
 
@@ -165,8 +168,9 @@ function BucketInfoModal(props: BucketInfoModalProps) {
         setOperationError(result.message);
       }
     } catch (error) {
-      console.error('Failed to remove bucket:', error);
-      setOperationError(error instanceof Error ? error.message : typeof error === "string" ? error : t("common.unknownError"));
+      const errorMsg = getErrorMessage(error, t("common.unknownError"));
+      console.error('Failed to remove bucket:', errorMsg);
+      setOperationError(errorMsg);
     }
   };
   const orderedDetails = createMemo(() => {
@@ -216,11 +220,11 @@ function BucketInfoModal(props: BucketInfoModalProps) {
           <DropdownItem
             icon={<ExternalLink class="w-4 h-4" aria-hidden="true" />}
             onClick={async () => {
-              if (props.bucket?.path) {
+              if (props.bucket?.name) {
                 try {
-                  await openPath(props.bucket.path);
+                  await invoke("open_bucket_path", { bucketName: props.bucket.name });
                 } catch (error) {
-                  console.error('Failed to open path:', error);
+                  console.error('Failed to open path:', getErrorMessage(error));
                 }
               }
             }}
@@ -236,7 +240,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
               try {
                 await openUrl(url);
               } catch (error) {
-                console.error('Failed to open URL:', error);
+                console.error('Failed to open URL:', getErrorMessage(error));
               }
             }
           }}

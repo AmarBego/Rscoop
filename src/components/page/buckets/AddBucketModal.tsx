@@ -2,6 +2,7 @@ import { createSignal, createUniqueId, Show } from "solid-js";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
 import Modal from "../../common/Modal";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 interface AddBucketModalProps {
   isOpen: boolean;
@@ -49,7 +50,7 @@ function AddBucketModal(props: AddBucketModalProps) {
         setError(result.message);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : typeof err === "string" ? err : t("common.unknownError"));
+      setError(getErrorMessage(err, t("common.unknownError")));
     }
   };
 

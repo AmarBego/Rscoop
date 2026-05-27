@@ -577,7 +577,7 @@ fn update_bucket_sync(
                         }
                     };
 
-                    if let Some(branch_name) = head.shorthand() {
+                    if let Ok(branch_name) = head.shorthand() {
                         // Try to merge origin/branch into current branch
                         let remote_branch_name = format!("origin/{}", branch_name);
                         match repo.find_branch(&remote_branch_name, git2::BranchType::Remote) {

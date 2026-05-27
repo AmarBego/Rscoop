@@ -1,3 +1,4 @@
+import type { JSX } from "solid-js";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
 
@@ -8,7 +9,7 @@ interface ConfirmationModalProps {
     onCancel: () => void;
     confirmText?: string;
     cancelText?: string;
-    children: any;
+    children: JSX.Element;
 }
 
 function ConfirmationModal(props: ConfirmationModalProps) {

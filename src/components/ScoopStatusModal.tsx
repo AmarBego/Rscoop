@@ -1,13 +1,14 @@
 import { Show } from "solid-js";
 import { CircleCheckBig, TriangleAlert, WifiOff, FolderOpen } from "lucide-solid";
 import { View } from "../types/scoop";
+import type { AppStatusInfo, ScoopStatus } from "../hooks/useInstalledPackages";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
 
 interface ScoopStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
-  status: any;
+  status: ScoopStatus | null;
   loading: boolean;
   error: string | null;
   onNavigate?: (view: View) => void;
@@ -49,27 +50,28 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
         </div>
       </Show>
 
-      <Show when={props.status && !props.loading && !props.error}>
+      <Show when={!props.loading && !props.error ? props.status : null}>
+        {(status) => (
         <div class="space-y-4">
           {/* Overall Status */}
           <div class="alert" classList={{
-            "alert-success alert-outline": props.status.is_everything_ok,
-            "alert-warning alert-outline": !props.status.is_everything_ok
+            "alert-success alert-outline": status().is_everything_ok,
+            "alert-warning alert-outline": !status().is_everything_ok
           }}>
-            <Show when={props.status.is_everything_ok}
+            <Show when={status().is_everything_ok}
               fallback={<TriangleAlert class="w-4 h-4" />}
             >
               <CircleCheckBig class="w-4 h-4" />
             </Show>
             <span>
-              {props.status.is_everything_ok
+              {status().is_everything_ok
                 ? t("modal.scoopStatus.everythingOk")
                 : t("modal.scoopStatus.issuesFound")}
             </span>
           </div>
 
           {/* Scoop Updates */}
-          <Show when={props.status.scoop_needs_update}>
+          <Show when={status().scoop_needs_update}>
             <div class="alert alert-warning alert-outline">
               <TriangleAlert class="w-4 h-4" />
               <span>{t("modal.scoopStatus.scoopOutOfDate")}</span>
@@ -77,7 +79,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
           </Show>
 
           {/* Bucket Updates */}
-          <Show when={props.status.bucket_needs_update}>
+          <Show when={status().bucket_needs_update}>
             <div class="alert alert-warning alert-outline">
               <TriangleAlert class="w-4 h-4" />
               <span>{t("modal.scoopStatus.bucketsOutOfDate")}</span>
@@ -85,7 +87,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
           </Show>
 
           {/* Network Issues */}
-          <Show when={props.status.network_failure}>
+          <Show when={status().network_failure}>
             <div class="alert alert-error alert-outline">
               <WifiOff class="w-4 h-4" />
               <span>{t("modal.scoopStatus.networkFailure")}</span>
@@ -93,7 +95,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
           </Show>
 
           {/* Apps with Issues */}
-          <Show when={props.status.apps_with_issues?.length > 0}>
+          <Show when={status().apps_with_issues.length > 0}>
             <div class="space-y-2">
               <h4 class="font-semibold">{t("modal.scoopStatus.appsWithIssues")}</h4>
               <div class="overflow-x-auto">
@@ -107,7 +109,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {props.status.apps_with_issues.map((app: any) => (
+                    {status().apps_with_issues.map((app: AppStatusInfo) => (
                       <tr>
                         <td class="font-medium">{app.name}</td>
                         <td>{app.installed_version}</td>
@@ -142,13 +144,14 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
           </Show>
 
           {/* All Good Message */}
-          <Show when={props.status.is_everything_ok && !props.status.network_failure}>
+          <Show when={status().is_everything_ok && !status().network_failure}>
             <div class="alert alert-success alert-outline">
               <CircleCheckBig class="w-4 h-4" />
               <span>{t("modal.scoopStatus.allGood")}</span>
             </div>
           </Show>
         </div>
+        )}
       </Show>
     </Modal>
   );

@@ -1,7 +1,7 @@
 //! Command for managing Scoop buckets - repositories containing package manifests.
 use crate::models::BucketInfo;
 use crate::state::AppState;
-use crate::utils;
+use crate::utils::{self, validate_scoop_child_dir};
 use git2::Repository;
 use std::fs;
 use std::path::Path;
@@ -24,14 +24,14 @@ fn get_git_info(bucket_path: &Path) -> (Option<String>, Option<String>) {
 
     // Get remote URL
     if let Ok(remote) = repo.find_remote("origin") {
-        if let Some(url) = remote.url() {
+        if let Ok(url) = remote.url() {
             git_url = Some(url.to_string());
         }
     }
 
     // Get current branch
     if let Ok(head) = repo.head() {
-        if let Some(name) = head.shorthand() {
+        if let Ok(name) = head.shorthand() {
             git_branch = Some(name.to_string());
         }
     }
@@ -133,11 +133,8 @@ pub async fn get_bucket_info<R: Runtime>(
 ) -> Result<BucketInfo, String> {
     log::info!("Getting info for bucket: {}", bucket_name);
 
-    let bucket_path = state.scoop_path().join("buckets").join(&bucket_name);
-
-    if !bucket_path.exists() {
-        return Err(format!("Bucket '{}' does not exist", bucket_name));
-    }
+    let bucket_path =
+        validate_scoop_child_dir(&state.scoop_path().join("buckets"), &bucket_name, "Bucket")?;
 
     load_bucket_info(&bucket_path)
 }
@@ -151,11 +148,8 @@ pub async fn get_bucket_manifests<R: Runtime>(
 ) -> Result<Vec<String>, String> {
     log::info!("Getting manifests for bucket: {}", bucket_name);
 
-    let bucket_path = state.scoop_path().join("buckets").join(&bucket_name);
-
-    if !bucket_path.exists() {
-        return Err(format!("Bucket '{}' does not exist", bucket_name));
-    }
+    let bucket_path =
+        validate_scoop_child_dir(&state.scoop_path().join("buckets"), &bucket_name, "Bucket")?;
 
     let mut manifests = Vec::new();
 

@@ -5,6 +5,7 @@ import settingsStore from "../../../stores/settings";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 function WindowBehaviorSettings() {
     const { t } = useI18n();
@@ -28,7 +29,7 @@ function WindowBehaviorSettings() {
                 });
             }
         } catch (error) {
-            console.error("Failed to load window settings:", error);
+            console.error("Failed to load window settings:", getErrorMessage(error));
         }
     });
 
@@ -41,7 +42,7 @@ function WindowBehaviorSettings() {
             });
             setWindowSettings({ closeToTray: enabled });
         } catch (error) {
-            console.error("Failed to save close to tray setting:", error);
+            console.error("Failed to save close to tray setting:", getErrorMessage(error));
         } finally {
             setIsSaving(false);
         }

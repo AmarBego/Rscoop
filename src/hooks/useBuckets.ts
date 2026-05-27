@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { getErrorMessage } from "../utils/errors";
 
 export interface BucketInfo {
   name: string;
@@ -24,8 +25,9 @@ export function useBuckets() {
       const result = await invoke<BucketInfo[]>("get_buckets");
       setBuckets(result);
     } catch (err) {
-      console.error("Failed to fetch buckets:", err);
-      setError(err as string);
+      const errorMsg = getErrorMessage(err);
+      console.error("Failed to fetch buckets:", errorMsg);
+      setError(errorMsg);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -35,7 +37,7 @@ export function useBuckets() {
     try {
       return await invoke<BucketInfo>("get_bucket_info", { bucketName });
     } catch (err) {
-      console.error(`Failed to get info for bucket ${bucketName}:`, err);
+      console.error(`Failed to get info for bucket ${bucketName}:`, getErrorMessage(err));
       return null;
     }
   };
@@ -44,7 +46,7 @@ export function useBuckets() {
     try {
       return await invoke<string[]>("get_bucket_manifests", { bucketName });
     } catch (err) {
-      console.error(`Failed to get manifests for bucket ${bucketName}:`, err);
+      console.error(`Failed to get manifests for bucket ${bucketName}:`, getErrorMessage(err));
       return [];
     }
   };

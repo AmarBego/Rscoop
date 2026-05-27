@@ -4,6 +4,7 @@ import { Power } from "lucide-solid";
 import SettingsToggle from "../../common/SettingsToggle";
 import Card from "../../common/Card";
 import { useI18n } from "../../../i18n";
+import { getErrorMessage } from "../../../utils/errors";
 
 export default function StartupSettings() {
     const { t } = useI18n();
@@ -22,7 +23,7 @@ export default function StartupSettings() {
             setIsAutoStartEnabled(status);
             setStartMinimized(minimized ?? false);
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to fetch auto-start status:", errorMsg);
         } finally {
             setIsLoading(false);
@@ -39,7 +40,7 @@ export default function StartupSettings() {
             });
             setIsAutoStartEnabled(newState);
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to toggle auto-start:", errorMsg);
         } finally {
             setIsSaving(false);
@@ -59,7 +60,7 @@ export default function StartupSettings() {
             });
             setStartMinimized(enabled);
         } catch (err) {
-            const errorMsg = err instanceof Error ? err.message : String(err);
+            const errorMsg = getErrorMessage(err);
             console.error("Failed to toggle minimized startup:", errorMsg);
         } finally {
             setIsSaving(false);

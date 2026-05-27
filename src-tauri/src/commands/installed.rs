@@ -1,7 +1,7 @@
 //! Command for fetching all installed Scoop packages from the filesystem.
 use crate::models::{InstallManifest, PackageManifest, ScoopPackage};
 use crate::state::{AppState, InstalledPackagesCache};
-use crate::utils::locate_package_manifest;
+use crate::utils::{locate_package_manifest, validate_scoop_child_dir};
 use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use std::fs;
@@ -357,11 +357,8 @@ pub async fn get_package_path<R: Runtime>(
     state: State<'_, AppState>,
     package_name: String,
 ) -> Result<String, String> {
-    let package_path = state.scoop_path().join("apps").join(&package_name);
-
-    if !package_path.exists() {
-        return Err(format!("Package '{}' is not installed", package_name));
-    }
+    let package_path =
+        validate_scoop_child_dir(&state.scoop_path().join("apps"), &package_name, "Package")?;
 
     Ok(package_path.to_string_lossy().to_string())
 }
