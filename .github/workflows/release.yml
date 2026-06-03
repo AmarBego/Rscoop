@@ -181,6 +181,49 @@ jobs:
             ./update.json
           artifactErrorsFailBuild: true
 
+      - name: Checkout main for Scoop manifest update
+        # actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          ref: main
+          path: bucket-main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Scoop manifest on main
+        shell: pwsh
+        env:
+          PRODUCT: ${{ steps.meta.outputs.product }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          $exePath = "src-tauri/target/release/$env:PRODUCT.exe"
+          if (-not (Test-Path $exePath)) {
+            throw "Release executable not found: $exePath"
+          }
+
+          $hash = (Get-FileHash -Algorithm SHA256 $exePath).Hash.ToLowerInvariant()
+          $manifestPath = "bucket-main/bucket/rscoop.json"
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+
+          $manifest.version = $env:VERSION
+          $manifest.url = "https://github.com/${{ github.repository }}/releases/download/v$env:VERSION/$env:PRODUCT.exe"
+          $manifest.hash = $hash
+          $manifest.autoupdate.url = "https://github.com/${{ github.repository }}/releases/download/v`$version/$env:PRODUCT.exe"
+
+          $manifest | ConvertTo-Json -Depth 20 | Set-Content -Path $manifestPath
+
+          Push-Location bucket-main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket/rscoop.json
+
+          if (git diff --cached --quiet) {
+            Write-Host "Scoop manifest is already up to date."
+          } else {
+            git commit -m "Update Scoop manifest to v$env:VERSION"
+            git push origin main
+          }
+          Pop-Location
+
       - name: Remove Windows signing certificate
         if: always() && steps.import_cert.outputs.thumbprint != ''
         shell: pwsh

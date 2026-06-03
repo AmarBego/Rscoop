@@ -659,9 +659,8 @@ pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<()
 }
 
 /// Checks if the current working directory matches the executable directory.
-/// If not, it relaunches the application with the correct working directory using ShellExecute.
+/// If not, it relaunches the application with the correct working directory.
 /// This fixes issues with MSI installers launching the app with the wrong CWD and restricted tokens.
-#[cfg(windows)]
 pub fn ensure_correct_cwd_and_launch() {
     // Skip this check in development mode
     if cfg!(debug_assertions) {
@@ -697,8 +696,17 @@ pub fn ensure_correct_cwd_and_launch() {
             // Create sentinel file to prevent loop
             let _ = fs::write(&sentinel_path, "Relaunching...");
 
-            // Relaunch via Explorer to escape MSI environment
-            let _ = Command::new("explorer").arg(&exe_path).spawn();
+            if let Err(e) = Command::new(&exe_path)
+                .args(env::args_os().skip(1))
+                .current_dir(_exe_dir)
+                .spawn()
+            {
+                let _ = fs::remove_file(&sentinel_path);
+                let _ = env::set_current_dir(_exe_dir);
+                eprintln!("Failed to relaunch rscoop with corrected cwd: {}", e);
+                return;
+            }
+
             std::process::exit(0);
         }
     }
