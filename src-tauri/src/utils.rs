@@ -322,9 +322,7 @@ pub fn resolve_scoop_root<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, Stri
             best.installed_count
         );
 
-        if let Err(e) =
-            settings::set_scoop_path(app.clone(), best_path.to_string_lossy().to_string())
-        {
+        if let Err(e) = settings::persist_scoop_path(app.clone(), &best_path.to_string_lossy()) {
             log::warn!(
                 "Failed to persist detected Scoop path '{}': {}",
                 best_path.display(),
