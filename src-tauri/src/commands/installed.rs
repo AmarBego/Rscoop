@@ -184,9 +184,7 @@ async fn refresh_scoop_path_if_needed<R: Runtime>(
                     new_path.display(),
                     reason
                 );
-                state.set_scoop_path(new_path.clone());
-                let mut cache_guard = state.installed_packages.lock().await;
-                *cache_guard = None;
+                state.set_scoop_path(new_path.clone()).await;
                 return Some(new_path);
             }
             Some(current_path)
