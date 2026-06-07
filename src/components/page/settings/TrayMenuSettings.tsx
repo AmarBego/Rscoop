@@ -231,7 +231,7 @@ function TrayPreview(props: {
 
       <Show when={pinnedAndHidden() > 0}>
         <div
-          class="absolute top-2 left-3 font-mono"
+          class="absolute top-2 start-3 font-mono"
           style={{ "font-size": "10.5px", color: palette().overlay }}
         >
           {pinnedAndHidden()} pinned+hidden suppressed

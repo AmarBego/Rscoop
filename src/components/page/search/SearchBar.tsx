@@ -9,10 +9,10 @@ interface SearchBarProps {
 }
 
 function SearchBar(props: SearchBarProps) {
-    const { t } = useI18n();
+    const { t, direction } = useI18n();
     return (
         <div class="relative w-full">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 z-10">
+            <span class="absolute inset-y-0 start-0 flex items-center ps-3 z-10">
                 <Show when={props.loading?.()} fallback={<Search class="h-5 w-5 text-base-content/50" aria-hidden="true" />}>
                     <LoaderCircle class="h-5 w-5 text-base-content/50 animate-spin" aria-hidden="true" />
                 </Show>
@@ -22,24 +22,28 @@ function SearchBar(props: SearchBarProps) {
                 type="search"
                 placeholder={t("search.placeholder")}
                 aria-label={t("search.placeholder")}
-                class="input bg-base-400 w-full pl-10 pr-16 relative focus:outline-none focus:border-base-content/20 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
+                class="input bg-base-400 w-full ps-10 pe-16 relative focus:outline-none focus:border-base-content/20 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                 value={props.searchTerm()}
                 onInput={(e) => props.setSearchTerm(e.currentTarget.value)}
             />
 
-            <div class="absolute inset-y-0 right-0 flex items-center pr-3 space-x-2">
+            <div class="absolute inset-y-0 end-0 flex items-center pe-3 gap-2">
                 <Show when={props.searchTerm().length > 0}>
                     <button
                         type="button"
                         onClick={() => props.setSearchTerm("")}
-                        class="p-1 -mr-1 rounded-full text-base-content/60 hover:text-base-content hover:bg-base-content/10 focus:outline-none"
+                        class="p-1 -me-1 rounded-full text-base-content/60 hover:text-base-content hover:bg-base-content/10 focus:outline-none"
                         aria-label={t("search.clearLabel")}
                     >
                         <X class="h-5 w-5" aria-hidden="true" />
                     </button>
                 </Show>
                 <span
-                    class="tooltip tooltip-left"
+                    class="tooltip"
+                    classList={{
+                        "tooltip-left": direction() === "ltr",
+                        "tooltip-right": direction() === "rtl",
+                    }}
                     data-tip={t("search.exactMatchTooltip")}
                     role="img"
                     aria-label={t("search.exactMatchTooltip")}

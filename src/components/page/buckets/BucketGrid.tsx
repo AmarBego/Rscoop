@@ -57,7 +57,7 @@ function BucketGrid(props: BucketGridProps) {
       <Show when={isColdLoad()}>
         <div class="flex justify-center items-center py-8">
           <span class="loading loading-spinner loading-lg"></span>
-          <span class="ml-2">{t("buckets.loading")}</span>
+          <span class="ms-2">{t("buckets.loading")}</span>
         </div>
       </Show>
       <Show when={!isColdLoad() && props.buckets.length === 0}>

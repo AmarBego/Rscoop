@@ -19,7 +19,7 @@ function FingerprintDisplay(props: { fingerprint: string | null }) {
                 return (
                     <div class="mt-1">
                         <Show when={prefix}>
-                            <span class="text-info font-semibold mr-1">{t("debug.fingerprintApps", { count: prefix! })}</span>
+                            <span class="text-info font-semibold me-1">{t("debug.fingerprintApps", { count: prefix! })}</span>
                         </Show>
                         <div class="flex flex-wrap gap-1 mt-1">
                             {entries.map((entry) => {
@@ -133,7 +133,7 @@ const DebugModal = () => {
             <Show when={settingsStore.settings.debug.enabled}>
                 <button
                     type="button"
-                    class="btn btn-sm btn-outline gap-2 fixed bottom-4 right-4 z-40"
+                    class="btn btn-sm btn-outline gap-2 fixed bottom-4 end-4 z-40"
                     onClick={() => {
                         setIsOpen(true);
                         refreshDebugInfo();
@@ -244,7 +244,7 @@ const DebugModal = () => {
                                     </div>
                                     <div class="bg-base-200 p-2 rounded">
                                         <strong>{t("debug.cacheState")}</strong>
-                                        <div class="ml-4 mt-2">
+                                        <div class="ms-4 mt-2">
                                             <div>{t("debug.cachedApps")} {info().cache_info.cached_count}</div>
                                             <div class="text-xs break-all">
                                                 <span class="opacity-70">{t("debug.fingerprint")}</span>
@@ -256,7 +256,7 @@ const DebugModal = () => {
                                     {info().app_count === 0 && info().apps_dir_exists && (
                                         <div class="bg-warning p-3 rounded text-warning-content">
                                             <strong>{t("debug.alertTitle")}</strong> {t("debug.alertMessage")}
-                                            <ul class="ml-4 mt-2 list-disc">
+                                            <ul class="ms-4 mt-2 list-disc">
                                                 <li>{t("debug.alertReason1")}</li>
                                                 <li>{t("debug.alertReason2")}</li>
                                                 <li>{t("debug.alertReason3")}</li>
@@ -280,12 +280,13 @@ const DebugModal = () => {
                     {/* Logs Tab */}
                     <Show when={activeTab() === "logs"}>
                         <Show when={logFileContent()} fallback={
-                            <pre class="text-xs overflow-auto max-h-full whitespace-pre-wrap break-words">
+                            <pre dir="ltr" class="text-xs overflow-auto max-h-full whitespace-pre-wrap break-words text-start">
                                 {appLogs() ? t("debug.logsLoading") : t("debug.logsNone")}
                             </pre>
                         }>
                             <pre
-                                class="log-viewer text-xs overflow-auto max-h-full whitespace-pre-wrap break-words"
+                                dir="ltr"
+                                class="log-viewer text-xs overflow-auto max-h-full whitespace-pre-wrap break-words text-start"
                                 ref={(el) => {
                                     createEffect(() => {
                                         const content = logFileContent();

@@ -164,7 +164,7 @@ export default function ImportProfileModal(props: Props) {
                             {t("settings.exim.import.pasteLabel")}
                         </label>
                         <button
-                            class="btn btn-xs btn-ghost sm:ml-auto"
+                            class="btn btn-xs btn-ghost sm:ms-auto"
                             onClick={handleFilePick}
                         >
                             <FileJson class="w-3.5 h-3.5" />
@@ -281,7 +281,7 @@ export default function ImportProfileModal(props: Props) {
                                 </div>
                             </Show>
                             <Show when={r().notes.length > 0}>
-                                <ul class="text-xs text-base-content/70 list-disc pl-5 space-y-0.5">
+                                <ul class="text-xs text-base-content/70 list-disc ps-5 space-y-0.5">
                                     <For each={r().notes}>
                                         {(note) => <li>{note}</li>}
                                     </For>
