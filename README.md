@@ -80,19 +80,19 @@ Configure theme, startup behavior, tray behavior, auto-cleanup, bucket auto-upda
 
 ## Translations
 
-rScoop supports multiple languages through [Crowdin](https://crowdin.com/project/rscoop). Translation work is community-driven and does not require coding.
+rScoop supports multiple languages through [Crowdin](https://crowdin.com/project/rscoop). Contributors translate the app there, and you do not need to write code to help.
 
 | Language | Status | Contributor |
 |---|---|---|
 | English | ✅ Complete | [@AmarBego](https://github.com/AmarBego) |
 | German | ✅ Complete | [@AmarBego](https://github.com/AmarBego) |
 | Simplified Chinese | ✅ Complete | [@Kwensiu](https://github.com/Kwensiu) |
-| French | 🔄 Looking for contributors | — |
-| Japanese | 🔄 Looking for contributors | — |
-| Korean | 🔄 Looking for contributors | — |
-| Portuguese | 🔄 Looking for contributors | — |
-| Russian | 🔄 Looking for contributors | — |
-| Spanish | 🔄 Looking for contributors | — |
+| French | 🔄 Looking for contributors | Contributor needed |
+| Japanese | 🔄 Looking for contributors | Contributor needed |
+| Korean | 🔄 Looking for contributors | Contributor needed |
+| Portuguese | 🔄 Looking for contributors | Contributor needed |
+| Russian | 🔄 Looking for contributors | Contributor needed |
+| Spanish | 🔄 Looking for contributors | Contributor needed |
 
 Want to help? [Join the project on Crowdin](https://crowdin.com/project/rscoop).
 

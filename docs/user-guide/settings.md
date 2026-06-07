@@ -7,7 +7,7 @@ nav_order: 5
 
 # Settings
 
-Settings are split into six tabs: Automation, Management, Security, Window, Tray,Export/Import and About.
+Settings are split into six tabs: Automation, Management, Security, Window, Tray, and About.
 
 ![Settings page](../assets/images/settings.png)
 ## Automation
@@ -41,10 +41,10 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 
 ### Export & Import
 - Export your entire rScoop + Scoop setup to a portable JSON file
-- Import on a new machine to replicate your environment
-- Pluggable group system: choose between Full profile (everything), Scoop-compatible (apps + buckets only), Just preferences, or Custom to pick exactly what you need
-- Import is additive and safe: nothing is uninstalled, apps are queued for background install, buckets are cloned, and settings are merged
-- Profiles are plain JSON with a versioned schema — safe to check into dotfiles repos
+- Import on a new machine to rebuild the same setup
+- Profile groups include Full profile (everything), Scoop-compatible (apps + buckets only), Just preferences, and Custom
+- Import does not uninstall anything. It queues apps for background install, clones buckets, and merges settings
+- Profiles are plain JSON with a versioned schema, so they can live in a dotfiles repo
 
 ## Security
 
@@ -59,8 +59,8 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 - Switch between light and dark themes (uses daisyUI themes under the hood)
 
 ### Language
-- Pick your UI language. Translations are community-driven via Crowdin
-- English, German, and Simplified Chinese are complete; more languages in progress
+- Pick your UI language. Translations are managed through Crowdin
+- English, German, and Simplified Chinese are complete; other languages need contributors
 
 ### Window Behavior
 - Toggle close-to-tray vs. actually exiting when you close the window
@@ -81,7 +81,7 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 - Pin your favorite Scoop apps to the top of the tray menu
 - Hide apps you never launch from the tray
 - Edit the tray label, icon visibility, and app ordering
-- Real exe icons extracted from each app so the tray reads like a proper launcher
+- The tray uses executable icons from each app so entries are easier to recognize
 
 ## About
 

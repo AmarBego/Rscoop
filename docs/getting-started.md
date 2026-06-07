@@ -28,11 +28,11 @@ If you have a VirusTotal API key, go to **Settings > Security** and paste it in.
 
 ## 5. Migrating from another machine
 
-If you already have rScoop set up on another PC, use the profile export/import feature to replicate your environment:
+If you already have rScoop set up on another PC, use profile export/import to rebuild the same setup:
 1. On the source machine, go to **Settings > Management > Export profile** and save a Full profile to a JSON file.
-2️. Transfer the file to the new machine (USB, cloud, dotfiles repo).
+2. Transfer the file to the new machine (USB, cloud, dotfiles repo).
 3. On the new machine, go to **Settings > Management > Import profile**, open the file, and apply the groups you want.
-4. Buckets will be cloned, apps queued for background install, and settings merged — nothing gets uninstalled.
+4. rScoop clones buckets, queues apps for background install, and merges settings. It does not uninstall anything.
 
 ## 6. Updating
 

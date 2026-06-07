@@ -33,4 +33,4 @@ Once downloaded, the expanded search works offline. You can clear the cached ind
 
 ## Adding buckets
 
-Found one you like? The install wizard validates the bucket URL and adds it via the Rust backend. rScoop handles Git clone, validation, and error reporting.
+To add a bucket, open the install wizard. It validates the bucket URL, then the Rust backend handles the Git clone and error reporting.
