@@ -133,6 +133,7 @@ const RSCOOP_SETTING_KEYS: &[&str] = &[
     "buckets.autoUpdateInterval",
     "buckets.autoUpdatePackagesEnabled",
     "operations.backgroundByDefault",
+    "shell.pwshEnabled",
 ];
 
 fn read_scoop_config_file() -> Result<Map<String, Value>, String> {
