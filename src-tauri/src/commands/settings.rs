@@ -1,8 +1,9 @@
 //! Commands for reading and writing application settings from the persistent store.
+use crate::state::AppState;
 use serde_json::{Map, Value};
 use std::fs;
 use std::path::PathBuf;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, State};
 use tauri_plugin_store::{Store, StoreExt};
 
 const STORE_PATH: &str = "store.json";
@@ -80,12 +81,23 @@ pub fn get_scoop_path<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, S
     })
 }
 
-/// Sets the Scoop path in the store.
-#[tauri::command]
-pub fn set_scoop_path<R: Runtime>(app: AppHandle<R>, path: String) -> Result<(), String> {
+pub(crate) fn persist_scoop_path<R: Runtime>(app: AppHandle<R>, path: &str) -> Result<(), String> {
+    let path = path.to_string();
     with_store_mut(app, move |store| {
         store.set("scoop_path", serde_json::json!(path))
     })
+}
+
+/// Sets the Scoop path in the store and synchronizes runtime state.
+#[tauri::command]
+pub async fn set_scoop_path<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    path: String,
+) -> Result<(), String> {
+    persist_scoop_path(app, &path)?;
+    state.set_scoop_path(PathBuf::from(path)).await;
+    Ok(())
 }
 
 /// Gets a generic configuration value from the store by its key.
