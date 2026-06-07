@@ -7,6 +7,7 @@ import en from "./locales/en.json";
 import de from "./locales/de.json";
 import zh from "./locales/zh.json";
 import ar from "./locales/ar.json";
+import { SETTINGS_STORAGE_KEY } from "../stores/settingsStorage";
 
 const locales: Record<string, Locale> = { en, de, zh, ar };
 const DEFAULT_LANGUAGE = "en";
@@ -47,9 +48,26 @@ function applyDocumentLanguage(lang: string) {
   document.documentElement.dir = getLanguageDirection(lang);
 }
 
+function getInitialLanguage(): string {
+  if (typeof localStorage === "undefined") return DEFAULT_LANGUAGE;
+
+  try {
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (!stored) return DEFAULT_LANGUAGE;
+
+    const parsed = JSON.parse(stored) as { language?: unknown };
+    return typeof parsed.language === "string" && locales[parsed.language]
+      ? parsed.language
+      : DEFAULT_LANGUAGE;
+  } catch {
+    return DEFAULT_LANGUAGE;
+  }
+}
+
 function createI18n() {
-  const [locale, setLocale] = createSignal(DEFAULT_LANGUAGE);
-  applyDocumentLanguage(DEFAULT_LANGUAGE);
+  const initialLanguage = getInitialLanguage();
+  const [locale, setLocale] = createSignal(initialLanguage);
+  applyDocumentLanguage(initialLanguage);
 
   function t(key: string, params?: Record<string, string | number>): string {
     const dict = locales[locale()] ?? locales.en;
