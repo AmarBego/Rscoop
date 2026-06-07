@@ -42,7 +42,7 @@ const SortableHeader = (props: {
     <th aria-sort={ariaSort()} class="select-none p-0">
       <button
         type="button"
-        class="w-full text-left px-4 py-3 flex items-center gap-2 hover:bg-base-200"
+        class="w-full text-start px-4 py-3 flex items-center gap-2 hover:bg-base-200"
         onClick={() => props.onSort(props.key)}
       >
         {props.title}
@@ -156,4 +156,4 @@ function PackageListView(props: PackageListViewProps) {
   );
 }
 
-export default PackageListView; 
+export default PackageListView;

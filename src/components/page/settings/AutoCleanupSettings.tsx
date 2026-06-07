@@ -49,7 +49,7 @@ function AutoCleanupSettings() {
                     </div>
 
                     <Show when={settings.cleanup.cleanupOldVersions}>
-                        <div class="flex flex-col gap-2 pl-0 sm:flex-row sm:items-center sm:gap-3 sm:pl-1">
+                        <div class="flex flex-col gap-2 ps-0 sm:flex-row sm:items-center sm:gap-3 sm:ps-1">
                             <span class="text-xs text-base-content/60">{t("settings.cleanup.versionsToKeep")}</span>
                             <div class="flex items-center gap-2">
                                 <button

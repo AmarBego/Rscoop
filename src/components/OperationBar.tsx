@@ -98,7 +98,7 @@ function OperationBar() {
     <>
       <Show when={isVisible()}>
         <div
-          class="fixed bottom-0 left-0 right-0 z-50 cursor-pointer group"
+          class="fixed bottom-0 inset-x-0 z-50 cursor-pointer group"
           onClick={() => {
             if (op()) operationsStore.restore();
           }}
@@ -176,7 +176,7 @@ function OperationBar() {
           {/* Hover panel */}
           <Show when={hasCompleted() || operationsStore.queue().length > 0}>
             <div
-              class="absolute bottom-full left-0 right-0 bg-base-300 border-t border-base-content/10 px-4 py-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity space-y-2"
+              class="absolute bottom-full inset-x-0 bg-base-300 border-t border-base-content/10 px-4 py-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity space-y-2"
               style={{ "pointer-events": "auto" }}
             >
               <Show when={hasCompleted()}>
@@ -186,7 +186,7 @@ function OperationBar() {
                     {(item) => (
                       <button
                         type="button"
-                        class="w-full text-left flex items-center gap-2 text-xs py-0.5 hover:text-base-content cursor-pointer"
+                        class="w-full text-start flex items-center gap-2 text-xs py-0.5 hover:text-base-content cursor-pointer"
                         onClick={(e) => {
                           e.stopPropagation();
                           setViewingLog(item);
@@ -248,7 +248,7 @@ function OperationBar() {
                   : t("operation.warningsMany", { count: String(viewingLog()!.operationWarnings!.length) })}
               </span>
             </div>
-            <ul class="ml-6 list-disc text-base-content/80">
+            <ul class="ms-6 list-disc text-base-content/80">
               <For each={viewingLog()?.operationWarnings ?? []}>
                 {(w) => <li>{w.message}</li>}
               </For>
@@ -266,7 +266,7 @@ function OperationBar() {
               </span>
             </div>
             <For each={viewingLog()?.findings ?? []}>
-              {(f) => <div class="ml-6 whitespace-pre-wrap text-base-content/80">{f.message}</div>}
+              {(f) => <div class="ms-6 whitespace-pre-wrap text-base-content/80">{f.message}</div>}
             </For>
           </div>
         </Show>

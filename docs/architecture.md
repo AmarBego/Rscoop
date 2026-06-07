@@ -42,8 +42,8 @@ The frontend lives in `src/`. Four pages plus settings, each with its own compon
 
 The `commands/profile.rs` module handles serializing and restoring a user's rScoop + Scoop setup:
 
-- **Export**: Gathers installed apps, buckets, held packages, Scoop global config, and rScoop preferences. Each group is optional — the frontend picks which to include. Output is a versioned JSON document.
-- **Import**: Parses the JSON leniently (unknown fields ignored, malformed entries skipped), then applies groups in order: rScoop settings → Scoop config → bucket cloning → app installs (queued into the operations system) → holds. Everything is additive — nothing is uninstalled.
+- **Export**: Gathers installed apps, buckets, held packages, Scoop global config, and rScoop preferences. Each group is optional, and the frontend picks which to include. Output is a versioned JSON document.
+- **Import**: Parses the JSON leniently (unknown fields ignored, malformed entries skipped), then applies the selected groups in order: rScoop settings → Scoop config → bucket cloning → app installs (queued into the operations system) → holds. Import only adds or updates data; it does not uninstall anything.
 - The frontend has its own Export Profile and Import Profile modals that preview the file, let you pick groups, and show warnings before applying.
 
 ## Caching

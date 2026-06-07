@@ -31,7 +31,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
               props.onClose();
             }}
           >
-            <FolderOpen class="w-4 h-4 mr-2" />
+            <FolderOpen class="w-4 h-4 me-2" />
             {t("modal.scoopStatus.goToBuckets")}
           </button>
         </Show>
