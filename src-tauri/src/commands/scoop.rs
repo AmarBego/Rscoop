@@ -25,7 +25,7 @@ where
         "Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
         args
     );
-    if is_pwsh_enabled(app.clone()) {
+    if is_pwsh_enabled(app) {
         execra::Command::pwsh(inner).tags(["scoop".to_string()])
     } else {
         execra::Command::powershell(inner).tags(["scoop".to_string()])
