@@ -3,13 +3,15 @@ use execra::Outcome;
 use tauri::AppHandle;
 
 use crate::commands::scoop_interpreter::{is_creep_phase, phase_range, scoop_interpreter};
+use crate::commands::settings::is_pwsh_enabled;
 use crate::operations::{self, OperationWarning};
 
 fn ps_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
-pub fn scoop_cmd<I, S>(args: I) -> execra::Command
+
+pub fn scoop_cmd<I, S>(app: AppHandle, args: I) -> execra::Command
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
@@ -23,7 +25,11 @@ where
         "Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
         args
     );
-    execra::Command::powershell(inner).tags(["scoop".to_string()])
+    if is_pwsh_enabled(app) {
+        execra::Command::pwsh(inner).tags(["scoop".to_string()])
+    } else {
+        execra::Command::powershell(inner).tags(["scoop".to_string()])
+    }
 }
 
 /// Supported Scoop operations.
@@ -188,13 +194,10 @@ async fn execute_scoop_labeled_outcome(
 ) -> Result<(Outcome, String), String> {
     let args = build_scoop_args(op, package, bucket)?;
     let label = operation_name(op, package)?;
-    let outcome = run_operation(
-        app,
-        scoop_cmd(args)
-            .label(label.clone())
-            .interpreter(scoop_interpreter()),
-    )
-    .await?;
+    let cmd = scoop_cmd(app.clone(), args)
+        .label(label.clone())
+        .interpreter(scoop_interpreter());
+    let outcome = run_operation(app, cmd).await?;
     Ok((outcome, label))
 }
 
@@ -229,11 +232,8 @@ pub async fn run_scoop_operation(
     args: Vec<String>,
     label: impl Into<String>,
 ) -> Result<Outcome, String> {
-    run_operation(
-        app,
-        scoop_cmd(args)
-            .label(label.into())
-            .interpreter(scoop_interpreter()),
-    )
-    .await
+    let cmd = scoop_cmd(app.clone(), args)
+        .label(label.into())
+        .interpreter(scoop_interpreter());
+    run_operation(app, cmd).await
 }

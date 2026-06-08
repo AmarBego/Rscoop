@@ -54,10 +54,10 @@ pub async fn run_scan(
         None => package_name.to_string(),
     };
 
+    let cmd = scoop_cmd(app.clone(), ["virustotal".to_string(), target]);
     run_operation(
         app,
-        scoop_cmd(["virustotal".to_string(), target])
-            .label(format!("Scanning {} with VirusTotal", package_name))
+        cmd.label(format!("Scanning {} with VirusTotal", package_name))
             .interpreter(VirusTotalInterpreter),
     )
     .await
