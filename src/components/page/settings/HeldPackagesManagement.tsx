@@ -39,7 +39,7 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
                       aria-label={t("settings.heldPackages.unholdAriaLabel", { name: pkgName })}
                       disabled={props.operationInProgress}
                     >
-                      <LockOpen class="w-3.5 h-3.5 mr-1" />
+                      <LockOpen class="w-3.5 h-3.5 me-1" />
                       {t("settings.heldPackages.unhold")}
                     </button>
                   </li>

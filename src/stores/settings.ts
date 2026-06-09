@@ -3,8 +3,7 @@ import { createStore } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
 import { View } from "../types/scoop";
 import { getErrorMessage } from "../utils/errors";
-
-const LOCAL_STORAGE_KEY = 'rscoop-settings';
+import { SETTINGS_STORAGE_KEY } from "./settingsStorage";
 
 export type BucketAutoUpdateInterval =
   | "off"
@@ -82,7 +81,7 @@ const defaultSettings: Settings = {
 function createSettingsStore() {
   const getInitialSettings = (): Settings => {
     try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
       if (stored) {
         // Deep merge stored settings with defaults to handle new/missing keys
         const storedSettings = JSON.parse(stored);
@@ -143,7 +142,7 @@ function createSettingsStore() {
     setSettings(prev => {
       const updated = { ...prev, ...newSettings };
       try {
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+        localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(updated));
       } catch (error) {
         console.warn(`Failed to save settings to localStorage: ${getErrorMessage(error)}`);
       }

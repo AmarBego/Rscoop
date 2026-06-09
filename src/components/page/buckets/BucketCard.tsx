@@ -71,7 +71,7 @@ function BucketCard(props: BucketCardProps) {
         <div class="min-w-0 flex-1">
           <button
             type="button"
-            class="font-semibold text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate max-w-full"
+            class="font-semibold text-start hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate max-w-full"
             onClick={openBucket}
             title={props.bucket.name}
           >
@@ -83,7 +83,7 @@ function BucketCard(props: BucketCardProps) {
           </div>
         </div>
         <Show when={props.bucket.git_branch}>
-          <span class="text-xs text-base-content/40 font-mono shrink-0 ml-2">{props.bucket.git_branch}</span>
+          <span class="text-xs text-base-content/40 font-mono shrink-0 ms-2">{props.bucket.git_branch}</span>
         </Show>
       </div>
 
@@ -94,7 +94,7 @@ function BucketCard(props: BucketCardProps) {
         <Show when={props.bucket.is_git_repo && props.onUpdateBucket}>
           <button
             type="button"
-            class="btn btn-ghost btn-sm ml-auto"
+            class="btn btn-ghost btn-sm ms-auto"
             onClick={(e) => {
               e.stopPropagation();
               props.onUpdateBucket!(props.bucket.name);
