@@ -23,6 +23,7 @@ type GroupId =
     | "rscoopSettings";
 
 type Preset = "full" | "scoop" | "prefs" | "custom";
+type ExportAction = "copy" | "json" | "script";
 
 interface Group {
     id: GroupId;
@@ -59,7 +60,7 @@ export default function ExportProfileModal(props: Props) {
     const [selected, setSelected] = createSignal<Set<GroupId>>(defaultSel());
     const [preset, setPreset] = createSignal<Preset>("full");
     const [includeSecrets, setIncludeSecrets] = createSignal(false);
-    const [busy, setBusy] = createSignal(false);
+    const [busyAction, setBusyAction] = createSignal<ExportAction | null>(null);
     const [error, setError] = createSignal<string | null>(null);
     const [savedPath, setSavedPath] = createSignal<string | null>(null);
     const [savedLabel, setSavedLabel] = createSignal<string | null>(null);
@@ -87,6 +88,7 @@ export default function ExportProfileModal(props: Props) {
     );
     const hasSensitive = createMemo(() => selectedGroups().some((g) => g.sensitive));
     const willExposeSecret = createMemo(() => hasSensitive() && includeSecrets());
+    const busy = () => busyAction() !== null;
     const suggestedName = createMemo(() =>
         onlyScoopShape()
             ? "scoopfile.json"
@@ -106,7 +108,7 @@ export default function ExportProfileModal(props: Props) {
         setError(null);
         setSavedPath(null);
         setSavedLabel(null);
-        setBusy(true);
+        setBusyAction("json");
         try {
             const json = await exportContent("export_profile");
             const path = await save({
@@ -114,7 +116,6 @@ export default function ExportProfileModal(props: Props) {
                 filters: [{ name: "Profile JSON", extensions: ["json"] }],
             });
             if (!path) {
-                setBusy(false);
                 return;
             }
             await invoke("save_profile_file", { path, content: json });
@@ -123,7 +124,7 @@ export default function ExportProfileModal(props: Props) {
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
-            setBusy(false);
+            setBusyAction(null);
         }
     };
 
@@ -131,7 +132,7 @@ export default function ExportProfileModal(props: Props) {
         setError(null);
         setSavedPath(null);
         setSavedLabel(null);
-        setBusy(true);
+        setBusyAction("script");
         try {
             const script = await exportContent("export_profile_setup_script");
             const path = await save({
@@ -139,7 +140,6 @@ export default function ExportProfileModal(props: Props) {
                 filters: [{ name: "PowerShell Script", extensions: ["ps1"] }],
             });
             if (!path) {
-                setBusy(false);
                 return;
             }
             await invoke("save_profile_file", { path, content: script });
@@ -148,7 +148,7 @@ export default function ExportProfileModal(props: Props) {
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
-            setBusy(false);
+            setBusyAction(null);
         }
     };
 
@@ -156,7 +156,7 @@ export default function ExportProfileModal(props: Props) {
         setError(null);
         setSavedPath(null);
         setSavedLabel(null);
-        setBusy(true);
+        setBusyAction("copy");
         try {
             const json = await exportContent("export_profile");
             await writeClipboardText(json);
@@ -170,7 +170,7 @@ export default function ExportProfileModal(props: Props) {
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
-            setBusy(false);
+            setBusyAction(null);
         }
     };
 
@@ -235,7 +235,9 @@ export default function ExportProfileModal(props: Props) {
                             onClick={handleCopy}
                         >
                             <ClipboardCopy class="w-4 h-4" />
-                            {t("settings.exim.export.copyClipboard")}
+                            {busyAction() === "copy"
+                                ? t("common.loading")
+                                : t("settings.exim.export.copyClipboard")}
                         </button>
                         <button
                             type="button"
@@ -244,7 +246,9 @@ export default function ExportProfileModal(props: Props) {
                             onClick={handleSaveSetupScript}
                         >
                             <Terminal class="w-4 h-4" />
-                            {t("settings.exim.export.saveSetupScript")}
+                            {busyAction() === "script"
+                                ? t("common.loading")
+                                : t("settings.exim.export.saveSetupScript")}
                         </button>
                         <button
                             type="button"
@@ -253,7 +257,9 @@ export default function ExportProfileModal(props: Props) {
                             onClick={handleSave}
                         >
                             <Upload class="w-4 h-4" />
-                            {busy() ? t("common.loading") : t("settings.exim.export.saveFile")}
+                            {busyAction() === "json"
+                                ? t("common.loading")
+                                : t("settings.exim.export.saveFile")}
                         </button>
                     </div>
                 </div>

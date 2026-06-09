@@ -309,9 +309,7 @@ fn render_profile_setup_script(profile: &Profile) -> String {
         script.push_str(
             "# Note: rScoop preferences were selected but are not applied by this script.\n",
         );
-        script.push_str(
-            "# Use rScoop's JSON profile import to restore rScoop-only settings.\n\n",
-        );
+        script.push_str("# Use rScoop's JSON profile import to restore rScoop-only settings.\n\n");
     }
 
     script.push_str("$ErrorActionPreference = 'Stop'\n");
@@ -354,7 +352,9 @@ fn render_profile_setup_script(profile: &Profile) -> String {
     script.push_str("    $names = @{}\n");
     script.push_str("    & scoop bucket list | ForEach-Object {\n");
     script.push_str("        $name = ($_ -split '\\s+')[0]\n");
-    script.push_str("        if ($name -and $name -notin @('Name', '----')) { $names[$name] = $true }\n");
+    script.push_str(
+        "        if ($name -and $name -notin @('Name', '----')) { $names[$name] = $true }\n",
+    );
     script.push_str("    }\n");
     script.push_str("    return $names\n");
     script.push_str("}\n\n");
@@ -363,7 +363,9 @@ fn render_profile_setup_script(profile: &Profile) -> String {
     script.push_str("    $names = @{}\n");
     script.push_str("    & scoop list | ForEach-Object {\n");
     script.push_str("        $name = ($_ -split '\\s+')[0]\n");
-    script.push_str("        if ($name -and $name -notin @('Name', '----')) { $names[$name] = $true }\n");
+    script.push_str(
+        "        if ($name -and $name -notin @('Name', '----')) { $names[$name] = $true }\n",
+    );
     script.push_str("    }\n");
     script.push_str("    return $names\n");
     script.push_str("}\n\n");
@@ -504,7 +506,11 @@ fn push_ps_array(script: &mut String, name: &str, rows: &[String]) {
 }
 
 fn ps_string(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
+    let sanitized = value
+        .chars()
+        .map(|ch| if ch.is_control() { ' ' } else { ch })
+        .collect::<String>();
+    format!("'{}'", sanitized.replace('\'', "''"))
 }
 
 fn ps_optional_string(value: &str) -> String {
@@ -899,6 +905,7 @@ mod tests {
             "cache_path".to_string(),
             json!("C:\\Users\\O'Brien\\scoop-cache"),
         );
+        config.insert("notes".to_string(), json!("first\nsecond\tthird"));
 
         let profile = Profile {
             schema: SCHEMA_VERSION.to_string(),
@@ -939,9 +946,8 @@ mod tests {
         let script = render_profile_setup_script(&profile);
 
         assert!(script.contains("# Generated: 2026-06-09T10:00:00Z"));
-        assert!(script.contains(
-            "@{ Name = 'extras'; Source = 'https://github.com/ScoopInstaller/Extras' }"
-        ));
+        assert!(script
+            .contains("@{ Name = 'extras'; Source = 'https://github.com/ScoopInstaller/Extras' }"));
         assert!(script.contains(
             "@{ Name = 'ripgrep'; Source = 'main'; Version = '14.1.1'; Versioned = $false }"
         ));
@@ -949,6 +955,7 @@ mod tests {
             "@{ Name = 'nodejs'; Source = 'versions'; Version = '20.0.0'; Versioned = $true }"
         ));
         assert!(script.contains("@{ Key = 'aria2-enabled'; Value = 'true' }"));
+        assert!(script.contains("@{ Key = 'notes'; Value = 'first second third' }"));
         assert!(script.contains("'C:\\Users\\O''Brien\\scoop-cache'"));
         assert!(script.contains("$($App.Name)@$($App.Version)"));
         assert!(script.contains("rScoop preferences were selected"));
@@ -980,8 +987,7 @@ mod tests {
         let script = render_profile_setup_script(&profile);
 
         assert!(script.contains("@{ Name = 'local'; Source = $null }"));
-        assert!(script.contains(
-            "@{ Name = 'custom'; Source = $null; Version = $null; Versioned = $false }"
-        ));
+        assert!(script
+            .contains("@{ Name = 'custom'; Source = $null; Version = $null; Versioned = $false }"));
     }
 }
