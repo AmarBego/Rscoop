@@ -275,6 +275,7 @@ pub fn run() {
             commands::startup::set_auto_start_enabled,
             commands::startup::set_auto_start_enabled_with_options,
             commands::profile::export_profile,
+            commands::profile::export_profile_setup_script,
             commands::profile::save_profile_file,
             commands::profile::read_profile_file_at,
             commands::profile::inspect_profile,

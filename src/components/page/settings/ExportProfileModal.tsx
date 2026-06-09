@@ -6,6 +6,7 @@ import {
     Check,
     AlertTriangle,
     ClipboardCopy,
+    Terminal,
 } from "lucide-solid";
 import Modal from "../../common/Modal";
 import { useI18n } from "../../../i18n";
@@ -61,6 +62,7 @@ export default function ExportProfileModal(props: Props) {
     const [busy, setBusy] = createSignal(false);
     const [error, setError] = createSignal<string | null>(null);
     const [savedPath, setSavedPath] = createSignal<string | null>(null);
+    const [savedLabel, setSavedLabel] = createSignal<string | null>(null);
     let feedbackTimeout: number | undefined;
 
     const applyPreset = (p: Preset) => {
@@ -90,16 +92,23 @@ export default function ExportProfileModal(props: Props) {
             ? "scoopfile.json"
             : `rscoop-profile-${new Date().toISOString().slice(0, 10)}.rscoop.json`,
     );
+    const setupScriptName = createMemo(() =>
+        `scoop-setup-${new Date().toISOString().slice(0, 10)}.ps1`,
+    );
+
+    const exportContent = (command: "export_profile" | "export_profile_setup_script") =>
+        invoke<string>(command, {
+            groups: Array.from(selected()),
+            includeSecrets: includeSecrets(),
+        });
 
     const handleSave = async () => {
         setError(null);
         setSavedPath(null);
+        setSavedLabel(null);
         setBusy(true);
         try {
-            const json = await invoke<string>("export_profile", {
-                groups: Array.from(selected()),
-                includeSecrets: includeSecrets(),
-            });
+            const json = await exportContent("export_profile");
             const path = await save({
                 defaultPath: suggestedName(),
                 filters: [{ name: "Profile JSON", extensions: ["json"] }],
@@ -110,6 +119,32 @@ export default function ExportProfileModal(props: Props) {
             }
             await invoke("save_profile_file", { path, content: json });
             setSavedPath(path);
+            setSavedLabel(t("settings.exim.export.savedOk"));
+        } catch (e) {
+            setError(getErrorMessage(e));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleSaveSetupScript = async () => {
+        setError(null);
+        setSavedPath(null);
+        setSavedLabel(null);
+        setBusy(true);
+        try {
+            const script = await exportContent("export_profile_setup_script");
+            const path = await save({
+                defaultPath: setupScriptName(),
+                filters: [{ name: "PowerShell Script", extensions: ["ps1"] }],
+            });
+            if (!path) {
+                setBusy(false);
+                return;
+            }
+            await invoke("save_profile_file", { path, content: script });
+            setSavedPath(path);
+            setSavedLabel(t("settings.exim.export.scriptSavedOk"));
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
@@ -119,16 +154,19 @@ export default function ExportProfileModal(props: Props) {
 
     const handleCopy = async () => {
         setError(null);
+        setSavedPath(null);
+        setSavedLabel(null);
         setBusy(true);
         try {
-            const json = await invoke<string>("export_profile", {
-                groups: Array.from(selected()),
-                includeSecrets: includeSecrets(),
-            });
+            const json = await exportContent("export_profile");
             await writeClipboardText(json);
             setSavedPath("__clipboard__");
+            setSavedLabel(t("settings.exim.export.copiedOk"));
             window.clearTimeout(feedbackTimeout);
-            feedbackTimeout = window.setTimeout(() => setSavedPath(null), 2000);
+            feedbackTimeout = window.setTimeout(() => {
+                setSavedPath(null);
+                setSavedLabel(null);
+            }, 2000);
         } catch (e) {
             setError(getErrorMessage(e));
         } finally {
@@ -142,6 +180,7 @@ export default function ExportProfileModal(props: Props) {
         setIncludeSecrets(false);
         setError(null);
         setSavedPath(null);
+        setSavedLabel(null);
         props.onClose();
     };
 
@@ -166,7 +205,7 @@ export default function ExportProfileModal(props: Props) {
                 </span>
             }
             footer={
-                <div class="flex w-full items-center">
+                <div class="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
                     <div class="min-w-0 flex-1">
                         <Show when={error()}>
                             <span class="flex items-center gap-2 text-sm text-error">
@@ -177,18 +216,18 @@ export default function ExportProfileModal(props: Props) {
                         <Show when={savedPath() === "__clipboard__"}>
                             <span class="flex items-center gap-2 text-sm text-success">
                                 <Check class="w-4 h-4 shrink-0" />
-                                <span class="truncate">{t("settings.exim.export.copiedOk")}</span>
+                                <span class="truncate">{savedLabel() ?? t("settings.exim.export.copiedOk")}</span>
                             </span>
                         </Show>
                         <Show when={savedPath() && savedPath() !== "__clipboard__"}>
                             <span class="flex items-center gap-2 text-sm text-success">
                                 <Check class="w-4 h-4 shrink-0" />
-                                <span class="truncate">{t("settings.exim.export.savedOk")}: {savedPath()}</span>
+                                <span class="truncate">{savedLabel() ?? t("settings.exim.export.savedOk")}: {savedPath()}</span>
                             </span>
                         </Show>
                     </div>
 
-                    <div class="flex shrink-0 items-center gap-2">
+                    <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
                         <button
                             type="button"
                             class="btn btn-ghost btn-sm"
@@ -197,6 +236,15 @@ export default function ExportProfileModal(props: Props) {
                         >
                             <ClipboardCopy class="w-4 h-4" />
                             {t("settings.exim.export.copyClipboard")}
+                        </button>
+                        <button
+                            type="button"
+                            class="btn btn-sm"
+                            disabled={selected().size === 0 || busy()}
+                            onClick={handleSaveSetupScript}
+                        >
+                            <Terminal class="w-4 h-4" />
+                            {t("settings.exim.export.saveSetupScript")}
                         </button>
                         <button
                             type="button"
