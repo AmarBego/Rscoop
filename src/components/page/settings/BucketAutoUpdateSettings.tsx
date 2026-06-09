@@ -149,7 +149,7 @@ export default function BucketAutoUpdateSettings() {
             <Show when={settings.buckets.autoUpdateInterval !== "off"}>
                 <div class="border-t border-base-content/10 mt-4 pt-3">
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="min-w-0 pr-4">
+                        <div class="min-w-0 pe-4">
                             <label for="settings-bucket-auto-update-packages" class="text-sm font-medium">{t("settings.bucketUpdate.autoUpdatePackages")}</label>
                             <p class="text-xs text-base-content/50">{t("settings.bucketUpdate.autoUpdatePackagesDescription")}</p>
                         </div>

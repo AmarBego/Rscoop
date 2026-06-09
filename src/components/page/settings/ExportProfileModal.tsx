@@ -264,7 +264,7 @@ export default function ExportProfileModal(props: Props) {
                     <p class="text-sm text-base-content/70 max-w-2xl">
                         {t("settings.exim.export.description")}
                     </p>
-                    <div class="text-xs text-base-content/60 sm:text-right">
+                    <div class="text-xs text-base-content/60 sm:text-end">
                         <div class="font-mono truncate max-w-full sm:max-w-64" title={suggestedName()}>
                             {suggestedName()}
                         </div>

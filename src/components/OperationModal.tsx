@@ -27,7 +27,7 @@ const LineWithLinks: Component<{ line: string }> = (props) => {
             return (
               <a href={part} target="_blank" class="link link-info inline-flex items-center">
                 {part}
-                <ExternalLink class="w-3 h-3 ml-1" />
+                <ExternalLink class="w-3 h-3 ms-1" />
               </a>
             );
           }
@@ -175,7 +175,7 @@ function OperationModal() {
                 : t("operation.warningsMany", { count: String(op()!.operationWarnings.length) })}
             </span>
           </div>
-          <ul class="ml-6 list-disc text-base-content/80">
+          <ul class="ms-6 list-disc text-base-content/80">
             <For each={op()?.operationWarnings ?? []}>
               {(w) => <li>{w.message}</li>}
             </For>
@@ -194,7 +194,7 @@ function OperationModal() {
           </div>
           <For each={op()?.findings ?? []}>
             {(f) => (
-              <div class="ml-6 whitespace-pre-wrap text-base-content/80">
+              <div class="ms-6 whitespace-pre-wrap text-base-content/80">
                 {f.message}
               </div>
             )}

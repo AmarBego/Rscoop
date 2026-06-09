@@ -87,6 +87,7 @@ rScoop supports multiple languages through [Crowdin](https://crowdin.com/project
 | English | ✅ Complete | [@AmarBego](https://github.com/AmarBego) |
 | German | ✅ Complete | [@AmarBego](https://github.com/AmarBego) |
 | Simplified Chinese | ✅ Complete | [@Kwensiu](https://github.com/Kwensiu) |
+| Arabic | 🧪 Partial RTL preview | Contributor needed |
 | French | 🔄 Looking for contributors | Contributor needed |
 | Japanese | 🔄 Looking for contributors | Contributor needed |
 | Korean | 🔄 Looking for contributors | Contributor needed |

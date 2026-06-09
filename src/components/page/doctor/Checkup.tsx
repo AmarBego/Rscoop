@@ -42,9 +42,9 @@ function FixIcon(props: { fix: CheckupFix }) {
     switch (props.fix.kind) {
         case "install-package":
         case "install-bucket":
-            return <Download class="w-3 h-3 mr-1" />;
+            return <Download class="w-3 h-3 me-1" />;
         case "open-settings":
-            return <ExternalLink class="w-3 h-3 mr-1" />;
+            return <ExternalLink class="w-3 h-3 me-1" />;
     }
 }
 
@@ -85,8 +85,8 @@ function Checkup(props: CheckupProps) {
                         {(item) => (
                             <li class="p-3 bg-base-100 rounded-lg">
                                 <div class="flex items-center">
-                                    <Show when={item.status} fallback={<CircleX class="w-5 h-5 mr-3 text-error" />}>
-                                        <CircleCheckBig class="w-5 h-5 mr-3 text-success" />
+                                    <Show when={item.status} fallback={<CircleX class="w-5 h-5 me-3 text-error" />}>
+                                        <CircleCheckBig class="w-5 h-5 me-3 text-success" />
                                     </Show>
                                     <span class="flex-grow">{item.text}</span>
                                     <Show when={item.fix && !item.status}>
@@ -113,7 +113,7 @@ function Checkup(props: CheckupProps) {
                                     </Show>
                                 </div>
                                 <Show when={item.suggestion}>
-                                    <div class="mt-2 ml-8 text-sm p-2 bg-base-300 rounded-md">
+                                    <div class="mt-2 ms-8 text-sm p-2 bg-base-300 rounded-md">
                                         <p class="font-semibold mb-1">{t("doctor.suggestion")}</p>
                                         <code class="font-mono ">{item.suggestion}</code>
                                     </div>

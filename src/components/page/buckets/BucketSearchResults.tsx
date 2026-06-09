@@ -95,7 +95,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
         <h2 class="text-xl font-bold">
           {t("buckets.searchResults")}
           <Show when={props.buckets.length > 0}>
-            <span class="text-base-content/60 ml-2 text-lg font-normal">
+            <span class="text-base-content/60 ms-2 text-lg font-normal">
               ({props.buckets.length}{props.totalCount > props.buckets.length ? ` of ${props.totalCount}` : ''})
             </span>
           </Show>
@@ -103,7 +103,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
 
         <Show when={props.isExpandedSearch}>
           <div class="badge badge-info badge-outline badge-lg">
-            <Shield class="w-3 h-3 mr-1" aria-hidden="true" />
+            <Shield class="w-3 h-3 me-1" aria-hidden="true" />
             {t("buckets.expandedSearch")}
           </div>
         </Show>
@@ -112,7 +112,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
       {/* Loading State — cold only */}
       <Show when={props.loading && props.buckets.length === 0}>
         <div class="flex justify-center items-center py-12">
-          <span class="loading loading-spinner loading-lg mr-3"></span>
+          <span class="loading loading-spinner loading-lg me-3"></span>
           <span class="text-lg">{t("buckets.searching")}</span>
         </div>
       </Show>
@@ -149,7 +149,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                 <div class="flex items-center gap-2 mb-2 min-w-0">
                   <button
                     type="button"
-                    class="font-semibold text-lg text-left hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate min-w-0"
+                    class="font-semibold text-lg text-start hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate min-w-0"
                     onClick={() => openBucket(bucket)}
                     title={bucket.name}
                   >
@@ -157,13 +157,13 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                   </button>
                   <Show when={bucket.is_verified}>
                     <span class="badge badge-info badge-outline badge-xs">
-                      <Shield class="w-2.5 h-2.5 mr-0.5" aria-hidden="true" />
+                      <Shield class="w-2.5 h-2.5 me-0.5" aria-hidden="true" />
                       {t("buckets.verified")}
                     </span>
                   </Show>
                   <button
                     type="button"
-                    class="btn btn-ghost btn-xs btn-circle ml-auto"
+                    class="btn btn-ghost btn-xs btn-circle ms-auto"
                     onClick={async (e) => {
                       e.stopPropagation();
                       try { await openUrl(bucket.url); } catch {}
@@ -199,7 +199,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                     <GitFork class="w-3 h-3 text-success" aria-hidden="true" />
                     {formatNumber(bucket.forks)}
                   </span>
-                  <span class="ml-auto">
+                  <span class="ms-auto">
                     <Show
                       when={isBucketInstalled(bucket.name)}
                       fallback={

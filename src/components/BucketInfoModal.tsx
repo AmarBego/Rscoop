@@ -67,7 +67,7 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
                 return (
                   <button
                     type="button"
-                    class="text-left hover:text-primary cursor-pointer py-0.5 px-1 rounded hover:bg-base-300 transition-colors"
+                    class="text-start hover:text-primary cursor-pointer py-0.5 px-1 rounded hover:bg-base-300 transition-colors"
                     onClick={() => props.onPackageClick?.(cleanName)}
                     title={t("modal.bucket.viewPackageInfo", { name: cleanName })}
                   >
@@ -202,7 +202,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
     <div class="flex items-center gap-2">
       <Show when={props.bucket?.is_git_repo}>
         <div class="badge badge-info badge-sm">
-          <GitBranch class="w-3 h-3 mr-1" aria-hidden="true" />
+          <GitBranch class="w-3 h-3 me-1" aria-hidden="true" />
           {t("modal.bucket.git")}
         </div>
       </Show>
@@ -264,12 +264,12 @@ function BucketInfoModal(props: BucketInfoModalProps) {
             when={bucketInstall.isBucketInstalling(bucketName())}
             fallback={
               <>
-                <Download class="w-4 h-4 mr-2" aria-hidden="true" />
+                <Download class="w-4 h-4 me-2" aria-hidden="true" />
                 {t("common.install")}
               </>
             }
           >
-            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+            <LoaderCircle class="w-4 h-4 me-2 animate-spin" aria-hidden="true" />
             {t("common.installing")}
           </Show>
         </button>
@@ -285,12 +285,12 @@ function BucketInfoModal(props: BucketInfoModalProps) {
             when={bucketInstall.isBucketRemoving(bucketName())}
             fallback={
               <>
-                <Trash2 class="w-4 h-4 mr-2" aria-hidden="true" />
+                <Trash2 class="w-4 h-4 me-2" aria-hidden="true" />
                 {t("common.remove")}
               </>
             }
           >
-            <LoaderCircle class="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />
+            <LoaderCircle class="w-4 h-4 me-2 animate-spin" aria-hidden="true" />
             {t("common.removing")}
           </Show>
         </button>

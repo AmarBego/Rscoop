@@ -25,7 +25,7 @@ export default function Card(props: CardProps) {
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <h2 class="card-title text-lg sm:text-xl flex items-center min-w-0">
                         {props.icon && (
-                            <Dynamic component={props.icon} class="w-6 h-6 mr-2 text-primary shrink-0" />
+                            <Dynamic component={props.icon} class="w-6 h-6 me-2 text-primary shrink-0" />
                         )}
 
                         <span class="min-w-0 break-words">{props.title}</span>
