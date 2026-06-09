@@ -444,7 +444,7 @@
   "settings.exim.importButton": "Import profile",
 
   "settings.exim.export.title": "Export profile",
-  "settings.exim.export.description": "Save your rScoop setup to a JSON file — apps, buckets, preferences. Take it to a new machine, check it into a dotfiles repo, or share a baseline with your team.",
+  "settings.exim.export.description": "Save your rScoop setup to JSON, or export a PowerShell setup script for bootstrapping another machine.",
   "settings.exim.export.presets": "Presets",
   "settings.exim.export.presetFullTitle": "Full profile",
   "settings.exim.export.presetFullSub": "Everything. Best for a new machine.",
@@ -470,8 +470,10 @@
   "settings.exim.export.secretsIncluded": "Secrets included",
   "settings.exim.export.secretsWarning": "Your VirusTotal API key will be saved in this file. Store it somewhere private.",
   "settings.exim.export.saveFile": "Save file…",
+  "settings.exim.export.saveSetupScript": "Save setup script…",
   "settings.exim.export.copyClipboard": "Copy to clipboard",
   "settings.exim.export.savedOk": "Profile saved",
+  "settings.exim.export.scriptSavedOk": "Setup script saved",
   "settings.exim.export.copiedOk": "Copied to clipboard.",
   "settings.exim.export.aboutProfiles": "Profiles are plain JSON with a versioned schema. Safe to check into git, diff, and hand-edit. Caches, logs, and persist folders are never included.",
 

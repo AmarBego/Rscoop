@@ -269,6 +269,277 @@ pub async fn export_profile<R: Runtime>(
     serde_json::to_string_pretty(&profile).map_err(|e| e.to_string())
 }
 
+/// Export the selected Scoop-managed state as a PowerShell setup script.
+///
+/// This is meant for dotfiles and quick machine bootstrap flows. rScoop-only
+/// preferences still require the JSON profile import path.
+#[tauri::command]
+pub async fn export_profile_setup_script<R: Runtime>(
+    app: AppHandle<R>,
+    state: State<'_, AppState>,
+    groups: Vec<String>,
+    include_secrets: bool,
+) -> Result<String, String> {
+    log::info!(
+        "Exporting profile setup script, groups={:?}, secrets={}",
+        groups,
+        include_secrets
+    );
+
+    let json = export_profile(app, state, groups, include_secrets).await?;
+    let profile: Profile =
+        serde_json::from_str(&json).map_err(|e| format!("Failed to render setup script: {}", e))?;
+    Ok(render_profile_setup_script(&profile))
+}
+
+fn render_profile_setup_script(profile: &Profile) -> String {
+    let mut script = String::new();
+    let generated_at = profile.exported_at.as_deref().unwrap_or("unknown time");
+    let groups = if profile.groups.is_empty() {
+        "none".to_string()
+    } else {
+        profile.groups.join(", ")
+    };
+
+    script.push_str("# rScoop Scoop setup script\n");
+    script.push_str(&format!("# Generated: {}\n", generated_at));
+    script.push_str(&format!("# Groups: {}\n", groups));
+    script.push_str("# Run this in PowerShell after installing Scoop.\n\n");
+
+    if profile.rscoop_settings.is_some() {
+        script.push_str(
+            "# Note: rScoop preferences were selected but are not applied by this script.\n",
+        );
+        script.push_str("# Use rScoop's JSON profile import to restore rScoop-only settings.\n\n");
+    }
+
+    script.push_str("$ErrorActionPreference = 'Stop'\n");
+    script.push_str(
+        "if ($PSVersionTable.PSVersion.Major -ge 7) { $PSNativeCommandUseErrorActionPreference = $true }\n\n",
+    );
+    script.push_str("if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {\n");
+    script.push_str(
+        "    Write-Error 'Scoop is not available on PATH. Install Scoop first: https://scoop.sh'\n",
+    );
+    script.push_str("    exit 1\n");
+    script.push_str("}\n\n");
+
+    script.push_str("function Invoke-Scoop {\n");
+    script.push_str(
+        "    param([Parameter(ValueFromRemainingArguments = $true)][string[]] $Arguments)\n",
+    );
+    script.push_str("    & scoop @Arguments\n");
+    script.push_str("    if ($LASTEXITCODE -ne 0) {\n");
+    script.push_str(
+        "        throw \"scoop $($Arguments -join ' ') failed with exit code $LASTEXITCODE\"\n",
+    );
+    script.push_str("    }\n");
+    script.push_str("}\n\n");
+
+    script.push_str("function Try-Scoop {\n");
+    script.push_str(
+        "    param([Parameter(ValueFromRemainingArguments = $true)][string[]] $Arguments)\n",
+    );
+    script.push_str("    try {\n");
+    script.push_str("        Invoke-Scoop @Arguments\n");
+    script.push_str("        return $true\n");
+    script.push_str("    } catch {\n");
+    script.push_str("        Write-Warning $_.Exception.Message\n");
+    script.push_str("        return $false\n");
+    script.push_str("    }\n");
+    script.push_str("}\n\n");
+
+    script.push_str("function Get-ScoopBucketNames {\n");
+    script.push_str("    $names = @{}\n");
+    script.push_str("    & scoop bucket list | ForEach-Object {\n");
+    script.push_str("        $name = ($_ -split '\\s+')[0]\n");
+    script.push_str(
+        "        if ($name -and $name -notin @('Name', '----')) { $names[$name] = $true }\n",
+    );
+    script.push_str("    }\n");
+    script.push_str("    return $names\n");
+    script.push_str("}\n\n");
+
+    script.push_str("function Get-ScoopAppNames {\n");
+    script.push_str("    $names = @{}\n");
+    script.push_str("    & scoop list | ForEach-Object {\n");
+    script.push_str("        $name = ($_ -split '\\s+')[0]\n");
+    script.push_str(
+        "        if ($name -and $name -notin @('Name', '----')) { $names[$name] = $true }\n",
+    );
+    script.push_str("    }\n");
+    script.push_str("    return $names\n");
+    script.push_str("}\n\n");
+
+    script.push_str("function Get-ScoopInstallId {\n");
+    script.push_str("    param($App)\n");
+    script.push_str(
+        "    if ($App.Versioned -and $App.Version) { return \"$($App.Name)@$($App.Version)\" }\n",
+    );
+    script.push_str("    if ($App.Source) { return \"$($App.Source)/$($App.Name)\" }\n");
+    script.push_str("    return $App.Name\n");
+    script.push_str("}\n\n");
+
+    let buckets = profile
+        .buckets
+        .as_deref()
+        .map(|list| lenient_list::<ProfileBucket>(list).0)
+        .unwrap_or_default();
+    let bucket_rows = buckets
+        .into_iter()
+        .filter(|bucket| !bucket.name.trim().is_empty())
+        .map(|bucket| {
+            format!(
+                "@{{ Name = {}; Source = {} }}",
+                ps_string(&bucket.name),
+                ps_optional_string(&bucket.source)
+            )
+        })
+        .collect::<Vec<_>>();
+    push_ps_array(&mut script, "Buckets", &bucket_rows);
+
+    let apps = profile
+        .apps
+        .as_deref()
+        .map(|list| lenient_list::<ProfileApp>(list).0)
+        .unwrap_or_default();
+    let app_rows = apps
+        .into_iter()
+        .filter(|app| !app.name.trim().is_empty())
+        .map(|app| {
+            format!(
+                "@{{ Name = {}; Source = {}; Version = {}; Versioned = {} }}",
+                ps_string(&app.name),
+                ps_optional_string(&app.source),
+                ps_optional_string(&app.version),
+                ps_bool(app.versioned)
+            )
+        })
+        .collect::<Vec<_>>();
+    push_ps_array(&mut script, "Apps", &app_rows);
+
+    let hold_rows = profile
+        .holds
+        .as_deref()
+        .unwrap_or(&[])
+        .iter()
+        .filter(|package| !package.trim().is_empty())
+        .map(|package| ps_string(package))
+        .collect::<Vec<_>>();
+    push_ps_array(&mut script, "HeldPackages", &hold_rows);
+
+    let config_rows = profile
+        .scoop_config
+        .as_ref()
+        .map(|config| {
+            let mut entries = config.iter().collect::<Vec<_>>();
+            entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+            entries
+                .into_iter()
+                .filter(|(_, value)| !value.is_null())
+                .map(|(key, value)| {
+                    format!(
+                        "@{{ Key = {}; Value = {} }}",
+                        ps_string(key),
+                        ps_string(&scoop_config_value(value))
+                    )
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    push_ps_array(&mut script, "ScoopConfig", &config_rows);
+
+    script.push_str("Write-Host 'Updating Scoop...'\n");
+    script.push_str("Try-Scoop update | Out-Null\n\n");
+
+    script.push_str("$existingBuckets = Get-ScoopBucketNames\n");
+    script.push_str("foreach ($bucket in $Buckets) {\n");
+    script.push_str("    if ($existingBuckets.ContainsKey($bucket.Name)) {\n");
+    script.push_str("        Write-Host \"Bucket already present: $($bucket.Name)\"\n");
+    script.push_str("        continue\n");
+    script.push_str("    }\n");
+    script.push_str("    Write-Host \"Adding bucket: $($bucket.Name)\"\n");
+    script.push_str("    $added = if ($bucket.Source) {\n");
+    script.push_str("        Try-Scoop bucket add $bucket.Name $bucket.Source\n");
+    script.push_str("    } else {\n");
+    script.push_str("        Try-Scoop bucket add $bucket.Name\n");
+    script.push_str("    }\n");
+    script.push_str("    if ($added) { $existingBuckets[$bucket.Name] = $true }\n");
+    script.push_str("}\n\n");
+
+    script.push_str("$existingApps = Get-ScoopAppNames\n");
+    script.push_str("foreach ($app in $Apps) {\n");
+    script.push_str("    if ($existingApps.ContainsKey($app.Name)) {\n");
+    script.push_str("        Write-Host \"App already installed: $($app.Name)\"\n");
+    script.push_str("        continue\n");
+    script.push_str("    }\n");
+    script.push_str("    $installId = Get-ScoopInstallId $app\n");
+    script.push_str("    Write-Host \"Installing app: $installId\"\n");
+    script.push_str("    if (Try-Scoop install $installId) { $existingApps[$app.Name] = $true }\n");
+    script.push_str("}\n\n");
+
+    script.push_str("foreach ($entry in $ScoopConfig) {\n");
+    script.push_str("    Write-Host \"Setting Scoop config: $($entry.Key)\"\n");
+    script.push_str("    Try-Scoop config $entry.Key $entry.Value | Out-Null\n");
+    script.push_str("}\n\n");
+
+    script.push_str("foreach ($package in $HeldPackages) {\n");
+    script.push_str("    if (-not $existingApps.ContainsKey($package)) {\n");
+    script.push_str("        Write-Warning \"Skipping hold for missing app: $package\"\n");
+    script.push_str("        continue\n");
+    script.push_str("    }\n");
+    script.push_str("    Write-Host \"Holding package: $package\"\n");
+    script.push_str("    Try-Scoop hold $package | Out-Null\n");
+    script.push_str("}\n\n");
+
+    script.push_str("Write-Host 'rScoop setup script finished.'\n");
+    script
+}
+
+fn push_ps_array(script: &mut String, name: &str, rows: &[String]) {
+    script.push_str(&format!("${} = @(\n", name));
+    for row in rows {
+        script.push_str("    ");
+        script.push_str(row);
+        script.push('\n');
+    }
+    script.push_str(")\n\n");
+}
+
+fn ps_string(value: &str) -> String {
+    let sanitized = value
+        .chars()
+        .map(|ch| if ch.is_control() { ' ' } else { ch })
+        .collect::<String>();
+    format!("'{}'", sanitized.replace('\'', "''"))
+}
+
+fn ps_optional_string(value: &str) -> String {
+    if value.trim().is_empty() {
+        "$null".to_string()
+    } else {
+        ps_string(value)
+    }
+}
+
+fn ps_bool(value: bool) -> &'static str {
+    if value {
+        "$true"
+    } else {
+        "$false"
+    }
+}
+
+fn scoop_config_value(value: &Value) -> String {
+    match value {
+        Value::String(s) => s.clone(),
+        Value::Bool(b) => b.to_string(),
+        Value::Number(n) => n.to_string(),
+        Value::Null => String::new(),
+        _ => serde_json::to_string(value).unwrap_or_else(|_| value.to_string()),
+    }
+}
+
 /// Write an already-serialized profile JSON string to the given path.
 /// The frontend uses `plugin-dialog`'s `save()` to pick the path, then calls
 /// this to actually write the bytes. Keeping this in Rust avoids pulling in
@@ -620,4 +891,104 @@ pub async fn import_profile(
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn setup_script_renders_scoop_state_and_escapes_powershell_strings() {
+        let mut config = Map::new();
+        config.insert("aria2-enabled".to_string(), json!(true));
+        config.insert(
+            "cache_path".to_string(),
+            json!("C:\\Users\\O'Brien\\scoop-cache"),
+        );
+        config.insert("notes".to_string(), json!("first\nsecond\tthird"));
+
+        let profile = Profile {
+            schema: SCHEMA_VERSION.to_string(),
+            exported_at: Some("2026-06-09T10:00:00Z".to_string()),
+            groups: vec![
+                "buckets".to_string(),
+                "apps".to_string(),
+                "holds".to_string(),
+                "scoopConfig".to_string(),
+                "rscoopSettings".to_string(),
+            ],
+            apps: Some(vec![
+                serde_json::to_value(ProfileApp {
+                    name: "ripgrep".to_string(),
+                    source: "main".to_string(),
+                    version: "14.1.1".to_string(),
+                    versioned: false,
+                })
+                .unwrap(),
+                serde_json::to_value(ProfileApp {
+                    name: "nodejs".to_string(),
+                    source: "versions".to_string(),
+                    version: "20.0.0".to_string(),
+                    versioned: true,
+                })
+                .unwrap(),
+            ]),
+            buckets: Some(vec![serde_json::to_value(ProfileBucket {
+                name: "extras".to_string(),
+                source: "https://github.com/ScoopInstaller/Extras".to_string(),
+            })
+            .unwrap()]),
+            holds: Some(vec!["nodejs".to_string()]),
+            scoop_config: Some(config),
+            rscoop_settings: Some(Map::new()),
+        };
+
+        let script = render_profile_setup_script(&profile);
+
+        assert!(script.contains("# Generated: 2026-06-09T10:00:00Z"));
+        assert!(script
+            .contains("@{ Name = 'extras'; Source = 'https://github.com/ScoopInstaller/Extras' }"));
+        assert!(script.contains(
+            "@{ Name = 'ripgrep'; Source = 'main'; Version = '14.1.1'; Versioned = $false }"
+        ));
+        assert!(script.contains(
+            "@{ Name = 'nodejs'; Source = 'versions'; Version = '20.0.0'; Versioned = $true }"
+        ));
+        assert!(script.contains("@{ Key = 'aria2-enabled'; Value = 'true' }"));
+        assert!(script.contains("@{ Key = 'notes'; Value = 'first second third' }"));
+        assert!(script.contains("'C:\\Users\\O''Brien\\scoop-cache'"));
+        assert!(script.contains("$($App.Name)@$($App.Version)"));
+        assert!(script.contains("rScoop preferences were selected"));
+    }
+
+    #[test]
+    fn setup_script_uses_null_for_empty_optional_app_fields() {
+        let profile = Profile {
+            schema: SCHEMA_VERSION.to_string(),
+            exported_at: None,
+            groups: vec!["apps".to_string(), "buckets".to_string()],
+            apps: Some(vec![serde_json::to_value(ProfileApp {
+                name: "custom".to_string(),
+                source: String::new(),
+                version: String::new(),
+                versioned: false,
+            })
+            .unwrap()]),
+            buckets: Some(vec![serde_json::to_value(ProfileBucket {
+                name: "local".to_string(),
+                source: String::new(),
+            })
+            .unwrap()]),
+            holds: None,
+            scoop_config: None,
+            rscoop_settings: None,
+        };
+
+        let script = render_profile_setup_script(&profile);
+
+        assert!(script.contains("@{ Name = 'local'; Source = $null }"));
+        assert!(script
+            .contains("@{ Name = 'custom'; Source = $null; Version = $null; Versioned = $false }"));
+    }
 }
