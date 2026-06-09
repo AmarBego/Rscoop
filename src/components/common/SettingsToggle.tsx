@@ -24,13 +24,13 @@ export default function SettingsToggle(props: SettingsToggleProps) {
     return (
         <label class={`label cursor-pointer ${props.className ?? ""}`}>
             <Show when={props.showStatusLabel}>
-                <span class="label-text mr-4">
+                <span class="label-text me-4">
                     {props.checked ? "Enabled" : "Disabled"}
                 </span>
             </Show>
             {props.children}
             <Show when={!props.children && props.label}>
-                <span class="label-text mr-4">
+                <span class="label-text me-4">
                     {props.label}
                 </span>
             </Show>

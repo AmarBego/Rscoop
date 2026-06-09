@@ -37,7 +37,7 @@ function PackageGridView(props: PackageGridViewProps) {
             >
               <div class="flex justify-between items-start gap-2 min-w-0">
                 <h3 class="font-medium text-base min-w-0 flex-1 flex items-center gap-1.5">
-                  <button class="hover:underline truncate text-left min-w-0" onClick={() => props.onViewInfo(pkg)} title={pkg.name}>
+                  <button class="hover:underline truncate text-start min-w-0" onClick={() => props.onViewInfo(pkg)} title={pkg.name}>
                     {pkg.name}
                   </button>
                   <Show when={hasUpdate()}>
@@ -115,4 +115,4 @@ function PackageGridView(props: PackageGridViewProps) {
   );
 }
 
-export default PackageGridView; 
+export default PackageGridView;

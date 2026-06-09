@@ -18,7 +18,7 @@ function ThemeSettings() {
             description={t("settings.theme.description")}
             headerAction={
                 <label class="label cursor-pointer">
-                    <span class="label-text mr-4">{settings.theme === 'dark' ? t("settings.theme.switchToLight") : t("settings.theme.switchToDark")}</span>
+                    <span class="label-text me-4">{settings.theme === 'dark' ? t("settings.theme.switchToLight") : t("settings.theme.switchToDark")}</span>
                     <input
                         type="checkbox"
                         class="toggle toggle-warning"

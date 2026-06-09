@@ -53,7 +53,7 @@ function DetailValue(props: { value: string }) {
 
   return (
     <Show when={parsed()} fallback={<span class="break-words">{props.value}</span>}>
-      <pre class="text-xs p-2 bg-base-100 rounded-lg whitespace-pre-wrap font-mono max-h-60 overflow-y-auto">
+      <pre dir="ltr" class="text-xs p-2 bg-base-100 rounded-lg whitespace-pre-wrap font-mono max-h-60 overflow-y-auto text-start">
         <code ref={codeRef} class="language-json">
           {JSON.stringify(parsed(), null, 2)}
         </code>
@@ -401,11 +401,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           >
             <Show when={actionFired() === "install"} fallback={
               <>
-                <Download class="w-4 h-4 mr-2" />
+                <Download class="w-4 h-4 me-2" />
                 {installVersion().trim() ? t("modal.package.installVersion", { version: installVersion().trim() }) : t("common.install")}
               </>
             }>
-              <Check class="w-4 h-4 mr-2" />
+              <Check class="w-4 h-4 me-2" />
               {t("common.queued")}
             </Show>
           </button>
@@ -427,11 +427,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         >
           <Show when={actionFired() === "uninstall"} fallback={
             <>
-              <Trash2 class="w-4 h-4 mr-2" />
+              <Trash2 class="w-4 h-4 me-2" />
               {t("common.uninstall")}
             </>
           }>
-            <Check class="w-4 h-4 mr-2" />
+            <Check class="w-4 h-4 me-2" />
             {t("common.queued")}
           </Show>
         </button>
@@ -624,8 +624,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
               </Show>
 
               <Show when={manifestContent()}>
-                <div class="bg-code relative rounded-xl border border-base-content/10 shadow-inner group">
-                  <div class="absolute right-2 top-2 z-10 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity duration-200">
+                <div dir="ltr" class="bg-code relative rounded-xl border border-base-content/10 shadow-inner group">
+                  <div class="absolute end-2 top-2 z-10 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity duration-200">
                     <button
                       type="button"
                       class="btn btn-sm btn-square btn-ghost text-base-content/70 hover:text-base-content hover:bg-base-content/10"
@@ -639,7 +639,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                     </button>
                   </div>
                   <div class="overflow-y-auto max-h-[calc(70vh-10rem)] custom-scrollbar">
-                    <pre class="p-4 m-0"><code ref={manifestCodeRef} class="language-json font-mono text-sm leading-relaxed !bg-transparent"></code></pre>
+                    <pre class="p-4 m-0 text-start"><code ref={manifestCodeRef} class="language-json font-mono text-sm leading-relaxed !bg-transparent"></code></pre>
                   </div>
                 </div>
               </Show>

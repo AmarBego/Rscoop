@@ -100,6 +100,16 @@ pub async fn set_scoop_path<R: Runtime>(
     Ok(())
 }
 
+pub(crate) fn is_pwsh_enabled<R: Runtime>(app: AppHandle<R>) -> bool {
+    with_store_get(app, |store| {
+        store
+            .get("shell.pwshEnabled")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    })
+    .unwrap_or(false)
+}
+
 /// Gets a generic configuration value from the store by its key.
 #[tauri::command]
 pub fn get_config_value<R: Runtime>(
