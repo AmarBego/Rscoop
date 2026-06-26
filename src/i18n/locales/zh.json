@@ -368,6 +368,7 @@
   "modal.scoopStatus.bucketsOutOfDate": "Scoop 仓库已过时，请点击 “前往仓库” 获取最新更新。",
   "modal.scoopStatus.networkFailure": "检查更新时发生网络故障。",
   "modal.scoopStatus.appsWithIssues": "异常应用：",
+  "modal.scoopStatus.heldPackagesWithUpdates": "Held packages with updates:",
   "modal.scoopStatus.allGood": "Scoop 已是最新，所有软件包状态良好！",
   "modal.scoopStatus.tableName": "名称",
   "modal.scoopStatus.tableInstalled": "已安装版本",
