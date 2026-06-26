@@ -2,7 +2,7 @@ import { Show, createSignal, createMemo } from "solid-js";
 import { Package, Search } from "lucide-solid";
 import PackageInfoModal from "../components/PackageInfoModal";
 import ScoopStatusModal from "../components/ScoopStatusModal";
-import { useInstalledPackages } from "../hooks/useInstalledPackages";
+import { useInstalledPackages, type ScoopStatus } from "../hooks/useInstalledPackages";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
 import PackageListView from "../components/page/installed/PackageListView";
@@ -12,6 +12,16 @@ import { useI18n } from "../i18n";
 
 interface InstalledPageProps {
   onNavigate?: (view: View) => void;
+}
+
+function hasHeldPackageUpdates(status: ScoopStatus) {
+  return status.apps_with_issues.some((app) =>
+    app.is_held
+      && app.is_outdated
+      && !app.is_failed
+      && !app.is_deprecated
+      && !app.is_removed
+  );
 }
 
 function InstalledPage(props: InstalledPageProps) {
@@ -52,8 +62,8 @@ function InstalledPage(props: InstalledPageProps) {
   const [showStatusModal, setShowStatusModal] = createSignal(false);
 
   const handleCheckStatus = async (): Promise<void> => {
-    await checkScoopStatus();
-    if (!scoopStatus()?.is_everything_ok) {
+    const status = await checkScoopStatus();
+    if (status && (!status.is_everything_ok || hasHeldPackageUpdates(status))) {
       setShowStatusModal(true);
     }
   };

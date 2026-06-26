@@ -28,11 +28,13 @@ function PackageGridView(props: PackageGridViewProps) {
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       <For each={props.packages()}>
         {(pkg) => {
-          const hasUpdate = () => pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install;
+          const hasAvailableUpdate = () => !!pkg.available_version && !pkg.is_versioned_install;
+          const canUpdate = () => hasAvailableUpdate() && !heldStore.isHeld(pkg.name);
+
           return (
             <div
               class="bg-base-300 hover:bg-base-400 rounded-lg p-3 transition-colors"
-              classList={{ "ring-1 ring-primary/40": !!hasUpdate() }}
+              classList={{ "ring-1 ring-primary/40": canUpdate() }}
               data-no-close-search
             >
               <div class="flex justify-between items-start gap-2 min-w-0">
@@ -40,7 +42,7 @@ function PackageGridView(props: PackageGridViewProps) {
                   <button class="hover:underline truncate text-start min-w-0" onClick={() => props.onViewInfo(pkg)} title={pkg.name}>
                     {pkg.name}
                   </button>
-                  <Show when={hasUpdate()}>
+                  <Show when={hasAvailableUpdate()}>
                     <span class="tooltip shrink-0" data-tip={t("installed.updateAvailable", { version: pkg.available_version ?? "" })}>
                       <CircleArrowUp class="w-4 h-4 text-primary" />
                     </span>
@@ -63,7 +65,7 @@ function PackageGridView(props: PackageGridViewProps) {
                     ariaLabel={t("installed.tableActions")}
                     trigger={<Ellipsis class="w-4 h-4" />}
                   >
-                    <Show when={hasUpdate()}>
+                    <Show when={canUpdate()}>
                       <DropdownItem icon={<CircleArrowUp class="w-4 h-4" />} onClick={() => props.onUpdate(pkg)}>
                         {t("installed.updateTo", { version: pkg.available_version ?? "" })}
                       </DropdownItem>

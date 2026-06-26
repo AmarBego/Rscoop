@@ -397,6 +397,7 @@
   "modal.scoopStatus.bucketsOutOfDate": "Scoop bucket(s) are out of date. Click 'Go to Buckets' to get the latest changes.",
   "modal.scoopStatus.networkFailure": "Network failure occurred while checking for updates.",
   "modal.scoopStatus.appsWithIssues": "Apps with Issues:",
+  "modal.scoopStatus.heldPackagesWithUpdates": "Held packages with updates:",
   "modal.scoopStatus.allGood": "Scoop is up to date and all packages are in good condition!",
   "modal.scoopStatus.tableName": "Name",
   "modal.scoopStatus.tableInstalled": "Installed",

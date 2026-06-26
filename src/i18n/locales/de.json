@@ -368,6 +368,7 @@
   "modal.scoopStatus.bucketsOutOfDate": "Scoop-Bucket(s) sind veraltet. Klicken Sie auf 'Zu Buckets wechseln', um die neuesten Änderungen zu erhalten.",
   "modal.scoopStatus.networkFailure": "Netzwerkfehler beim Prüfen auf Updates aufgetreten.",
   "modal.scoopStatus.appsWithIssues": "Apps mit Problemen:",
+  "modal.scoopStatus.heldPackagesWithUpdates": "Zurückgehaltene Pakete mit Updates:",
   "modal.scoopStatus.allGood": "Scoop ist aktuell und alle Pakete sind in gutem Zustand!",
   "modal.scoopStatus.tableName": "Name",
   "modal.scoopStatus.tableInstalled": "Installiert",
