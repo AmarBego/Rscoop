@@ -2,7 +2,7 @@ import { Show, createSignal, createMemo } from "solid-js";
 import { Package, Search } from "lucide-solid";
 import PackageInfoModal from "../components/PackageInfoModal";
 import ScoopStatusModal from "../components/ScoopStatusModal";
-import { useInstalledPackages } from "../hooks/useInstalledPackages";
+import { useInstalledPackages, type ScoopStatus } from "../hooks/useInstalledPackages";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
 import PackageListView from "../components/page/installed/PackageListView";
@@ -12,6 +12,16 @@ import { useI18n } from "../i18n";
 
 interface InstalledPageProps {
   onNavigate?: (view: View) => void;
+}
+
+function hasHeldPackageUpdates(status: ScoopStatus) {
+  return status.apps_with_issues.some((app) =>
+    app.is_held
+      && app.is_outdated
+      && !app.is_failed
+      && !app.is_deprecated
+      && !app.is_removed
+  );
 }
 
 function InstalledPage(props: InstalledPageProps) {
@@ -52,8 +62,8 @@ function InstalledPage(props: InstalledPageProps) {
   const [showStatusModal, setShowStatusModal] = createSignal(false);
 
   const handleCheckStatus = async (): Promise<void> => {
-    await checkScoopStatus();
-    if (!scoopStatus()?.is_everything_ok) {
+    const status = await checkScoopStatus();
+    if (status && (!status.is_everything_ok || hasHeldPackageUpdates(status))) {
       setShowStatusModal(true);
     }
   };
@@ -93,7 +103,7 @@ function InstalledPage(props: InstalledPageProps) {
       <Show when={error()}>
         <div role="alert" class="alert alert-error">
           <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          <span>{t("common.error")}: {error()}</span>
+          <span>{t("common.errorWithDetails", { error: error() ?? "" })}</span>
           <button type="button" class="btn btn-sm btn-primary" onClick={fetchInstalledPackages}>{t("common.retry")}</button>
         </div>
       </Show>

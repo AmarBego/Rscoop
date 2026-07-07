@@ -14,8 +14,77 @@ interface ScoopStatusModalProps {
   onNavigate?: (view: View) => void;
 }
 
+function isHeldUpdateOnly(app: AppStatusInfo) {
+  return app.is_held
+    && app.is_outdated
+    && !app.is_failed
+    && !app.is_deprecated
+    && !app.is_removed;
+}
+
+function isAppIssue(app: AppStatusInfo) {
+  return !isHeldUpdateOnly(app);
+}
+
+function AppStatusTable(props: { apps: AppStatusInfo[] }) {
+  const { t } = useI18n();
+  const statusInfoLabel = (info: string) => {
+    if (info.includes("Deprecated")) return t("modal.scoopStatus.deprecated");
+    if (info.includes("failed")) return t("modal.scoopStatus.failed");
+    if (info.includes("removed")) return t("modal.scoopStatus.removed");
+    if (info.includes("Versioned install")) return t("modal.scoopStatus.versionedInstall");
+    return info;
+  };
+
+  return (
+    <div class="overflow-x-auto">
+      <table class="table table-zebra w-full">
+        <thead>
+          <tr>
+            <th>{t("modal.scoopStatus.tableName")}</th>
+            <th>{t("modal.scoopStatus.tableInstalled")}</th>
+            <th>{t("modal.scoopStatus.tableLatest")}</th>
+            <th>{t("modal.scoopStatus.tableStatus")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {props.apps.map((app: AppStatusInfo) => (
+            <tr>
+              <td class="font-medium">{app.name}</td>
+              <td>{app.installed_version}</td>
+              <td>{app.latest_version || "-"}</td>
+              <td>
+                <div class="flex flex-wrap gap-1">
+                  {app.is_held && (
+                    <div class="badge badge-sm badge-warning">{t("modal.scoopStatus.held")}</div>
+                  )}
+                  {app.info.filter((info: string) => !info.includes("Held package")).map((info: string) => (
+                    <div class="badge badge-sm" classList={{
+                      "badge-warning": info.includes("Deprecated"),
+                      "badge-error": info.includes("failed") || info.includes("removed"),
+                      "badge-info": !info.includes("Deprecated") && !info.includes("failed") && !info.includes("removed")
+                    }}>
+                      {statusInfoLabel(info)}
+                    </div>
+                  ))}
+                  {app.is_outdated && (
+                    <div class="badge badge-sm badge-success">{t("modal.scoopStatus.updateAvailable")}</div>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ScoopStatusModal(props: ScoopStatusModalProps) {
   const { t } = useI18n();
+  const appsWithIssues = () => props.status?.apps_with_issues.filter(isAppIssue) ?? [];
+  const heldAppsWithUpdates = () => props.status?.apps_with_issues.filter(isHeldUpdateOnly) ?? [];
+
   return (
     <Modal
       isOpen={props.isOpen}
@@ -95,56 +164,23 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
           </Show>
 
           {/* Apps with Issues */}
-          <Show when={status().apps_with_issues.length > 0}>
+          <Show when={appsWithIssues().length > 0}>
             <div class="space-y-2">
               <h4 class="font-semibold">{t("modal.scoopStatus.appsWithIssues")}</h4>
-              <div class="overflow-x-auto">
-                <table class="table table-zebra w-full">
-                  <thead>
-                    <tr>
-                      <th>{t("modal.scoopStatus.tableName")}</th>
-                      <th>{t("modal.scoopStatus.tableInstalled")}</th>
-                      <th>{t("modal.scoopStatus.tableLatest")}</th>
-                      <th>{t("modal.scoopStatus.tableStatus")}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {status().apps_with_issues.map((app: AppStatusInfo) => (
-                      <tr>
-                        <td class="font-medium">{app.name}</td>
-                        <td>{app.installed_version}</td>
-                        <td>{app.latest_version || "-"}</td>
-                        <td>
-                          <div class="flex flex-wrap gap-1">
-                            {/* Show held status first if applicable */}
-                            {app.is_held && (
-                              <div class="badge badge-sm badge-warning">{t("modal.scoopStatus.held")}</div>
-                            )}
-                            {/* Show other info badges, excluding duplicate "Held package" */}
-                            {app.info.filter((info: string) => !info.includes("Held package")).map((info: string) => (
-                              <div class="badge badge-sm" classList={{
-                                "badge-warning": info.includes("Deprecated"),
-                                "badge-error": info.includes("failed") || info.includes("removed"),
-                                "badge-info": !info.includes("Deprecated") && !info.includes("failed") && !info.includes("removed")
-                              }}>
-                                {info}
-                              </div>
-                            ))}
-                            {app.is_outdated && (
-                              <div class="badge badge-sm badge-success">{t("modal.scoopStatus.updateAvailable")}</div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <AppStatusTable apps={appsWithIssues()} />
+            </div>
+          </Show>
+
+          {/* Held Packages with Updates */}
+          <Show when={heldAppsWithUpdates().length > 0}>
+            <div class="space-y-2">
+              <h4 class="font-semibold">{t("modal.scoopStatus.heldPackagesWithUpdates")}</h4>
+              <AppStatusTable apps={heldAppsWithUpdates()} />
             </div>
           </Show>
 
           {/* All Good Message */}
-          <Show when={status().is_everything_ok && !status().network_failure}>
+          <Show when={status().is_everything_ok && !status().network_failure && heldAppsWithUpdates().length === 0}>
             <div class="alert alert-success alert-outline">
               <CircleCheckBig class="w-4 h-4" />
               <span>{t("modal.scoopStatus.allGood")}</span>

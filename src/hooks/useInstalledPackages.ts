@@ -54,7 +54,7 @@ export function useInstalledPackages() {
     installedPackagesStore.checkForUpdates();
   };
 
-  const checkScoopStatus = async () => {
+  const checkScoopStatus = async (): Promise<ScoopStatus | null> => {
     setStatusLoading(true);
     setStatusError(null);
     try {
@@ -64,10 +64,12 @@ export function useInstalledPackages() {
       await refetch();
       const status = await invoke<ScoopStatus>("check_scoop_status");
       setScoopStatus(status);
+      return status;
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       console.error("Failed to check scoop status:", errorMsg);
       setStatusError(errorMsg);
+      return null;
     } finally {
       setStatusLoading(false);
     }

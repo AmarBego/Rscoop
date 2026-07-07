@@ -5,7 +5,6 @@ use crate::state::AppState;
 use crate::utils::locate_package_manifest;
 use rayon::prelude::*;
 use serde::Serialize;
-use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use tauri::{AppHandle, Runtime, State};
@@ -49,11 +48,10 @@ fn check_package_for_update(
     }
 }
 
-/// Checks all installed packages for available updates.
+/// Checks all installed packages for newer manifest versions.
 ///
-/// This command scans the filesystem, compares installed versions with the latest
-/// available versions in the package manifests, and returns a list of packages
-/// that can be updated. It respects packages that are on hold.
+/// Held packages are reported too so the UI can show a passive update indicator;
+/// callers decide whether the package can actually be updated.
 #[tauri::command]
 pub async fn check_for_updates<R: Runtime>(
     app: AppHandle<R>,
@@ -64,22 +62,13 @@ pub async fn check_for_updates<R: Runtime>(
     let installed_packages = get_installed_packages_full(app.clone(), state.clone()).await?;
     let scoop_path = state.scoop_path();
 
-    // Get a set of held packages for efficient lookup.
-    let held_packages: HashSet<String> =
-        crate::commands::hold::list_held_packages(app, state.clone())
-            .await?
-            .into_iter()
-            .collect();
-
     // Check for updates in parallel.
     let installed_packages_clone = installed_packages.clone();
     let scoop_path_clone = scoop_path.clone();
-    let held_packages_clone = held_packages.clone();
 
     let updatable_packages = tokio::task::spawn_blocking(move || {
         installed_packages_clone
             .par_iter()
-            .filter(|p| !held_packages_clone.contains(&p.name)) // Exclude held packages
             .filter_map(|package| {
                 match check_package_for_update(&scoop_path_clone, package) {
                     Ok(Some(updatable)) => Some(updatable),

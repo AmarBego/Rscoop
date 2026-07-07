@@ -28,7 +28,7 @@ function DoctorPage() {
         } catch (err) {
             const errorMsg = getErrorMessage(err);
             console.error("Failed to run system checkup:", errorMsg);
-            setCheckupError("Could not run the system checkup.");
+            setCheckupError(t("doctor.checkupError"));
             setCheckupResult([]);
         } finally {
             setIsCheckupLoading(false);

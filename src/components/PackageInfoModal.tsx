@@ -14,6 +14,17 @@ import { getErrorMessage } from "../utils/errors";
 hljs.registerLanguage('json', json);
 
 type PackageTab = "details" | "manifest";
+type PackageDetailKey =
+  | "Name"
+  | "Description"
+  | "Bucket"
+  | "Installed Version"
+  | "Latest Version"
+  | "Version"
+  | "Includes"
+  | "Installed"
+  | "Homepage"
+  | "License";
 
 interface PackageInfoModalProps {
   pkg: ScoopPackage | null;
@@ -119,7 +130,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   const orderedDetails = createMemo(() => {
     if (!props.info?.details) return [];
 
-    const desiredOrder = [
+    const desiredOrder: PackageDetailKey[] = [
       'Name',
       'Description',
       'Bucket',
@@ -143,6 +154,23 @@ function PackageInfoModal(props: PackageInfoModalProps) {
 
     return result;
   });
+
+  const detailLabel = (key: string) => {
+    const labels: Record<PackageDetailKey, string> = {
+      "Name": t("modal.package.detailName"),
+      "Description": t("modal.package.detailDescription"),
+      "Bucket": t("modal.package.detailBucket"),
+      "Installed Version": t("modal.package.detailInstalledVersion"),
+      "Latest Version": t("modal.package.detailLatestVersion"),
+      "Version": t("modal.package.detailVersion"),
+      "Includes": t("modal.package.detailIncludes"),
+      "Installed": t("modal.package.detailInstalled"),
+      "Homepage": t("modal.package.detailHomepage"),
+      "License": t("modal.package.detailLicense"),
+    };
+
+    return labels[key as PackageDetailKey] ?? key.replace(/([A-Z])/g, ' $1');
+  };
 
   // Active tab
   const [activeTab, setActiveTab] = createSignal<PackageTab>("details");
@@ -238,7 +266,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       console.error(`Failed to fetch manifest for ${pkg.name}:`, errorMsg);
-      setManifestError(`Failed to load manifest for ${pkg.name}: ${errorMsg}`);
+      setManifestError(t("modal.package.manifestLoadError", { name: pkg.name, error: errorMsg }));
     } finally {
       setManifestLoading(false);
     }
@@ -261,7 +289,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       } catch (err) {
         const errorMsg = getErrorMessage(err);
         console.error("Failed to copy manifest to clipboard:", errorMsg);
-        setManifestError(`Failed to copy manifest to clipboard: ${errorMsg}`);
+        setManifestError(t("modal.package.manifestCopyError", { error: errorMsg }));
       }
     }
   };
@@ -295,7 +323,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       console.error(`Failed to fetch versions for ${pkg.name}:`, errorMsg);
-      setVersionError(`Failed to load versions for ${pkg.name}: ${errorMsg}`);
+      setVersionError(t("modal.package.versionsLoadError", { name: pkg.name, error: errorMsg }));
     } finally {
       setVersionLoading(false);
     }
@@ -322,7 +350,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     } catch (err) {
       const errorMsg = getErrorMessage(err);
       console.error(`Failed to switch ${pkg.name} to version ${targetVersion}:`, errorMsg);
-      setVersionError(`Failed to switch to version ${targetVersion}: ${errorMsg}`);
+      setVersionError(t("modal.package.switchVersionError", { version: targetVersion, error: errorMsg }));
     } finally {
       setSwitchingVersion(null);
     }
@@ -332,7 +360,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     <Show when={props.pkg?.is_installed}>
       <Dropdown
         iconOnly
-        ariaLabel="Package actions"
+        ariaLabel={t("modal.package.actions")}
         trigger={<Ellipsis class="w-5 h-5" aria-hidden="true" />}
       >
         <DropdownItem
@@ -379,7 +407,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
         <div class="flex items-center gap-2">
           <input
             type="text"
-            placeholder="Version (optional)"
+            placeholder={t("modal.package.versionPlaceholder")}
             class="input input-bordered input-md w-36"
             value={installVersion()}
             onInput={(e) => setInstallVersion(e.currentTarget.value)}
@@ -510,7 +538,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                     <For each={orderedDetails()}>
                       {([key, value]) => (
                         <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
-                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{key.replace(/([A-Z])/g, ' $1')}:</div>
+                          <div class="font-semibold text-base-content/70 capitalize col-span-1">{detailLabel(key)}:</div>
                           <div class="col-span-2">
                             <Switch fallback={<DetailValue value={value} />}>
                               <Match when={key === 'Bucket' && value.includes('(missing)')}>

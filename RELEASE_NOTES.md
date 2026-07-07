@@ -1,9 +1,10 @@
-### Release Notes 1.9.5
+### Release Notes 1.9.6
 
-  #### Feature
+#### Features
 
-- Added hidden `shell.pwshEnabled` support to run Scoop commands through PowerShell 7+ (`pwsh`) instead of Windows
-  PowerShell 5.x. Enable it by adding `"shell.pwshEnabled": true` to `%APPDATA%\com.rscoop.app\store.json`. Thanks
-  @hetima for [PR #55](https://github.com/AmarBego/Rscoop/pull/55).
+- Enabled Persian (Farsi) in Settings with RTL layout support. Thanks [@SMAH1](https://github.com/SMAH1) for the translation work.
+- Held packages now show available update indicators without being counted as Scoop status issues.
 
-- Added a PowerShell setup script export from the profile exporter, so users can bootstrap buckets, apps, holds, and Scoop config on another machine.
+#### Maintenance
+
+- Bumped app release metadata to `1.9.6`.

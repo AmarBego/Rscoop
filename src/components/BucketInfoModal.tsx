@@ -32,6 +32,8 @@ interface BucketInfoModalProps {
   onFetchManifests?: (bucketName: string) => Promise<void>; // Callback to fetch manifests for newly installed bucket
 }
 
+type BucketDetailKey = "Name" | "Type" | "Manifests" | "Branch" | "Last Updated" | "Path";
+
 // Component to render bucket detail values
 function DetailValue(props: { value: string | number | undefined }) {
   const { t } = useI18n();
@@ -46,6 +48,12 @@ function DetailValue(props: { value: string | number | undefined }) {
 // Component to render manifest lists in a compact, scrollable form
 function ManifestsList(props: { manifests: string[]; loading: boolean; onPackageClick?: (packageName: string) => void }) {
   const { t } = useI18n();
+  const packageNameFromManifest = (manifest: string) => manifest
+    .replace(/ \(root\)$/, '')
+    .split(/[\\/]/)
+    .pop()
+    ?.replace(/\.json$/i, '') || manifest;
+
   return (
     <Show when={!props.loading} fallback={
       <div class="flex items-center gap-2 py-4">
@@ -62,16 +70,15 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
           <div class="grid grid-cols-2 gap-1 text-xs">
             <For each={props.manifests}>
               {(manifest) => {
-                // Clean up manifest name (remove (root) suffix if present)
-                const cleanName = manifest.replace(/ \(root\)$/, '');
+                const packageName = packageNameFromManifest(manifest);
                 return (
                   <button
                     type="button"
                     class="text-start hover:text-primary cursor-pointer py-0.5 px-1 rounded hover:bg-base-300 transition-colors"
-                    onClick={() => props.onPackageClick?.(cleanName)}
-                    title={t("modal.bucket.viewPackageInfo", { name: cleanName })}
+                    onClick={() => props.onPackageClick?.(packageName)}
+                    title={t("modal.bucket.viewPackageInfo", { name: packageName })}
                   >
-                    {manifest}
+                    {packageName}
                   </button>
                 );
               }}
@@ -176,7 +183,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
   const orderedDetails = createMemo(() => {
     if (!props.bucket) return [];
 
-    const details: [string, string | number | undefined][] = [
+    const details: [BucketDetailKey, string | number | undefined][] = [
       ['Name', props.bucket.name],
       ['Type', props.bucket.is_git_repo ? t("modal.bucket.gitRepo") : t("modal.bucket.localDir")],
       ['Manifests', props.bucket.manifest_count],
@@ -188,6 +195,19 @@ function BucketInfoModal(props: BucketInfoModalProps) {
     // Filter out undefined values
     return details.filter(([_, value]) => value !== undefined && value !== null);
   });
+
+  const detailLabel = (key: BucketDetailKey) => {
+    const labels: Record<BucketDetailKey, string> = {
+      "Name": t("modal.bucket.name"),
+      "Type": t("modal.bucket.type"),
+      "Manifests": t("modal.bucket.manifests"),
+      "Branch": t("modal.bucket.branch"),
+      "Last Updated": t("modal.bucket.lastUpdated"),
+      "Path": t("modal.bucket.path"),
+    };
+
+    return labels[key];
+  };
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return t("common.unknown");
@@ -382,7 +402,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                     {([key, value]) => (
                       <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                         <div class="font-semibold text-base-content/70 capitalize col-span-1">
-                          {key.replace(/([A-Z])/g, ' $1')}:
+                          {detailLabel(key)}:
                         </div>
                         <div class="col-span-2">
                           <Switch fallback={<DetailValue value={value} />}>

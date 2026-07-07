@@ -131,7 +131,9 @@ fn get_app_status(
     if install_info_path.exists() {
         if let Ok(content) = fs::read_to_string(install_info_path) {
             if let Ok(install_info) = serde_json::from_str::<InstallInfo>(&content) {
-                if install_info.hold.unwrap_or(false) {
+                if install_info.hold.unwrap_or(false)
+                    && !info.iter().any(|item| item == "Held package")
+                {
                     info.push("Held package".to_string());
                 }
             }
@@ -154,6 +156,13 @@ fn get_app_status(
         is_deprecated,
         is_removed,
     }))
+}
+
+fn is_actionable_status_issue(app_status: &AppStatusInfo) -> bool {
+    app_status.is_failed
+        || app_status.is_deprecated
+        || app_status.is_removed
+        || (app_status.is_outdated && !app_status.is_held)
 }
 
 /// Get all local bucket directories
@@ -237,10 +246,10 @@ pub async fn check_scoop_status<R: Runtime>(
         }
     }
 
-    let is_everything_ok = !scoop_needs_update
-        && !bucket_needs_update
-        && !network_failure
-        && apps_with_issues.is_empty();
+    let has_app_issues = apps_with_issues.iter().any(is_actionable_status_issue);
+
+    let is_everything_ok =
+        !scoop_needs_update && !bucket_needs_update && !network_failure && !has_app_issues;
 
     Ok(ScoopStatus {
         scoop_needs_update,

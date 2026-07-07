@@ -34,12 +34,12 @@ function SettingsPage(props: SettingsPageProps) {
     let aboutSectionRef: AboutSectionRef | undefined;
 
     const TABS = [
-        { key: 'automation', label: t("settings.tabAutomation") },
-        { key: 'management', label: t("settings.tabManagement") },
-        { key: 'security', label: t("settings.tabSecurity") },
-        { key: 'window', label: t("settings.tabWindow") },
-        { key: 'tray', label: t("settings.tabTray") },
-        { key: 'about', label: t("settings.tabAbout") },
+        { key: 'automation', labelKey: "settings.tabAutomation" },
+        { key: 'management', labelKey: "settings.tabManagement" },
+        { key: 'security', labelKey: "settings.tabSecurity" },
+        { key: 'window', labelKey: "settings.tabWindow" },
+        { key: 'tray', labelKey: "settings.tabTray" },
+        { key: 'about', labelKey: "settings.tabAbout" },
     ];
     const [activeTab, setActiveTab] = createSignal<string>('automation');
     const activeIndex = () => TABS.findIndex(tab => tab.key === activeTab());
@@ -116,7 +116,7 @@ function SettingsPage(props: SettingsPageProps) {
                                 aria-controls={panelId(tab.key)}
                                 tabindex={activeTab() === tab.key ? 0 : -1}
                             >
-                                {tab.label}
+                                {t(tab.labelKey)}
                             </button>
                         )}
                     </For>

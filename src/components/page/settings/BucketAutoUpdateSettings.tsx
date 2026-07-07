@@ -76,6 +76,12 @@ export default function BucketAutoUpdateSettings() {
 
     const isPreset = () => PRESET_VALUES.some(p => p.value === settings.buckets.autoUpdateInterval);
     const isCustom = () => !isPreset() && settings.buckets.autoUpdateInterval !== "off";
+    const presetLabel = (value: BucketAutoUpdateInterval) => {
+        if (value === "off") return t("settings.bucketUpdate.off");
+        if (value === "24h") return t("settings.bucketUpdate.every24h");
+        if (value === "7d") return t("settings.bucketUpdate.every7d");
+        return value;
+    };
 
     onMount(() => {
         fetchInterval();
@@ -116,7 +122,7 @@ export default function BucketAutoUpdateSettings() {
                                 setShowCustom(false);
                             }}
                         >
-                            {opt.value === "off" ? t("settings.bucketUpdate.off") : opt.value}
+                            {presetLabel(opt.value)}
                         </button>
                     ))}
                     <button
@@ -291,7 +297,8 @@ function CustomIntervalEditor(props: CustomIntervalEditorProps) {
 // --- Active badge ---
 
 function ActiveBadge(props: { value: BucketAutoUpdateInterval }) {
-    const label = () => formatInterval(props.value);
+    const { t } = useI18n();
+    const label = () => formatInterval(props.value, t);
     return (
         <span class="text-xs font-medium px-2 py-1 rounded bg-base-100 text-base-content/70">
             {label()}
@@ -299,21 +306,29 @@ function ActiveBadge(props: { value: BucketAutoUpdateInterval }) {
     );
 }
 
-function formatInterval(raw: BucketAutoUpdateInterval): string {
-    if (!raw || raw === "off") return "Off";
-    if (raw === "24h" || raw === "1d") return "24h";
-    if (raw === "7d" || raw === "1w") return "7d";
-    if (raw === "1h") return "1h";
-    if (raw === "6h") return "6h";
+function formatInterval(raw: BucketAutoUpdateInterval, t: (key: string) => string): string {
+    if (!raw || raw === "off") return t("settings.bucketUpdate.off");
+    if (raw === "24h" || raw === "1d") return t("settings.bucketUpdate.every24h");
+    if (raw === "7d" || raw === "1w") return t("settings.bucketUpdate.every7d");
+    if (raw === "1h") return formatDuration(1, "settings.bucketUpdate.unitHr", t);
+    if (raw === "6h") return formatDuration(6, "settings.bucketUpdate.unitHr", t);
     if (raw.startsWith("custom:")) {
         const secs = parseInt(raw.substring(7), 10);
-        if (!Number.isFinite(secs) || secs <= 0) return "Custom";
-        if (secs % 604800 === 0) return `${secs / 604800}w`;
-        if (secs % 86400 === 0) return `${secs / 86400}d`;
-        if (secs % 3600 === 0) return `${secs / 3600}h`;
-        if (secs % 60 === 0) return `${secs / 60}m`;
-        return `${secs}s`;
+        if (!Number.isFinite(secs) || secs <= 0) return t("settings.bucketUpdate.custom");
+        return formatSeconds(secs, t);
     }
-    if (/^\d+$/.test(raw)) return `${raw}s`;
+    if (/^\d+$/.test(raw)) return formatSeconds(parseInt(raw, 10), t);
     return raw;
+}
+
+function formatSeconds(secs: number, t: (key: string) => string): string {
+    if (secs % 604800 === 0) return formatDuration(secs / 604800, "settings.bucketUpdate.unitWk", t);
+    if (secs % 86400 === 0) return formatDuration(secs / 86400, "settings.bucketUpdate.unitDays", t);
+    if (secs % 3600 === 0) return formatDuration(secs / 3600, "settings.bucketUpdate.unitHr", t);
+    if (secs % 60 === 0) return formatDuration(secs / 60, "settings.bucketUpdate.unitMin", t);
+    return formatDuration(secs, "settings.bucketUpdate.unitSec", t);
+}
+
+function formatDuration(value: number, unitKey: string, t: (key: string) => string): string {
+    return `${value} ${t(unitKey)}`;
 }

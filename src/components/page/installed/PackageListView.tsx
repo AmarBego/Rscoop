@@ -79,7 +79,7 @@ function PackageListView(props: PackageListViewProps) {
                     <button class="btn btn-ghost btn-sm" onClick={() => props.onViewInfo(pkg)}>
                       {pkg.name}
                     </button>
-                    <Show when={pkg.available_version && !heldStore.isHeld(pkg.name) && !pkg.is_versioned_install}>
+                    <Show when={pkg.available_version && !pkg.is_versioned_install}>
                       <div class="tooltip" data-tip={t("installed.updateAvailable", { version: pkg.available_version ?? "" })}>
                         <CircleArrowUp class="w-4 h-4 text-primary" />
                       </div>

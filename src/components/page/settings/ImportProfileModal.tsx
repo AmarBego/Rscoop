@@ -78,7 +78,7 @@ export default function ImportProfileModal(props: Props) {
     const handleFilePick = async () => {
         const path = await open({
             multiple: false,
-            filters: [{ name: "Profile JSON", extensions: ["json"] }],
+            filters: [{ name: t("settings.exim.import.profileJsonFilter"), extensions: ["json"] }],
         });
         if (!path || Array.isArray(path)) return;
         try {
@@ -118,7 +118,7 @@ export default function ImportProfileModal(props: Props) {
                 setTimeout(closeAndReset, 800);
             }
         } catch (e) {
-            setError(getErrorMessage(e));
+            setError(t("settings.exim.import.error", { error: getErrorMessage(e) }));
         } finally {
             setBusy(false);
         }
@@ -174,7 +174,7 @@ export default function ImportProfileModal(props: Props) {
                     <textarea
                         class="textarea textarea-bordered w-full font-mono text-xs leading-relaxed"
                         rows={8}
-                        placeholder={'{\n  "schema": "1.0",\n  ...\n}'}
+                        placeholder={t("settings.exim.import.placeholder")}
                         value={json()}
                         onInput={(e) => handleJsonChange(e.currentTarget.value)}
                     />
@@ -196,7 +196,7 @@ export default function ImportProfileModal(props: Props) {
                                 </div>
                                 <div class="flex-1" />
                                 <span class="badge badge-sm badge-ghost font-mono">
-                                    schema v{s().schema}
+                                    {t("common.schemaVersion", { version: s().schema })}
                                 </span>
                             </div>
 

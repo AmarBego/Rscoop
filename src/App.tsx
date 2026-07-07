@@ -64,7 +64,7 @@ function App() {
             await relaunch();
         } catch (e) {
             console.error("Failed to install update", getErrorMessage(e));
-            setError("Failed to install the update. Please try restarting the application.");
+            setError(i18n.t("app.updateInstallError"));
             setIsInstalling(false);
         }
     };
@@ -188,7 +188,7 @@ function App() {
                     setTimeout(() => { triggerUpdateCheck(); }, 150);
                 } else {
                     setError(
-                        "Scoop initialization failed. Please make sure Scoop is installed correctly and restart."
+                        i18n.t("app.startupError")
                     );
                     setReadyFlag("false");
                 }
@@ -217,35 +217,35 @@ function App() {
 
             <Show when={update() && !error() && !isScoopInstalled()}>
                 <div class="bg-sky-600 text-white p-2 text-center text-sm flex justify-center items-center gap-4">
-                    <span>An update to version {update()!.version} is available.</span>
+                    <span>{i18n.t("app.updateAvailable", { version: update()!.version })}</span>
                     <button
                         class="bg-sky-800 hover:bg-sky-900 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isInstalling()}
                         onClick={handleInstallUpdate}
                     >
-                        {isInstalling() ? "Installing..." : "Install Now"}
+                        {isInstalling() ? i18n.t("about.updateInstalling") : i18n.t("about.installNow")}
                     </button>
                     <button
                         class="hover:bg-sky-700 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50"
                         disabled={isInstalling()}
                         onClick={() => setUpdate(null)}
                     >
-                        Later
+                        {i18n.t("about.later")}
                     </button>
                 </div>
             </Show>
 
             <Show when={!isReady() && !error()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
-                    <h1 class="text-2xl font-bold mb-4">rScoop</h1>
-                    <p>Getting things ready...</p>
+                    <h1 class="text-2xl font-bold mb-4">{i18n.t("app.name")}</h1>
+                    <p>{i18n.t("app.gettingReady")}</p>
                     <span class="loading loading-spinner loading-lg mt-4"></span>
                 </div>
             </Show>
 
             <Show when={error()}>
                 <div class="flex flex-col items-center justify-center h-screen bg-base-100">
-                    <h1 class="text-2xl font-bold text-error mb-4">Error</h1>
+                    <h1 class="text-2xl font-bold text-error mb-4">{i18n.t("common.error")}</h1>
                     <p>{error()}</p>
                 </div>
             </Show>
@@ -277,21 +277,6 @@ function App() {
                                 <DoctorPage />
                             </Show>
                         </main>
-                    </div>
-                    <div class="drawer-side">
-                        <label
-                            for="my-drawer"
-                            aria-label="close sidebar"
-                            class="drawer-overlay"
-                        ></label>
-                        <ul class="menu p-4 w-80 min-h-full bg-base-200 text-base-content">
-                            <li>
-                                <a>Sidebar Item 1</a>
-                            </li>
-                            <li>
-                                <a>Sidebar Item 2</a>
-                            </li>
-                        </ul>
                     </div>
                 </div>
                 <DebugModal />

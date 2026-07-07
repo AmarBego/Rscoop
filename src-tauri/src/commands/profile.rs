@@ -133,6 +133,7 @@ const RSCOOP_SETTING_KEYS: &[&str] = &[
     "buckets.autoUpdateInterval",
     "buckets.autoUpdatePackagesEnabled",
     "operations.backgroundByDefault",
+    "language",
     "shell.pwshEnabled",
 ];
 

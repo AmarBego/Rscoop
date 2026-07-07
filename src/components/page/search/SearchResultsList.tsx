@@ -16,6 +16,8 @@ interface SearchResultsListProps {
 function SearchResultsList(props: SearchResultsListProps) {
     const { t } = useI18n();
     const [queued, setQueued] = createSignal<Set<string>>(new Set());
+    const resultType = () =>
+        props.activeTab === "packages" ? t("search.type.packages") : t("search.type.includes");
 
     const flashQueued = (name: string) => {
         setQueued(prev => new Set([...prev, name]));
@@ -39,7 +41,7 @@ function SearchResultsList(props: SearchResultsListProps) {
             >
                 <div class="text-center py-16">
                     <p class="text-xl">
-                        {t("search.noResults", { type: props.activeTab === "packages" ? "packages" : "includes", term: props.searchTerm })}
+                        {t("search.noResults", { type: resultType(), term: props.searchTerm })}
                     </p>
                 </div>
             </Show>

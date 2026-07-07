@@ -19,15 +19,22 @@ interface BucketSearchResultsProps {
 }
 
 function BucketSearchResults(props: BucketSearchResultsProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const bucketInstall = useBucketInstall();
   const [operationError, setOperationError] = createSignal<string | null>(null);
-  const formatNumber = (num: number) => {
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'k';
-    }
-    return num.toString();
-  };
+  const formatNumber = (num: number) =>
+    new Intl.NumberFormat(locale(), {
+      maximumFractionDigits: 1,
+      notation: "compact",
+    }).format(num);
+
+  const resultsSummary = () =>
+    props.totalCount > props.buckets.length
+      ? t("buckets.resultsShownPartial", {
+          count: String(props.buckets.length),
+          total: String(props.totalCount),
+        })
+      : t("buckets.resultsShown", { count: String(props.buckets.length) });
 
   // Check if a bucket is installed locally
   const isBucketInstalled = (bucketName: string) => {
@@ -96,7 +103,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
           {t("buckets.searchResults")}
           <Show when={props.buckets.length > 0}>
             <span class="text-base-content/60 ms-2 text-lg font-normal">
-              ({props.buckets.length}{props.totalCount > props.buckets.length ? ` of ${props.totalCount}` : ''})
+              {resultsSummary()}
             </span>
           </Show>
         </h2>

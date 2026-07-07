@@ -369,7 +369,7 @@
   "modal.scoopStatus.bucketsOutOfDate": "مخزن(ها) Scoop قدیمی هستند. برای گرفتن آخرین تغییرات روی 'رفتن به مخازن' کلیک کنید.",
   "modal.scoopStatus.networkFailure": "مشکل شبکه هنگام بررسی به‌روزرسانی رخ داد.",
   "modal.scoopStatus.appsWithIssues": "برنامه‌های دارای مشکل:",
-  "modal.scoopStatus.heldPackagesWithUpdates": "بسته‌های قفل شده‌ی دارای بروزرسانی:",
+  "modal.scoopStatus.heldPackagesWithUpdates": "بسته‌های قفل‌شده دارای به‌روزرسانی:",
   "modal.scoopStatus.allGood": "Scoop به‌روز است و همه بسته‌ها در وضعیت خوبی هستند!",
   "modal.scoopStatus.tableName": "نام",
   "modal.scoopStatus.tableInstalled": "نصب‌شده",
