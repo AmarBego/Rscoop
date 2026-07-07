@@ -237,6 +237,7 @@
   "settings.bucketUpdate.autoUpdatePackages": "Auto-update packages",
   "settings.bucketUpdate.autoUpdatePackagesDescription": "Update all packages after each bucket refresh.",
   "settings.bucketUpdate.debug10s": "Debug: 10s interval",
+  "settings.bucketUpdate.unitSec": "sec",
   "settings.bucketUpdate.unitMin": "min",
   "settings.bucketUpdate.unitHr": "hr",
   "settings.bucketUpdate.unitDays": "days",

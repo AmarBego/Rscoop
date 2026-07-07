@@ -1,6 +1,7 @@
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
+import i18n from "../i18n";
 import { View } from "../types/scoop";
 import { getErrorMessage } from "../utils/errors";
 import { SETTINGS_STORAGE_KEY } from "./settingsStorage";
@@ -150,6 +151,7 @@ function createSettingsStore() {
 
       if (typeof persistedLanguage === "string" && persistedLanguage) {
         saveSettings({ language: persistedLanguage });
+        i18n.setLanguage(persistedLanguage);
       } else {
         await invoke("set_config_value", { key: LANGUAGE_CONFIG_KEY, value: initial.language });
       }

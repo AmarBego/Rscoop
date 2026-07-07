@@ -402,7 +402,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                     {([key, value]) => (
                       <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                         <div class="font-semibold text-base-content/70 capitalize col-span-1">
-                          {detailLabel(key)}
+                          {detailLabel(key)}:
                         </div>
                         <div class="col-span-2">
                           <Switch fallback={<DetailValue value={value} />}>
