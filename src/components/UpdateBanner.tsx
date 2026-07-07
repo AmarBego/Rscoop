@@ -10,6 +10,17 @@ import { getErrorMessage } from "../utils/errors";
 
 const LAST_SEEN_KEY = "app.lastSeenVersion";
 
+function paragraphHtml(text: string) {
+  const escaped = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+  return `<p>${escaped}</p>`;
+}
+
 export default function UpdateBanner() {
   const { t } = useI18n();
   const [version, setVersion] = createSignal<string | null>(null);
@@ -67,11 +78,11 @@ export default function UpdateBanner() {
         const html = await Promise.resolve(marked.parse(md));
         setNotesHtml(html);
       } else {
-        setNotesHtml("<p>No release notes available for this version.</p>");
+        setNotesHtml(paragraphHtml(t("update.noReleaseNotes")));
       }
     } catch (e) {
       console.error("Failed to load release notes:", getErrorMessage(e));
-      setNotesHtml("<p>Failed to load release notes.</p>");
+      setNotesHtml(paragraphHtml(t("update.releaseNotesLoadError")));
     } finally {
       setLoadingNotes(false);
     }

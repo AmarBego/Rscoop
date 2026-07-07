@@ -28,8 +28,8 @@ type ExportAction = "copy" | "json" | "script";
 interface Group {
     id: GroupId;
     cat: "scoop" | "rscoop";
-    title: string;
-    sub: string;
+    titleKey: string;
+    subKey: string;
     count: string;
     size: string;
     scoopCompat: boolean;
@@ -38,11 +38,11 @@ interface Group {
 
 // Mirrors the categories from the design's exim-data.js.
 const GROUPS: Group[] = [
-    { id: "apps", cat: "scoop", title: "Installed apps", sub: "name, bucket, version", count: "apps", size: "~12 KB", scoopCompat: true, sensitive: false },
-    { id: "buckets", cat: "scoop", title: "Buckets", sub: "name + git source URL", count: "buckets", size: "~1 KB", scoopCompat: true, sensitive: false },
-    { id: "holds", cat: "scoop", title: "Held / pinned packages", sub: "version-locked apps", count: "holds", size: "<1 KB", scoopCompat: true, sensitive: false },
-    { id: "scoopConfig", cat: "scoop", title: "Scoop global config", sub: "~/.config/scoop/config.json", count: "keys", size: "~2 KB", scoopCompat: false, sensitive: true },
-    { id: "rscoopSettings", cat: "rscoop", title: "rScoop preferences", sub: "window, cleanup, updates, operations, path", count: "settings", size: "~1 KB", scoopCompat: false, sensitive: false },
+    { id: "apps", cat: "scoop", titleKey: "settings.exim.group.apps.title", subKey: "settings.exim.group.apps.sub", count: "apps", size: "~12 KB", scoopCompat: true, sensitive: false },
+    { id: "buckets", cat: "scoop", titleKey: "settings.exim.group.buckets.title", subKey: "settings.exim.group.buckets.sub", count: "buckets", size: "~1 KB", scoopCompat: true, sensitive: false },
+    { id: "holds", cat: "scoop", titleKey: "settings.exim.group.holds.title", subKey: "settings.exim.group.holds.sub", count: "holds", size: "<1 KB", scoopCompat: true, sensitive: false },
+    { id: "scoopConfig", cat: "scoop", titleKey: "settings.exim.group.scoopConfig.title", subKey: "settings.exim.group.scoopConfig.sub", count: "keys", size: "~2 KB", scoopCompat: false, sensitive: true },
+    { id: "rscoopSettings", cat: "rscoop", titleKey: "settings.exim.group.rscoopSettings.title", subKey: "settings.exim.group.rscoopSettings.sub", count: "settings", size: "~1 KB", scoopCompat: false, sensitive: false },
 ];
 
 interface Props {
@@ -113,7 +113,7 @@ export default function ExportProfileModal(props: Props) {
             const json = await exportContent("export_profile");
             const path = await save({
                 defaultPath: suggestedName(),
-                filters: [{ name: "Profile JSON", extensions: ["json"] }],
+                filters: [{ name: t("settings.exim.export.profileJsonFilter"), extensions: ["json"] }],
             });
             if (!path) {
                 return;
@@ -122,7 +122,7 @@ export default function ExportProfileModal(props: Props) {
             setSavedPath(path);
             setSavedLabel(t("settings.exim.export.savedOk"));
         } catch (e) {
-            setError(getErrorMessage(e));
+            setError(t("settings.exim.export.error", { error: getErrorMessage(e) }));
         } finally {
             setBusyAction(null);
         }
@@ -137,7 +137,7 @@ export default function ExportProfileModal(props: Props) {
             const script = await exportContent("export_profile_setup_script");
             const path = await save({
                 defaultPath: setupScriptName(),
-                filters: [{ name: "PowerShell Script", extensions: ["ps1"] }],
+                filters: [{ name: t("settings.exim.export.powerShellScriptFilter"), extensions: ["ps1"] }],
             });
             if (!path) {
                 return;
@@ -146,7 +146,7 @@ export default function ExportProfileModal(props: Props) {
             setSavedPath(path);
             setSavedLabel(t("settings.exim.export.scriptSavedOk"));
         } catch (e) {
-            setError(getErrorMessage(e));
+            setError(t("settings.exim.export.error", { error: getErrorMessage(e) }));
         } finally {
             setBusyAction(null);
         }
@@ -168,7 +168,7 @@ export default function ExportProfileModal(props: Props) {
                 setSavedLabel(null);
             }, 2000);
         } catch (e) {
-            setError(getErrorMessage(e));
+            setError(t("settings.exim.export.error", { error: getErrorMessage(e) }));
         } finally {
             setBusyAction(null);
         }
@@ -201,7 +201,7 @@ export default function ExportProfileModal(props: Props) {
             size="large"
             headerAction={
                 <span class="badge badge-sm badge-ghost font-mono">
-                    schema v{SCHEMA_VERSION}
+                    {t("common.schemaVersion", { version: SCHEMA_VERSION })}
                 </span>
             }
             footer={
@@ -276,7 +276,7 @@ export default function ExportProfileModal(props: Props) {
                         </div>
                         <Show
                             when={onlyScoopShape()}
-                            fallback={<span>rScoop JSON</span>}
+                            fallback={<span>{t("settings.exim.export.rscoopJson")}</span>}
                         >
                             <span>{t("settings.exim.export.scoopCompat")}</span>
                         </Show>
@@ -400,9 +400,9 @@ function GroupRow(p: {
                 />
                 <span class="min-w-0">
                     <span class="flex flex-wrap items-center gap-2 text-sm font-medium">
-                        {p.group.title}
+                        {t(p.group.titleKey)}
                         <Show when={p.group.scoopCompat}>
-                            <span class="badge badge-xs badge-primary">scoop</span>
+                            <span class="badge badge-xs badge-primary">{t("settings.exim.export.scoopBadge")}</span>
                         </Show>
                         <Show when={p.group.sensitive}>
                             <span class="badge badge-xs badge-warning">
@@ -411,7 +411,7 @@ function GroupRow(p: {
                         </Show>
                     </span>
                     <span class="block text-[11px] text-base-content/60 mt-0.5">
-                        {p.group.sub}
+                        {t(p.group.subKey)}
                     </span>
                 </span>
             </label>

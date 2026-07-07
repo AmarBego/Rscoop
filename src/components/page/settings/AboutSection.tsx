@@ -56,7 +56,7 @@ export default function AboutSection(props: AboutSectionProps) {
         // Only show dialog if user manually clicked "Check for updates"
         if (manual) {
           const shouldInstall = await ask(
-            t("about.updateDialogText", { version: update.version, notes: update.body || 'No release notes provided' }),
+            t("about.updateDialogText", { version: update.version, notes: update.body || t("about.noReleaseNotesProvided") }),
             {
               title: t("about.updateDialogTitle"),
               kind: "info",
@@ -82,7 +82,7 @@ export default function AboutSection(props: AboutSectionProps) {
       const errorMsg = getErrorMessage(error);
       console.error('Failed to check for updates:', errorMsg);
       setUpdateStatus('error');
-      setUpdateError(errorMsg);
+      setUpdateError(t("about.updateCheckError", { error: errorMsg }));
     }
   };
 
@@ -90,7 +90,7 @@ export default function AboutSection(props: AboutSectionProps) {
     try {
       const update = updateInfo();
       if (!update) {
-        throw new Error("No update information available");
+        throw new Error(t("about.noUpdateInformation"));
       }
 
       setUpdateStatus('downloading');
@@ -132,7 +132,7 @@ export default function AboutSection(props: AboutSectionProps) {
       const errorMsg = getErrorMessage(error);
       console.error('Failed to install update:', errorMsg);
       setUpdateStatus('error');
-      setUpdateError(errorMsg);
+      setUpdateError(t("about.updateInstallError", { error: errorMsg }));
     }
   };
 

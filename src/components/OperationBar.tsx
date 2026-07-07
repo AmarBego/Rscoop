@@ -22,6 +22,17 @@ const LineWithLinks = (props: { line: string }) => {
   );
 };
 
+const phaseLabelKeys: Record<string, string> = {
+  downloading: "operation.phase.downloading",
+  extracting: "operation.phase.extracting",
+  installing: "operation.phase.installing",
+  updating: "operation.phase.updating",
+  uninstalling: "operation.phase.uninstalling",
+  verifying: "operation.phase.verifying",
+  updating_buckets: "operation.phase.updatingBuckets",
+  running_hook: "operation.phase.runningHook",
+};
+
 function OperationBar() {
   const { t } = useI18n();
   const op = () => operationsStore.current();
@@ -58,6 +69,9 @@ function OperationBar() {
 
   // Mirrors `formatPhase` in OperationModal.
   const formatPhase = (hint: string): string => {
+    const key = phaseLabelKeys[hint];
+    if (key) return t(key);
+
     const words = hint.replace(/_/g, " ").split(" ").filter(Boolean);
     if (words.length === 0) return "";
     const head = words[0].charAt(0).toUpperCase() + words[0].slice(1);

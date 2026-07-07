@@ -1,4 +1,5 @@
 import { JSX, Show } from "solid-js";
+import { useI18n } from "../../i18n";
 
 interface SettingsToggleProps {
     checked: boolean;
@@ -21,11 +22,13 @@ interface SettingsToggleProps {
 }
 
 export default function SettingsToggle(props: SettingsToggleProps) {
+    const { t } = useI18n();
+
     return (
         <label class={`label cursor-pointer ${props.className ?? ""}`}>
             <Show when={props.showStatusLabel}>
                 <span class="label-text me-4">
-                    {props.checked ? "Enabled" : "Disabled"}
+                    {props.checked ? t("common.enabled") : t("common.disabled")}
                 </span>
             </Show>
             {props.children}
