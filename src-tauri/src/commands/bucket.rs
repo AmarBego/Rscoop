@@ -152,33 +152,19 @@ pub async fn get_bucket_manifests<R: Runtime>(
         validate_scoop_child_dir(&state.scoop_path().join("buckets"), &bucket_name, "Bucket")?;
 
     let mut manifests = Vec::new();
-
-    // Check for manifests in the root of the bucket
-    if let Ok(entries) = fs::read_dir(&bucket_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    // Skip certain files that aren't package manifests
-                    if !file_stem.starts_with('.') && file_stem != "bucket" {
-                        manifests.push(format!("{} (root)", file_stem));
-                    }
-                }
-            }
-        }
-    }
-
-    // Always check the bucket/ subdirectory as well (many buckets primarily use this structure)
     let bucket_subdir = bucket_path.join("bucket");
-    if bucket_subdir.is_dir() {
-        if let Ok(entries) = fs::read_dir(bucket_subdir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                    if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
-                        manifests.push(file_stem.to_string());
-                    }
-                }
+
+    for path in utils::bucket_manifest_paths(&bucket_path) {
+        if path.parent() == Some(bucket_path.as_path()) {
+            if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                manifests.push(format!("{} (root)", file_stem));
+            }
+            continue;
+        }
+
+        if path.strip_prefix(&bucket_subdir).is_ok() {
+            if let Some(file_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                manifests.push(file_stem.to_string());
             }
         }
     }

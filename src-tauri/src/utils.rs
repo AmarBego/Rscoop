@@ -370,16 +370,8 @@ pub fn locate_package_manifest(
                 .to_string_lossy()
                 .to_string();
 
-            let manifest_filename = format!("{}.json", package_name);
-
-            let manifest_path = bucket_path.join(&manifest_filename);
-            if manifest_path.exists() {
+            if let Some(manifest_path) = find_manifest_in_bucket(&bucket_path, package_name) {
                 return Ok((manifest_path, bucket_name));
-            }
-
-            let nested_manifest_path = bucket_path.join("bucket").join(&manifest_filename);
-            if nested_manifest_path.exists() {
-                return Ok((nested_manifest_path, bucket_name));
             }
         }
         Err(format!("Package '{}' not found.", package_name))
@@ -740,40 +732,383 @@ pub fn is_cwd_mismatch() -> bool {
     }
 }
 
-/// Counts the number of manifest (.json) files in a bucket directory.
-/// Handles both flat structure and bucket/ subdirectory structure.
-pub fn count_manifests(bucket_path: &std::path::Path) -> u32 {
-    let mut count = 0;
+fn is_visible_json_file(path: &Path) -> bool {
+    path.is_file()
+        && path.extension().and_then(|s| s.to_str()) == Some("json")
+        && path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|file_name| !file_name.starts_with('.'))
+            .unwrap_or(false)
+}
 
-    // Check for manifests in the root of the bucket
-    if let Ok(entries) = fs::read_dir(bucket_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                // Skip certain files that aren't package manifests
-                if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-                    if !file_name.starts_with('.') && file_name != "bucket.json" {
-                        count += 1;
-                    }
-                }
+fn is_root_manifest_file(path: &Path) -> bool {
+    is_visible_json_file(path)
+        && path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|file_name| file_name != "bucket.json")
+            .unwrap_or(false)
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &fs::Metadata) -> bool {
+    false
+}
+
+fn is_traversable_manifest_dir(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|metadata| {
+            metadata.is_dir() && !metadata.file_type().is_symlink() && !is_reparse_point(&metadata)
+        })
+        .unwrap_or(false)
+}
+
+fn sorted_dir_entries(dir: &Path) -> Vec<PathBuf> {
+    let mut entries = fs::read_dir(dir)
+        .map(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .map(|entry| entry.path())
+                .collect()
+        })
+        .unwrap_or_else(|_| Vec::new());
+
+    entries.sort();
+    entries
+}
+
+fn collect_direct_manifest_paths(dir: &Path, manifests: &mut Vec<PathBuf>) {
+    for path in sorted_dir_entries(dir) {
+        if is_root_manifest_file(&path) {
+            manifests.push(path);
+        }
+    }
+}
+
+const MAX_MANIFEST_RECURSION_DEPTH: usize = 64;
+
+fn should_enter_manifest_dir(dir: &Path, visited: &mut HashSet<PathBuf>) -> bool {
+    if !is_traversable_manifest_dir(dir) {
+        return false;
+    }
+
+    match dir.canonicalize() {
+        Ok(canonical) => visited.insert(canonical),
+        Err(err) => {
+            log::debug!(
+                "Skipping manifest directory '{}': failed to resolve path: {}",
+                dir.display(),
+                err
+            );
+            false
+        }
+    }
+}
+
+fn collect_recursive_manifest_paths(
+    dir: &Path,
+    manifests: &mut Vec<PathBuf>,
+    visited: &mut HashSet<PathBuf>,
+    depth: usize,
+) {
+    if depth > MAX_MANIFEST_RECURSION_DEPTH {
+        log::warn!(
+            "Skipping manifest directory '{}' because nested bucket depth exceeded {}",
+            dir.display(),
+            MAX_MANIFEST_RECURSION_DEPTH
+        );
+        return;
+    }
+
+    if !should_enter_manifest_dir(dir, visited) {
+        return;
+    }
+
+    for path in sorted_dir_entries(dir) {
+        if is_traversable_manifest_dir(&path) {
+            collect_recursive_manifest_paths(&path, manifests, visited, depth + 1);
+        } else if is_visible_json_file(&path) {
+            manifests.push(path);
+        }
+    }
+}
+
+fn find_manifest_recursive(
+    dir: &Path,
+    manifest_filename: &str,
+    visited: &mut HashSet<PathBuf>,
+    depth: usize,
+) -> Option<PathBuf> {
+    if depth > MAX_MANIFEST_RECURSION_DEPTH {
+        log::warn!(
+            "Skipping manifest directory '{}' because nested bucket depth exceeded {}",
+            dir.display(),
+            MAX_MANIFEST_RECURSION_DEPTH
+        );
+        return None;
+    }
+
+    if !should_enter_manifest_dir(dir, visited) {
+        return None;
+    }
+
+    for path in sorted_dir_entries(dir) {
+        if is_traversable_manifest_dir(&path) {
+            if let Some(manifest_path) =
+                find_manifest_recursive(&path, manifest_filename, visited, depth + 1)
+            {
+                return Some(manifest_path);
             }
+        } else if is_visible_json_file(&path)
+            && path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|file_name| file_name.eq_ignore_ascii_case(manifest_filename))
+                .unwrap_or(false)
+        {
+            return Some(path);
         }
     }
 
-    // Always check the bucket/ subdirectory as well (many buckets primarily use this structure)
+    None
+}
+
+/// Finds every package manifest in a bucket.
+///
+/// Rscoop supports legacy flat manifests at the bucket root and Scoop's
+/// standard `bucket/` directory. The `bucket/` directory is searched
+/// recursively to match Scoop's subdir support.
+pub fn bucket_manifest_paths(bucket_path: &Path) -> Vec<PathBuf> {
+    let mut manifests = Vec::new();
+
+    collect_direct_manifest_paths(bucket_path, &mut manifests);
+
     let bucket_subdir = bucket_path.join("bucket");
-    if bucket_subdir.is_dir() {
-        if let Ok(entries) = fs::read_dir(bucket_subdir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("json") {
-                    count += 1;
-                }
-            }
+    if is_traversable_manifest_dir(&bucket_subdir) {
+        let mut visited = HashSet::new();
+        collect_recursive_manifest_paths(&bucket_subdir, &mut manifests, &mut visited, 0);
+    }
+
+    manifests
+}
+
+/// Locate a package manifest in a single bucket.
+///
+/// Direct matches keep the historical precedence: bucket root, then
+/// `bucket/<app>.json`, then recursive subdirectories under `bucket/`.
+pub fn find_manifest_in_bucket(bucket_path: &Path, package_name: &str) -> Option<PathBuf> {
+    let manifest_filename = format!("{}.json", package_name);
+
+    let manifest_path = bucket_path.join(&manifest_filename);
+    if is_root_manifest_file(&manifest_path) {
+        return Some(manifest_path);
+    }
+
+    let bucket_subdir = bucket_path.join("bucket");
+    if !is_traversable_manifest_dir(&bucket_subdir) {
+        return None;
+    }
+
+    let nested_manifest_path = bucket_subdir.join(&manifest_filename);
+    if is_visible_json_file(&nested_manifest_path) {
+        return Some(nested_manifest_path);
+    }
+
+    let mut visited = HashSet::new();
+    find_manifest_recursive(&bucket_subdir, &manifest_filename, &mut visited, 0)
+}
+
+/// Counts the number of package manifest (.json) files in a bucket directory.
+pub fn count_manifests(bucket_path: &std::path::Path) -> u32 {
+    bucket_manifest_paths(bucket_path).len() as u32
+}
+
+#[cfg(test)]
+mod manifest_tests {
+    use super::*;
+    use std::io;
+    use std::process;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDir {
+        path: PathBuf,
+    }
+
+    impl TempDir {
+        fn new(name: &str) -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system clock before Unix epoch")
+                .as_nanos();
+            let path =
+                env::temp_dir().join(format!("rscoop-{}-{}-{}", name, process::id(), unique));
+            fs::create_dir_all(&path).expect("create temp test directory");
+            Self { path }
         }
     }
 
-    count
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn write_manifest(path: &Path) {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).expect("create manifest parent");
+        }
+        fs::write(path, r#"{"version":"1.0.0"}"#).expect("write manifest");
+    }
+
+    fn relative_display(path: &Path, base: &Path) -> String {
+        path.strip_prefix(base)
+            .expect("manifest path under base")
+            .to_string_lossy()
+            .replace('\\', "/")
+    }
+
+    #[cfg(windows)]
+    fn symlink_dir(original: &Path, link: &Path) -> io::Result<()> {
+        std::os::windows::fs::symlink_dir(original, link)
+    }
+
+    #[cfg(unix)]
+    fn symlink_dir(original: &Path, link: &Path) -> io::Result<()> {
+        std::os::unix::fs::symlink(original, link)
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    fn symlink_dir(_original: &Path, _link: &Path) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "directory symlinks are not supported on this platform",
+        ))
+    }
+
+    #[test]
+    fn bucket_manifest_paths_include_nested_bucket_subdirs() {
+        let temp = TempDir::new("nested-manifests");
+        let bucket_path = temp.path.join("nested");
+        let bucket_named_manifest = bucket_path.join("bucket").join("bucket.json");
+
+        write_manifest(&bucket_path.join("root-app.json"));
+        fs::write(bucket_path.join("bucket.json"), "{}").expect("write bucket metadata");
+        write_manifest(&bucket_named_manifest);
+        write_manifest(&bucket_path.join("bucket").join("flat-app.json"));
+        write_manifest(&bucket_path.join("bucket").join("#").join("nested-app.json"));
+        write_manifest(&bucket_path.join("bucket").join("a").join("deeper-app.json"));
+        fs::write(bucket_path.join("bucket").join(".hidden.json"), "{}")
+            .expect("write hidden json");
+
+        let mut manifests = bucket_manifest_paths(&bucket_path)
+            .iter()
+            .map(|path| relative_display(path, &bucket_path))
+            .collect::<Vec<_>>();
+        manifests.sort();
+
+        assert_eq!(
+            manifests,
+            vec![
+                "bucket/#/nested-app.json",
+                "bucket/a/deeper-app.json",
+                "bucket/bucket.json",
+                "bucket/flat-app.json",
+                "root-app.json",
+            ]
+        );
+        assert_eq!(count_manifests(&bucket_path), 5);
+        assert_eq!(
+            find_manifest_in_bucket(&bucket_path, "bucket").as_deref(),
+            Some(bucket_named_manifest.as_path())
+        );
+    }
+
+    #[test]
+    fn find_manifest_in_bucket_prefers_legacy_locations() {
+        let temp = TempDir::new("manifest-precedence");
+        let bucket_path = temp.path.join("precedence");
+        let root_manifest = bucket_path.join("dupe.json");
+        let direct_manifest = bucket_path.join("bucket").join("dupe.json");
+        let nested_manifest = bucket_path.join("bucket").join("d").join("dupe.json");
+
+        write_manifest(&root_manifest);
+        write_manifest(&direct_manifest);
+        write_manifest(&nested_manifest);
+
+        assert_eq!(
+            find_manifest_in_bucket(&bucket_path, "dupe").as_deref(),
+            Some(root_manifest.as_path())
+        );
+
+        fs::remove_file(&root_manifest).expect("remove root manifest");
+        assert_eq!(
+            find_manifest_in_bucket(&bucket_path, "dupe").as_deref(),
+            Some(direct_manifest.as_path())
+        );
+
+        fs::remove_file(&direct_manifest).expect("remove direct manifest");
+        assert_eq!(
+            find_manifest_in_bucket(&bucket_path, "dupe").as_deref(),
+            Some(nested_manifest.as_path())
+        );
+    }
+
+    #[test]
+    fn recursive_manifest_scan_skips_directory_symlink_cycles() {
+        let temp = TempDir::new("manifest-cycle");
+        let bucket_path = temp.path.join("cycle");
+        let bucket_subdir = bucket_path.join("bucket");
+        let nested_dir = bucket_subdir.join("nested");
+
+        write_manifest(&nested_dir.join("real.json"));
+
+        if symlink_dir(&bucket_subdir, &nested_dir.join("cycle")).is_err() {
+            return;
+        }
+
+        let manifests = bucket_manifest_paths(&bucket_path)
+            .iter()
+            .map(|path| relative_display(path, &bucket_path))
+            .collect::<Vec<_>>();
+
+        assert_eq!(manifests, vec!["bucket/nested/real.json"]);
+        assert_eq!(
+            find_manifest_in_bucket(&bucket_path, "real").as_deref(),
+            Some(nested_dir.join("real.json").as_path())
+        );
+        assert!(find_manifest_in_bucket(&bucket_path, "missing").is_none());
+    }
+
+    #[test]
+    fn recursive_manifest_scan_has_depth_cap() {
+        let temp = TempDir::new("manifest-depth");
+        let bucket_path = temp.path.join("depth");
+        let bucket_subdir = bucket_path.join("bucket");
+        let mut deepest_dir = bucket_subdir.clone();
+
+        write_manifest(&bucket_subdir.join("visible.json"));
+        for depth in 0..=MAX_MANIFEST_RECURSION_DEPTH {
+            deepest_dir = deepest_dir.join(format!("d{}", depth));
+        }
+        write_manifest(&deepest_dir.join("too-deep.json"));
+
+        let manifests = bucket_manifest_paths(&bucket_path)
+            .iter()
+            .map(|path| relative_display(path, &bucket_path))
+            .collect::<Vec<_>>();
+
+        assert_eq!(manifests, vec!["bucket/visible.json"]);
+        assert!(find_manifest_in_bucket(&bucket_path, "too-deep").is_none());
+    }
 }
 
 // -----------------------------------------------------------------------------
