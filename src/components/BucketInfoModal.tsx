@@ -46,6 +46,12 @@ function DetailValue(props: { value: string | number | undefined }) {
 // Component to render manifest lists in a compact, scrollable form
 function ManifestsList(props: { manifests: string[]; loading: boolean; onPackageClick?: (packageName: string) => void }) {
   const { t } = useI18n();
+  const packageNameFromManifest = (manifest: string) => manifest
+    .replace(/ \(root\)$/, '')
+    .split(/[\\/]/)
+    .pop()
+    ?.replace(/\.json$/i, '') || manifest;
+
   return (
     <Show when={!props.loading} fallback={
       <div class="flex items-center gap-2 py-4">
@@ -62,16 +68,15 @@ function ManifestsList(props: { manifests: string[]; loading: boolean; onPackage
           <div class="grid grid-cols-2 gap-1 text-xs">
             <For each={props.manifests}>
               {(manifest) => {
-                // Clean up manifest name (remove (root) suffix if present)
-                const cleanName = manifest.replace(/ \(root\)$/, '');
+                const packageName = packageNameFromManifest(manifest);
                 return (
                   <button
                     type="button"
                     class="text-start hover:text-primary cursor-pointer py-0.5 px-1 rounded hover:bg-base-300 transition-colors"
-                    onClick={() => props.onPackageClick?.(cleanName)}
-                    title={t("modal.bucket.viewPackageInfo", { name: cleanName })}
+                    onClick={() => props.onPackageClick?.(packageName)}
+                    title={t("modal.bucket.viewPackageInfo", { name: packageName })}
                   >
-                    {manifest}
+                    {packageName}
                   </button>
                 );
               }}

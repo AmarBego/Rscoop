@@ -2,6 +2,7 @@
 use crate::commands::installed::get_installed_packages_full;
 use crate::models::{MatchSource, ScoopPackage, SearchResult};
 use crate::state::AppState;
+use crate::utils;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
@@ -20,37 +21,24 @@ pub struct CachedManifest {
 // Global cache for manifest content to avoid re-scanning the filesystem and re-parsing JSON on every search.
 static MANIFEST_CACHE: Lazy<Mutex<Option<Vec<CachedManifest>>>> = Lazy::new(|| Mutex::new(None));
 
-/// Finds all `.json` manifest files in a given bucket's `bucket` subdirectory.
-fn find_manifests_in_bucket(bucket_path: PathBuf) -> Vec<PathBuf> {
-    let manifests_path = bucket_path.join("bucket");
-    if !manifests_path.is_dir() {
-        return vec![];
-    }
-
-    match std::fs::read_dir(manifests_path) {
-        Ok(entries) => entries
-            .filter_map(Result::ok)
-            .filter(|entry| entry.path().extension().and_then(|s| s.to_str()) == Some("json"))
-            .map(|entry| entry.path())
-            .collect(),
-        Err(_) => vec![],
-    }
+/// Finds all `.json` manifest files in a given bucket.
+fn find_manifests_in_bucket(bucket_path: &Path) -> Vec<PathBuf> {
+    utils::bucket_manifest_paths(bucket_path)
 }
 
 /// Parses a Scoop package manifest file to extract package information and binary search strings.
-fn parse_package_from_manifest(path: &Path) -> Option<CachedManifest> {
+fn parse_package_from_manifest(path: &Path, bucket: &str) -> Option<CachedManifest> {
     let file_name = path.file_stem().and_then(|s| s.to_str())?.to_string();
 
     let content = std::fs::read_to_string(path).ok()?;
     let json: Value = serde_json::from_str(&content).ok()?;
 
     let version = json.get("version").and_then(|v| v.as_str())?.to_string();
-    let bucket = path.parent()?.parent()?.file_name()?.to_str()?.to_string();
 
     let package = ScoopPackage {
         name: file_name,
         version,
-        source: bucket,
+        source: bucket.to_string(),
         match_source: MatchSource::Name,
         ..Default::default()
     };
@@ -112,8 +100,13 @@ async fn populate_manifest_cache(scoop_path: &Path) -> Result<Vec<CachedManifest
 
     while let Ok(Some(entry)) = read_dir.next_entry().await {
         if entry.path().is_dir() {
-            let bucket_manifests = find_manifests_in_bucket(entry.path());
-            manifest_paths.extend(bucket_manifests);
+            let bucket_name = entry.file_name().to_string_lossy().to_string();
+            let bucket_manifests = find_manifests_in_bucket(&entry.path());
+            manifest_paths.extend(
+                bucket_manifests
+                    .into_iter()
+                    .map(|path| (path, bucket_name.clone())),
+            );
         }
     }
 
@@ -121,7 +114,7 @@ async fn populate_manifest_cache(scoop_path: &Path) -> Result<Vec<CachedManifest
     let cached_manifests = tokio::task::spawn_blocking(move || {
         manifest_paths
             .par_iter()
-            .filter_map(|path| parse_package_from_manifest(path))
+            .filter_map(|(path, bucket)| parse_package_from_manifest(path, bucket))
             .collect::<Vec<_>>()
     })
     .await
