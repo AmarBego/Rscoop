@@ -1,10 +1,9 @@
-### Release Notes 1.9.6
+### Release Notes 1.9.7
 
-#### Features
+#### Feature
 
-- Enabled Persian (Farsi) in Settings with RTL layout support. Thanks [@SMAH1](https://github.com/SMAH1) for the translation work.
-- Held packages now show available update indicators without being counted as Scoop status issues.
+- Added full support for Scoop buckets that use nested directory layouts.
 
-#### Maintenance
+#### Bug Fix
 
-- Bumped app release metadata to `1.9.6`.
+- Finalized internationalization handling and fixed language selections not persisting across app restarts.
