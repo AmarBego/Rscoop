@@ -751,6 +751,27 @@ fn is_root_manifest_file(path: &Path) -> bool {
             .unwrap_or(false)
 }
 
+#[cfg(windows)]
+fn is_reparse_point(metadata: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &fs::Metadata) -> bool {
+    false
+}
+
+fn is_traversable_manifest_dir(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|metadata| {
+            metadata.is_dir() && !metadata.file_type().is_symlink() && !is_reparse_point(&metadata)
+        })
+        .unwrap_or(false)
+}
+
 fn sorted_dir_entries(dir: &Path) -> Vec<PathBuf> {
     let mut entries = fs::read_dir(dir)
         .map(|entries| {
@@ -773,20 +794,78 @@ fn collect_direct_manifest_paths(dir: &Path, manifests: &mut Vec<PathBuf>) {
     }
 }
 
-fn collect_recursive_manifest_paths(dir: &Path, manifests: &mut Vec<PathBuf>) {
+const MAX_MANIFEST_RECURSION_DEPTH: usize = 64;
+
+fn should_enter_manifest_dir(dir: &Path, visited: &mut HashSet<PathBuf>) -> bool {
+    if !is_traversable_manifest_dir(dir) {
+        return false;
+    }
+
+    match dir.canonicalize() {
+        Ok(canonical) => visited.insert(canonical),
+        Err(err) => {
+            log::debug!(
+                "Skipping manifest directory '{}': failed to resolve path: {}",
+                dir.display(),
+                err
+            );
+            false
+        }
+    }
+}
+
+fn collect_recursive_manifest_paths(
+    dir: &Path,
+    manifests: &mut Vec<PathBuf>,
+    visited: &mut HashSet<PathBuf>,
+    depth: usize,
+) {
+    if depth > MAX_MANIFEST_RECURSION_DEPTH {
+        log::warn!(
+            "Skipping manifest directory '{}' because nested bucket depth exceeded {}",
+            dir.display(),
+            MAX_MANIFEST_RECURSION_DEPTH
+        );
+        return;
+    }
+
+    if !should_enter_manifest_dir(dir, visited) {
+        return;
+    }
+
     for path in sorted_dir_entries(dir) {
-        if path.is_dir() {
-            collect_recursive_manifest_paths(&path, manifests);
+        if is_traversable_manifest_dir(&path) {
+            collect_recursive_manifest_paths(&path, manifests, visited, depth + 1);
         } else if is_visible_json_file(&path) {
             manifests.push(path);
         }
     }
 }
 
-fn find_manifest_recursive(dir: &Path, manifest_filename: &str) -> Option<PathBuf> {
+fn find_manifest_recursive(
+    dir: &Path,
+    manifest_filename: &str,
+    visited: &mut HashSet<PathBuf>,
+    depth: usize,
+) -> Option<PathBuf> {
+    if depth > MAX_MANIFEST_RECURSION_DEPTH {
+        log::warn!(
+            "Skipping manifest directory '{}' because nested bucket depth exceeded {}",
+            dir.display(),
+            MAX_MANIFEST_RECURSION_DEPTH
+        );
+        return None;
+    }
+
+    if !should_enter_manifest_dir(dir, visited) {
+        return None;
+    }
+
     for path in sorted_dir_entries(dir) {
-        if path.is_dir() {
-            if let Some(manifest_path) = find_manifest_recursive(&path, manifest_filename) {
+        if is_traversable_manifest_dir(&path) {
+            if let Some(manifest_path) =
+                find_manifest_recursive(&path, manifest_filename, visited, depth + 1)
+            {
                 return Some(manifest_path);
             }
         } else if is_visible_json_file(&path)
@@ -814,8 +893,9 @@ pub fn bucket_manifest_paths(bucket_path: &Path) -> Vec<PathBuf> {
     collect_direct_manifest_paths(bucket_path, &mut manifests);
 
     let bucket_subdir = bucket_path.join("bucket");
-    if bucket_subdir.is_dir() {
-        collect_recursive_manifest_paths(&bucket_subdir, &mut manifests);
+    if is_traversable_manifest_dir(&bucket_subdir) {
+        let mut visited = HashSet::new();
+        collect_recursive_manifest_paths(&bucket_subdir, &mut manifests, &mut visited, 0);
     }
 
     manifests
@@ -834,7 +914,7 @@ pub fn find_manifest_in_bucket(bucket_path: &Path, package_name: &str) -> Option
     }
 
     let bucket_subdir = bucket_path.join("bucket");
-    if !bucket_subdir.is_dir() {
+    if !is_traversable_manifest_dir(&bucket_subdir) {
         return None;
     }
 
@@ -843,7 +923,8 @@ pub fn find_manifest_in_bucket(bucket_path: &Path, package_name: &str) -> Option
         return Some(nested_manifest_path);
     }
 
-    find_manifest_recursive(&bucket_subdir, &manifest_filename)
+    let mut visited = HashSet::new();
+    find_manifest_recursive(&bucket_subdir, &manifest_filename, &mut visited, 0)
 }
 
 /// Counts the number of package manifest (.json) files in a bucket directory.
@@ -854,6 +935,7 @@ pub fn count_manifests(bucket_path: &std::path::Path) -> u32 {
 #[cfg(test)]
 mod manifest_tests {
     use super::*;
+    use std::io;
     use std::process;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -892,6 +974,24 @@ mod manifest_tests {
             .expect("manifest path under base")
             .to_string_lossy()
             .replace('\\', "/")
+    }
+
+    #[cfg(windows)]
+    fn symlink_dir(original: &Path, link: &Path) -> io::Result<()> {
+        std::os::windows::fs::symlink_dir(original, link)
+    }
+
+    #[cfg(unix)]
+    fn symlink_dir(original: &Path, link: &Path) -> io::Result<()> {
+        std::os::unix::fs::symlink(original, link)
+    }
+
+    #[cfg(not(any(unix, windows)))]
+    fn symlink_dir(_original: &Path, _link: &Path) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "directory symlinks are not supported on this platform",
+        ))
     }
 
     #[test]
@@ -960,6 +1060,54 @@ mod manifest_tests {
             find_manifest_in_bucket(&bucket_path, "dupe").as_deref(),
             Some(nested_manifest.as_path())
         );
+    }
+
+    #[test]
+    fn recursive_manifest_scan_skips_directory_symlink_cycles() {
+        let temp = TempDir::new("manifest-cycle");
+        let bucket_path = temp.path.join("cycle");
+        let bucket_subdir = bucket_path.join("bucket");
+        let nested_dir = bucket_subdir.join("nested");
+
+        write_manifest(&nested_dir.join("real.json"));
+
+        if symlink_dir(&bucket_subdir, &nested_dir.join("cycle")).is_err() {
+            return;
+        }
+
+        let manifests = bucket_manifest_paths(&bucket_path)
+            .iter()
+            .map(|path| relative_display(path, &bucket_path))
+            .collect::<Vec<_>>();
+
+        assert_eq!(manifests, vec!["bucket/nested/real.json"]);
+        assert_eq!(
+            find_manifest_in_bucket(&bucket_path, "real").as_deref(),
+            Some(nested_dir.join("real.json").as_path())
+        );
+        assert!(find_manifest_in_bucket(&bucket_path, "missing").is_none());
+    }
+
+    #[test]
+    fn recursive_manifest_scan_has_depth_cap() {
+        let temp = TempDir::new("manifest-depth");
+        let bucket_path = temp.path.join("depth");
+        let bucket_subdir = bucket_path.join("bucket");
+        let mut deepest_dir = bucket_subdir.clone();
+
+        write_manifest(&bucket_subdir.join("visible.json"));
+        for depth in 0..=MAX_MANIFEST_RECURSION_DEPTH {
+            deepest_dir = deepest_dir.join(format!("d{}", depth));
+        }
+        write_manifest(&deepest_dir.join("too-deep.json"));
+
+        let manifests = bucket_manifest_paths(&bucket_path)
+            .iter()
+            .map(|path| relative_display(path, &bucket_path))
+            .collect::<Vec<_>>();
+
+        assert_eq!(manifests, vec!["bucket/visible.json"]);
+        assert!(find_manifest_in_bucket(&bucket_path, "too-deep").is_none());
     }
 }
 
