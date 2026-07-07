@@ -1,6 +1,7 @@
 import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
+import i18n from "../i18n";
 import { View } from "../types/scoop";
 import { getErrorMessage } from "../utils/errors";
 import { SETTINGS_STORAGE_KEY } from "./settingsStorage";
@@ -78,6 +79,8 @@ const defaultSettings: Settings = {
   defaultLaunchPage: "installed",
 };
 
+const LANGUAGE_CONFIG_KEY = "language";
+
 function createSettingsStore() {
   const getInitialSettings = (): Settings => {
     try {
@@ -124,6 +127,7 @@ function createSettingsStore() {
 
   const initialSettings = getInitialSettings();
   const [settings, setSettings] = createStore<Settings>(initialSettings);
+  let languageWriteGeneration = 0;
 
   // Sync frontend-only localStorage settings to the Tauri store on
   // startup so the Rust scheduler and other backend code can read them.
@@ -137,6 +141,24 @@ function createSettingsStore() {
   for (const [key, value] of Object.entries(initial.operations)) {
     invoke("set_config_value", { key: `operations.${key}`, value }).catch(() => {});
   }
+
+  const loadPersistedLanguage = async () => {
+    const generation = languageWriteGeneration;
+
+    try {
+      const persistedLanguage = await invoke<unknown>("get_config_value", { key: LANGUAGE_CONFIG_KEY });
+      if (generation !== languageWriteGeneration) return;
+
+      if (typeof persistedLanguage === "string" && persistedLanguage) {
+        saveSettings({ language: persistedLanguage });
+        i18n.setLanguage(persistedLanguage);
+      } else {
+        await invoke("set_config_value", { key: LANGUAGE_CONFIG_KEY, value: initial.language });
+      }
+    } catch (error) {
+      console.warn(`Failed to load language from store: ${getErrorMessage(error)}`);
+    }
+  };
 
   const saveSettings = (newSettings: Partial<Settings>) => {
     setSettings(prev => {
@@ -214,12 +236,18 @@ function createSettingsStore() {
   };
 
   const setLanguage = (lang: string) => {
+    languageWriteGeneration += 1;
     saveSettings({ language: lang });
+    return invoke("set_config_value", { key: LANGUAGE_CONFIG_KEY, value: lang }).catch((e) =>
+      console.error(`Failed to sync language setting ${LANGUAGE_CONFIG_KEY}:`, getErrorMessage(e))
+    );
   };
 
   const setDefaultLaunchPage = (page: View) => {
     saveSettings({ defaultLaunchPage: page });
   };
+
+  loadPersistedLanguage();
 
   return { settings, setVirusTotalSettings, setWindowSettings, setDebugSettings, setCleanupSettings, setBucketSettings, setOperationsSettings, setTheme, setLanguage, setDefaultLaunchPage };
 }

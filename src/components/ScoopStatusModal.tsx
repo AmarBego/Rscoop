@@ -28,6 +28,13 @@ function isAppIssue(app: AppStatusInfo) {
 
 function AppStatusTable(props: { apps: AppStatusInfo[] }) {
   const { t } = useI18n();
+  const statusInfoLabel = (info: string) => {
+    if (info.includes("Deprecated")) return t("modal.scoopStatus.deprecated");
+    if (info.includes("failed")) return t("modal.scoopStatus.failed");
+    if (info.includes("removed")) return t("modal.scoopStatus.removed");
+    if (info.includes("Versioned install")) return t("modal.scoopStatus.versionedInstall");
+    return info;
+  };
 
   return (
     <div class="overflow-x-auto">
@@ -57,7 +64,7 @@ function AppStatusTable(props: { apps: AppStatusInfo[] }) {
                       "badge-error": info.includes("failed") || info.includes("removed"),
                       "badge-info": !info.includes("Deprecated") && !info.includes("failed") && !info.includes("removed")
                     }}>
-                      {info}
+                      {statusInfoLabel(info)}
                     </div>
                   ))}
                   {app.is_outdated && (

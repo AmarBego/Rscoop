@@ -50,6 +50,51 @@ function FixIcon(props: { fix: CheckupFix }) {
 
 function Checkup(props: CheckupProps) {
     const { t } = useI18n();
+
+    const checkText = (item: CheckupItem) => {
+        if (item.text === "Git is installed") return t("doctor.check.gitInstalled");
+        if (item.text === "Main bucket is installed") return t("doctor.check.mainBucketInstalled");
+        if (item.text === "Windows Developer Mode is enabled") return t("doctor.check.developerModeEnabled");
+        if (item.text === "Long paths are enabled") return t("doctor.check.longPathsEnabled");
+
+        const helper = item.text.match(/^Helper '(.+)' is installed$/);
+        if (helper) return t("doctor.check.helperInstalled", { name: helper[1] });
+
+        const ntfs = item.text.match(/^Scoop is on an NTFS filesystem \(found: (.+)\)$/);
+        if (ntfs) return t("doctor.check.scoopOnNtfs", { fs: ntfs[1] });
+
+        return item.text;
+    };
+
+    const suggestionText = (item: CheckupItem) => {
+        const suggestion = item.suggestion;
+        if (!suggestion) return "";
+
+        if (suggestion.startsWith("Scoop relies on Git.")) return t("doctor.suggestion.installGit");
+        if (suggestion.startsWith("The main bucket is essential")) return t("doctor.suggestion.addMainBucket");
+        if (suggestion.startsWith("Windows Developer Mode is not enabled.")) return t("doctor.suggestion.enableDeveloperMode");
+        if (suggestion.startsWith("Enable long paths")) return t("doctor.suggestion.enableLongPaths");
+        if (suggestion.startsWith("Scoop requires an NTFS volume")) return t("doctor.suggestion.useNtfs");
+
+        const helper = suggestion.match(/^This helper is recommended\. Install it with: scoop install (.+)$/);
+        if (helper) return t("doctor.suggestion.installHelper", { name: helper[1] });
+
+        return suggestion;
+    };
+
+    const fixLabel = (fix: CheckupFix) => {
+        switch (fix.kind) {
+            case "install-package":
+                return t("doctor.fix.installPackage", { name: fix.package });
+            case "install-bucket":
+                return fix.name === "main" ? t("doctor.fix.addMainBucket") : fix.label;
+            case "open-settings":
+                if (fix.page === "developers") return t("doctor.fix.openDeveloperMode");
+                if (fix.page === "disks-and-volumes") return t("doctor.fix.openDisksSettings");
+                return fix.label;
+        }
+    };
+
     return (
         <Card
             title={t("doctor.checkupTitle")}
@@ -88,7 +133,7 @@ function Checkup(props: CheckupProps) {
                                     <Show when={item.status} fallback={<CircleX class="w-5 h-5 me-3 text-error" />}>
                                         <CircleCheckBig class="w-5 h-5 me-3 text-success" />
                                     </Show>
-                                    <span class="flex-grow">{item.text}</span>
+                                    <span class="flex-grow">{checkText(item)}</span>
                                     <Show when={item.fix && !item.status}>
                                         <button
                                             type="button"
@@ -99,7 +144,7 @@ function Checkup(props: CheckupProps) {
                                             <Show when={props.runningFix === checkupFixKey(item)} fallback={
                                                 <>
                                                     <FixIcon fix={item.fix!} />
-                                                    {item.fix!.label}
+                                                    {fixLabel(item.fix!)}
                                                 </>
                                             }>
                                                 <span class="loading loading-spinner loading-xs"></span>
@@ -115,7 +160,7 @@ function Checkup(props: CheckupProps) {
                                 <Show when={item.suggestion}>
                                     <div class="mt-2 ms-8 text-sm p-2 bg-base-300 rounded-md">
                                         <p class="font-semibold mb-1">{t("doctor.suggestion")}</p>
-                                        <code class="font-mono ">{item.suggestion}</code>
+                                        <code class="font-mono ">{suggestionText(item)}</code>
                                     </div>
                                 </Show>
                             </li>

@@ -107,7 +107,11 @@ function PackageGridView(props: PackageGridViewProps) {
                 </div>
               </div>
               <p class="text-xs text-base-content/60 mt-1.5 truncate" title={pkg.updated}>
-                v{pkg.version} · {pkg.source} · {formatIsoDate(pkg.updated)}
+                {t("installed.packageMeta", {
+                  version: pkg.version,
+                  source: pkg.source,
+                  date: formatIsoDate(pkg.updated),
+                })}
               </p>
             </div>
           );

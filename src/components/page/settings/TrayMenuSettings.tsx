@@ -112,6 +112,7 @@ function TrayPreview(props: {
   pinned: Set<string>;
   hidden: Set<string>;
 }) {
+  const { t } = useI18n();
   const { settings } = settingsStore;
   const palette = createMemo<PreviewPalette>(() =>
     settings.theme === "dark" ? DARK_PALETTE : LIGHT_PALETTE,
@@ -185,15 +186,15 @@ function TrayPreview(props: {
         }}
       >
         <Row>
-          <span class="flex-1">Show rScoop</span>
+          <span class="flex-1">{t("tray.preview.showRscoop")}</span>
         </Row>
         <Row>
-          <span class="flex-1">Hide rScoop</span>
+          <span class="flex-1">{t("tray.preview.hideRscoop")}</span>
         </Row>
 
         <Show when={hasAnyApps()}>
           <Sep />
-          <SectionHeader label="Scoop Apps" />
+          <SectionHeader label={t("tray.preview.scoopApps")} />
           <For each={pinnedApps()}>
             {a => (
               <Row>
@@ -218,14 +219,14 @@ function TrayPreview(props: {
 
         <Sep />
         <Row>
-          <span class="flex-1">Edit Tray Menu…</span>
+          <span class="flex-1">{t("tray.preview.editTrayMenu")}</span>
         </Row>
         <Row>
-          <span class="flex-1">Refresh Apps</span>
+          <span class="flex-1">{t("tray.preview.refreshApps")}</span>
         </Row>
         <Sep />
         <Row>
-          <span class="flex-1">Quit</span>
+          <span class="flex-1">{t("tray.preview.quit")}</span>
         </Row>
       </div>
 
@@ -234,7 +235,7 @@ function TrayPreview(props: {
           class="absolute top-2 start-3 font-mono"
           style={{ "font-size": "10.5px", color: palette().overlay }}
         >
-          {pinnedAndHidden()} pinned+hidden suppressed
+          {t("tray.preview.suppressed", { count: String(pinnedAndHidden()) })}
         </div>
       </Show>
     </div>

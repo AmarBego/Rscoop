@@ -6,7 +6,21 @@ import { useI18n } from "../i18n";
 
 /// Format a raw phase hint like "updating_buckets" into a user-facing
 /// "Updating buckets…". Keeps display logic colocated with the consumer.
-const formatPhase = (hint: string): string => {
+const phaseLabelKeys: Record<string, string> = {
+  downloading: "operation.phase.downloading",
+  extracting: "operation.phase.extracting",
+  installing: "operation.phase.installing",
+  updating: "operation.phase.updating",
+  uninstalling: "operation.phase.uninstalling",
+  verifying: "operation.phase.verifying",
+  updating_buckets: "operation.phase.updatingBuckets",
+  running_hook: "operation.phase.runningHook",
+};
+
+const formatPhase = (hint: string, t: (key: string) => string): string => {
+  const key = phaseLabelKeys[hint];
+  if (key) return t(key);
+
   const words = hint.replace(/_/g, " ").split(" ").filter(Boolean);
   if (words.length === 0) return "";
   const head = words[0].charAt(0).toUpperCase() + words[0].slice(1);
@@ -98,7 +112,7 @@ function OperationModal() {
                   when={(op()?.phaseStack.length ?? 0) > 0}
                   fallback={
                     <Show when={op()?.currentPhase} fallback={t("operation.running")}>
-                      {formatPhase(op()!.currentPhase!)}
+                      {formatPhase(op()!.currentPhase!, t)}
                     </Show>
                   }
                 >
@@ -143,7 +157,7 @@ function OperationModal() {
             </Show>
             <Show when={op()?.canClearCache}>
               <button class="btn btn-sm btn-primary" onClick={handleNextStep}>
-                Clear Cache
+                {t("operation.clearCacheButton")}
               </button>
             </Show>
             <Show when={isRunning()}>
