@@ -23,18 +23,16 @@ where
         .map(|arg| ps_quote(arg.as_ref()))
         .collect::<Vec<_>>()
         .join(" ");
+    // Execra decodes process pipes as UTF-8. PowerShell can otherwise write
+    // redirected output using the active console code page, which corrupts
+    // localized Scoop output (for example, GBK on a Chinese system).
     let inner = format!(
-        "Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
-        args
+        "{} Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
+        UTF8_OUTPUT_PREAMBLE, args
     );
     if is_pwsh_enabled(app) {
         execra::Command::pwsh(inner).tags(["scoop".to_string()])
     } else {
-        // Execra decodes process pipes as UTF-8. Windows PowerShell otherwise
-        // writes redirected output using the active console code page, which
-        // can corrupt localized Scoop output (for example, GBK on a Chinese
-        // system). PowerShell 7 already defaults to UTF-8 and is left alone.
-        let inner = format!("{} {}", UTF8_OUTPUT_PREAMBLE, inner);
         execra::Command::powershell(inner).tags(["scoop".to_string()])
     }
 }
