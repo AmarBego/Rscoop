@@ -10,6 +10,8 @@ fn ps_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
+const UTF8_OUTPUT_PREAMBLE: &str =
+    "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false);";
 
 pub fn scoop_cmd<I, S>(app: AppHandle, args: I) -> execra::Command
 where
@@ -21,9 +23,12 @@ where
         .map(|arg| ps_quote(arg.as_ref()))
         .collect::<Vec<_>>()
         .join(" ");
+    // Execra decodes process pipes as UTF-8. PowerShell can otherwise write
+    // redirected output using the active console code page, which corrupts
+    // localized Scoop output (for example, GBK on a Chinese system).
     let inner = format!(
-        "Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
-        args
+        "{} Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
+        UTF8_OUTPUT_PREAMBLE, args
     );
     if is_pwsh_enabled(app) {
         execra::Command::pwsh(inner).tags(["scoop".to_string()])
