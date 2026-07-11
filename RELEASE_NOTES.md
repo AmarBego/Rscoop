@@ -1,9 +1,5 @@
-### Release Notes 1.9.7
-
-#### Feature
-
-- Added full support for Scoop buckets that use nested directory layouts.
+### Release Notes 1.9.8
 
 #### Bug Fix
 
-- Finalized internationalization handling and fixed language selections not persisting across app restarts.
+- Fixed garbled Scoop output for users with localized installations by adding UTF-8 support to operation logs.
