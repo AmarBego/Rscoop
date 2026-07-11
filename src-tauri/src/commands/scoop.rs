@@ -10,6 +10,8 @@ fn ps_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
 }
 
+const UTF8_OUTPUT_PREAMBLE: &str =
+    "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false);";
 
 pub fn scoop_cmd<I, S>(app: AppHandle, args: I) -> execra::Command
 where
@@ -28,6 +30,11 @@ where
     if is_pwsh_enabled(app) {
         execra::Command::pwsh(inner).tags(["scoop".to_string()])
     } else {
+        // Execra decodes process pipes as UTF-8. Windows PowerShell otherwise
+        // writes redirected output using the active console code page, which
+        // can corrupt localized Scoop output (for example, GBK on a Chinese
+        // system). PowerShell 7 already defaults to UTF-8 and is left alone.
+        let inner = format!("{} {}", UTF8_OUTPUT_PREAMBLE, inner);
         execra::Command::powershell(inner).tags(["scoop".to_string()])
     }
 }
