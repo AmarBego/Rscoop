@@ -17,6 +17,7 @@ pub mod profile;
 pub mod release_notes;
 pub mod scoop;
 pub mod scoop_interpreter;
+mod scoop_script;
 pub mod search;
 pub mod settings;
 pub mod startup;
