@@ -1,35 +1,20 @@
 use execra::tauri::ExecraExt;
 use execra::Outcome;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 use crate::commands::scoop_interpreter::{is_creep_phase, phase_range, scoop_interpreter};
+use crate::commands::scoop_script::build_scoop_script;
 use crate::commands::settings::is_pwsh_enabled;
 use crate::operations::{self, OperationWarning};
-
-fn ps_quote(value: &str) -> String {
-    format!("'{}'", value.replace('\'', "''"))
-}
-
-const UTF8_OUTPUT_PREAMBLE: &str =
-    "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false);";
+use crate::state::AppState;
 
 pub fn scoop_cmd<I, S>(app: AppHandle, args: I) -> execra::Command
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    let args = args
-        .into_iter()
-        .map(|arg| ps_quote(arg.as_ref()))
-        .collect::<Vec<_>>()
-        .join(" ");
-    // Execra decodes process pipes as UTF-8. PowerShell can otherwise write
-    // redirected output using the active console code page, which corrupts
-    // localized Scoop output (for example, GBK on a Chinese system).
-    let inner = format!(
-        "{} Import-Module Microsoft.PowerShell.Utility -EA SilentlyContinue; scoop {}",
-        UTF8_OUTPUT_PREAMBLE, args
-    );
+    let scoop_root = app.state::<AppState>().scoop_path();
+    let inner = build_scoop_script(&scoop_root, args);
     if is_pwsh_enabled(app) {
         execra::Command::pwsh(inner).tags(["scoop".to_string()])
     } else {

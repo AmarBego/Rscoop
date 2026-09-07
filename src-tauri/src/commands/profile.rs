@@ -16,6 +16,7 @@ use crate::commands::bucket::get_buckets;
 use crate::commands::bucket_install::{install_bucket, BucketInstallOptions};
 use crate::commands::hold::list_held_packages;
 use crate::commands::installed::get_installed_packages_full;
+use crate::commands::scoop_script::ps_quote;
 use crate::operations::{self, EnqueueAction};
 use crate::state::AppState;
 
@@ -392,7 +393,7 @@ fn render_profile_setup_script(profile: &Profile) -> String {
         .map(|bucket| {
             format!(
                 "@{{ Name = {}; Source = {} }}",
-                ps_string(&bucket.name),
+                ps_quote(&bucket.name),
                 ps_optional_string(&bucket.source)
             )
         })
@@ -410,7 +411,7 @@ fn render_profile_setup_script(profile: &Profile) -> String {
         .map(|app| {
             format!(
                 "@{{ Name = {}; Source = {}; Version = {}; Versioned = {} }}",
-                ps_string(&app.name),
+                ps_quote(&app.name),
                 ps_optional_string(&app.source),
                 ps_optional_string(&app.version),
                 ps_bool(app.versioned)
@@ -425,7 +426,7 @@ fn render_profile_setup_script(profile: &Profile) -> String {
         .unwrap_or(&[])
         .iter()
         .filter(|package| !package.trim().is_empty())
-        .map(|package| ps_string(package))
+        .map(|package| ps_quote(package))
         .collect::<Vec<_>>();
     push_ps_array(&mut script, "HeldPackages", &hold_rows);
 
@@ -441,8 +442,8 @@ fn render_profile_setup_script(profile: &Profile) -> String {
                 .map(|(key, value)| {
                     format!(
                         "@{{ Key = {}; Value = {} }}",
-                        ps_string(key),
-                        ps_string(&scoop_config_value(value))
+                        ps_quote(key),
+                        ps_quote(&scoop_config_value(value))
                     )
                 })
                 .collect::<Vec<_>>()
@@ -507,19 +508,11 @@ fn push_ps_array(script: &mut String, name: &str, rows: &[String]) {
     script.push_str(")\n\n");
 }
 
-fn ps_string(value: &str) -> String {
-    let sanitized = value
-        .chars()
-        .map(|ch| if ch.is_control() { ' ' } else { ch })
-        .collect::<String>();
-    format!("'{}'", sanitized.replace('\'', "''"))
-}
-
 fn ps_optional_string(value: &str) -> String {
     if value.trim().is_empty() {
         "$null".to_string()
     } else {
-        ps_string(value)
+        ps_quote(value)
     }
 }
 
