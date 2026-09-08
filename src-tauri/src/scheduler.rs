@@ -121,6 +121,16 @@ async fn run_auto_bucket_update(
                 let (line, source) = if result.success {
                     (format!("Updated bucket: {}", result.bucket_name), "stdout")
                 } else {
+                    operations::push_operation_warning(
+                        app,
+                        operations::OperationWarning {
+                            code: "scoop.bucket.update_failed".to_string(),
+                            message: format!(
+                                "Bucket '{}' was not updated: {}",
+                                result.bucket_name, result.message
+                            ),
+                        },
+                    );
                     (
                         format!(
                             "Failed to update {}: {}",
@@ -134,7 +144,7 @@ async fn run_auto_bucket_update(
 
             operations::finish_synthetic(
                 app,
-                successes == total,
+                bucket_update_succeeded(successes, total),
                 format!(
                     "Bucket update completed: {} of {} succeeded",
                     successes, total
@@ -229,6 +239,12 @@ async fn run_auto_package_update(app: &AppHandle) {
     }
 }
 
+// Partial completion is a warning (attached per failed bucket above).
+// An empty bucket list remains a successful no-op; all failures are an error.
+fn bucket_update_succeeded(successes: usize, total: usize) -> bool {
+    successes > 0 || total == 0
+}
+
 fn parse_auto_update_interval(raw: &str) -> AutoUpdateInterval {
     let trimmed = raw.trim();
     match trimmed {
@@ -304,6 +320,14 @@ async fn sleep_secs(seconds: u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bucket_updates_only_fail_when_every_bucket_failed() {
+        assert!(bucket_update_succeeded(5, 6));
+        assert!(bucket_update_succeeded(6, 6));
+        assert!(bucket_update_succeeded(0, 0));
+        assert!(!bucket_update_succeeded(0, 6));
+    }
 
     #[test]
     fn parses_supported_auto_update_intervals() {

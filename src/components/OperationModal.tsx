@@ -39,9 +39,9 @@ const LineWithLinks: Component<{ line: string }> = (props) => {
         {(part) => {
           if (part.match(urlRegex)) {
             return (
-              <a href={part} target="_blank" class="link link-info inline-flex items-center">
+              <a href={part} target="_blank" class="link link-info">
                 {part}
-                <ExternalLink class="w-3 h-3 ms-1" />
+                <ExternalLink class="inline w-3 h-3 ms-1" />
               </a>
             );
           }
@@ -180,7 +180,7 @@ function OperationModal() {
       }
     >
       <Show when={(op()?.operationWarnings.length ?? 0) > 0}>
-        <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1">
+        <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1 [overflow-wrap:anywhere]">
           <div class="flex items-center gap-2 text-warning font-medium">
             <TriangleAlert class="w-4 h-4 shrink-0" />
             <span>
@@ -197,7 +197,7 @@ function OperationModal() {
         </div>
       </Show>
       <Show when={(op()?.findings.length ?? 0) > 0}>
-        <div class="mb-3 rounded-lg border border-info/40 bg-info/5 p-3 text-sm space-y-2">
+        <div class="mb-3 min-w-0 max-h-64 overflow-y-auto rounded-lg border border-info/40 bg-info/5 p-3 text-sm space-y-2">
           <div class="flex items-center gap-2 text-info font-medium">
             <Info class="w-4 h-4 shrink-0" />
             <span>
@@ -208,7 +208,7 @@ function OperationModal() {
           </div>
           <For each={op()?.findings ?? []}>
             {(f) => (
-              <div class="ms-6 whitespace-pre-wrap text-base-content/80">
+              <div class="ms-6 whitespace-pre-wrap [overflow-wrap:anywhere] text-base-content/80">
                 {f.message}
               </div>
             )}
@@ -217,7 +217,7 @@ function OperationModal() {
       </Show>
       <div
         ref={scrollRef}
-        class="bg-base-100 font-mono text-sm p-4 rounded-lg max-h-96 overflow-y-auto border border-base-content/5"
+        class="bg-base-100 font-mono text-sm p-4 rounded-lg min-w-0 max-h-96 overflow-y-auto [overflow-wrap:anywhere] border border-base-content/5"
       >
         <Show when={op()?.output.length === 0 && isRunning()}>
           <span class="text-base-content/30">{t("operation.waitingForOutput")}</span>
