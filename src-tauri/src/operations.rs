@@ -968,7 +968,14 @@ pub fn finish_synthetic(app: &AppHandle, success: bool, message: String) {
     let result = CommandResult {
         success,
         message: message.clone(),
-        status: if success { "success" } else { "error" }.to_string(),
+        status: if !success {
+            "error"
+        } else if has_operation_warnings(app) {
+            "warning"
+        } else {
+            "success"
+        }
+        .to_string(),
     };
     let _ = app.emit(EVENT_FINISHED, result.clone());
 

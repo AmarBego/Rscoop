@@ -8,6 +8,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex, OnceLock,
 };
+use std::time::Duration;
 use tauri::{command, AppHandle, Manager, Runtime};
 
 use crate::commands::search::invalidate_manifest_cache;
@@ -531,6 +532,51 @@ pub async fn update_bucket(
         .map_err(|e| e.to_string())?
 }
 
+fn is_transient_fetch_error(error: &git2::Error) -> bool {
+    use git2::{ErrorClass, ErrorCode};
+
+    if matches!(
+        error.code(),
+        ErrorCode::Auth | ErrorCode::Certificate | ErrorCode::NotFound | ErrorCode::User
+    ) {
+        return false;
+    }
+
+    matches!(error.code(), ErrorCode::Timeout | ErrorCode::Eof)
+        || matches!(error.class(), ErrorClass::Net | ErrorClass::Http)
+        // WinHTTP reports response/connection failures as OS errors. Do not
+        // retry unrelated OS failures such as permissions or disk errors.
+        || (error.class() == ErrorClass::Os
+            && ["failed to receive response", "failed to send request", "failed to connect"]
+                .iter()
+                .any(|message| error.message().to_ascii_lowercase().contains(message)))
+}
+
+fn retry_bucket_fetch(
+    bucket_name: &str,
+    mut fetch: impl FnMut() -> Result<(), git2::Error>,
+    mut wait: impl FnMut(Duration),
+) -> Result<(), git2::Error> {
+    for attempt in 1..=3 {
+        match fetch() {
+            Ok(()) => return Ok(()),
+            Err(error) if attempt < 3 && is_transient_fetch_error(&error) => {
+                let delay = Duration::from_secs(attempt);
+                log::warn!(
+                    "Bucket '{}' fetch attempt {} failed: {}; retrying in {}s",
+                    bucket_name,
+                    attempt,
+                    error,
+                    delay.as_secs()
+                );
+                wait(delay);
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    unreachable!("the final fetch attempt always returns")
+}
+
 fn update_bucket_sync(
     bucket_name: &str,
     bucket_path: &Path,
@@ -539,8 +585,8 @@ fn update_bucket_sync(
     match Repository::open(bucket_path) {
         Ok(repo) => {
             // Fetch from origin
-            let mut remote = match repo.find_remote("origin") {
-                Ok(remote) => remote,
+            match repo.find_remote("origin") {
+                Ok(_) => {}
                 Err(_) => {
                     return Ok(BucketInstallResult {
                         success: false,
@@ -552,13 +598,19 @@ fn update_bucket_sync(
                 }
             };
 
-            let callbacks = create_remote_callbacks();
-
-            let mut fetch_options = FetchOptions::new();
-            fetch_options.remote_callbacks(callbacks);
-
-            // Fetch latest changes
-            match remote.fetch(&[] as &[&str], Some(&mut fetch_options), None) {
+            // Recreate the remote and callbacks on each attempt so a broken
+            // transport is not reused. This runs on the blocking worker.
+            let fetched = retry_bucket_fetch(
+                bucket_name,
+                || {
+                    let mut remote = repo.find_remote("origin")?;
+                    let mut fetch_options = FetchOptions::new();
+                    fetch_options.remote_callbacks(create_remote_callbacks());
+                    remote.fetch(&[] as &[&str], Some(&mut fetch_options), None)
+                },
+                std::thread::sleep,
+            );
+            match fetched {
                 Ok(_) => {
                     // Get current branch
                     let head = match repo.head() {
@@ -691,6 +743,81 @@ fn update_bucket_sync(
             bucket_path: Some(bucket_path.to_string_lossy().to_string()),
             manifest_count: None,
         }),
+    }
+}
+
+#[cfg(test)]
+mod fetch_tests {
+    use super::*;
+    use git2::{Error, ErrorClass, ErrorCode};
+
+    fn response_error() -> Error {
+        Error::new(
+            ErrorCode::GenericError,
+            ErrorClass::Os,
+            "failed to receive response: The server returned an invalid or unrecognized response",
+        )
+    }
+
+    #[test]
+    fn retries_invalid_response_then_succeeds() {
+        let mut attempts = 0;
+        let mut delays = Vec::new();
+        let result = retry_bucket_fetch(
+            "versions",
+            || {
+                attempts += 1;
+                if attempts < 3 {
+                    Err(response_error())
+                } else {
+                    Ok(())
+                }
+            },
+            |delay| delays.push(delay.as_secs()),
+        );
+        assert!(result.is_ok());
+        assert_eq!(attempts, 3);
+        assert_eq!(delays, vec![1, 2]);
+    }
+
+    #[test]
+    fn persistent_transport_failure_stops_after_three_attempts() {
+        let mut attempts = 0;
+        let result = retry_bucket_fetch(
+            "versions",
+            || {
+                attempts += 1;
+                Err(response_error())
+            },
+            |_| {},
+        );
+        assert_eq!(attempts, 3);
+        assert!(result
+            .unwrap_err()
+            .message()
+            .contains("invalid or unrecognized response"));
+    }
+
+    #[test]
+    fn permanent_errors_are_not_retried() {
+        for (code, class) in [
+            (ErrorCode::Auth, ErrorClass::Http),
+            (ErrorCode::Certificate, ErrorClass::Ssl),
+            (ErrorCode::NotFound, ErrorClass::Http),
+            (ErrorCode::GenericError, ErrorClass::Os),
+        ] {
+            let mut attempts = 0;
+            let result = retry_bucket_fetch(
+                "versions",
+                || {
+                    attempts += 1;
+                    Err(Error::new(code, class, "permission or configuration error"))
+                },
+                |_| panic!("permanent errors should not wait"),
+            );
+            assert!(result.is_err());
+            assert_eq!(attempts, 1);
+        }
     }
 }
 

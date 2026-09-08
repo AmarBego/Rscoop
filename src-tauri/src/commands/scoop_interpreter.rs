@@ -3,7 +3,8 @@
 //! The mechanism — regex table, `$1` substitution, flat sequential phases,
 //! multi-line notes collection, on-exit error fallback — lives in
 //! [`execra::interpret`]. This module is now just the *data*: the Scoop rule
-//! table, the phase-weight model, and the creep predicate.
+//! table, the phase-weight model, the creep predicate, and Scoop-specific
+//! notes boundaries.
 //!
 //! ## What gets classified
 //!
@@ -42,7 +43,8 @@
 //!   fallback so the same error never fires twice.
 
 use execra::interpret::{FallbackPolicy, PhaseModel, Rule, RuleInterpreter};
-use execra::{rules, Interpreter};
+use execra::{rules, Context, ExitCode, Interpreter, InterpreterEvent, Line};
+use regex::Regex;
 
 /// Approximate fraction range each phase occupies in the overall job
 /// progress (0..=1). The bar fills monotonically as the pipeline moves
@@ -237,9 +239,45 @@ fn scoop_rules() -> Vec<Rule> {
 /// The Scoop interpreter: the rule table above, the [`ScoopPhases`] weight
 /// model, multi-line `Notes` collection, and an on-exit error fallback.
 pub fn scoop_interpreter() -> impl Interpreter {
-    RuleInterpreter::new(scoop_rules(), ScoopPhases)
-        .notes("Notes", "scoop.notes")
-        .fallback(FallbackPolicy::default().code("scoop.command_error"))
+    ScoopInterpreter {
+        inner: RuleInterpreter::new(scoop_rules(), ScoopPhases)
+            .notes("Notes", "scoop.notes")
+            .fallback(FallbackPolicy::default().code("scoop.command_error")),
+        notes_boundary: Regex::new(
+            r"^(?:Notes\s*$|(?:Updating|Installing|Uninstalling) '[^']+'|Updating (?:Scoop|Buckets|cache)\.{3}|(?:WARN|ERROR)(?::|\s))",
+        )
+        .expect("valid Scoop notes boundary regex"),
+    }
+}
+
+struct ScoopInterpreter {
+    inner: RuleInterpreter<ScoopPhases>,
+    notes_boundary: Regex,
+}
+
+impl Interpreter for ScoopInterpreter {
+    fn on_line(&mut self, ctx: &Context, line: &Line) -> Vec<InterpreterEvent> {
+        let mut events = Vec::new();
+        // Execra ends notes on a blank line, but Scoop can start the next
+        // package immediately after a note. Flush before that boundary,
+        // then classify the original line so phases/errors still reach the UI.
+        // This separator is interpreter-only; the raw transcript is untouched.
+        if self.notes_boundary.is_match(line.text.trim()) {
+            events.extend(self.inner.on_line(
+                ctx,
+                &Line {
+                    text: String::new(),
+                    ..line.clone()
+                },
+            ));
+        }
+        events.extend(self.inner.on_line(ctx, line));
+        events
+    }
+
+    fn on_exit(&mut self, ctx: &Context, exit: &ExitCode) -> Vec<InterpreterEvent> {
+        self.inner.on_exit(ctx, exit)
+    }
 }
 
 #[cfg(test)]
@@ -467,6 +505,71 @@ mod tests {
             .expect(&format!("expected a scoop.notes Finding, got {evs:?}"));
         assert!(f.message.contains("Add the install dir to PATH"));
         assert!(f.message.contains("don't forget to restart shells"));
+    }
+
+    #[test]
+    fn update_all_keeps_package_notes_separate_from_following_output() {
+        let evs = classify(&[
+            "Updating 'llvm' (23.1.0 -> 23.1.1)",
+            "'llvm' (23.1.1) was installed successfully!",
+            "Notes",
+            "-----",
+            "Since upstream does NOT provide pre-compiled binary of arm64 for every release, LLVM arm64 is now a separate manifest:",
+            "'llvm-arm64'.",
+            "Updating 'tinynvidiaupdatechecker' (1.26.0 -> 1.26.1)",
+            "Downloading new version",
+            "Starting download with aria2 ...",
+            "Download: ======+====+===========+=======================================================",
+            "Checking hash of TinyNvidiaUpdateChecker.exe ... ok.",
+            "Installing 'tinynvidiaupdatechecker' (1.26.1) [64bit] from 'extras' bucket",
+            "'tinynvidiaupdatechecker' (1.26.1) was installed successfully!",
+            "Updating 'vim' (9.2.1037 -> 9.2.1046)",
+            "'vim' (9.2.1046) was installed successfully!",
+            "Notes",
+            "-----",
+            r#"Add gVim as a context menu option by running: "C:\Users\amar\scoop\apps\vim\current\install-context.reg""#,
+        ]);
+        let notes: Vec<_> = evs
+            .iter()
+            .filter_map(|e| match e {
+                InterpreterEvent::Finding { finding } => Some(finding.message.as_str()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(notes, vec![
+            "Since upstream does NOT provide pre-compiled binary of arm64 for every release, LLVM arm64 is now a separate manifest:\n'llvm-arm64'.",
+            r#"Add gVim as a context menu option by running: "C:\Users\amar\scoop\apps\vim\current\install-context.reg""#,
+        ]);
+        assert!(evs.iter().any(|e| matches!(e,
+            InterpreterEvent::EnterPhase { name, label: Some(label) }
+                if name == "update" && label == "Updating vim"
+        )));
+        assert!(evs.iter().any(|e| matches!(e,
+            InterpreterEvent::Summary { text } if text == "Installed vim 9.2.1046"
+        )));
+    }
+
+    #[test]
+    fn notes_do_not_swallow_errors_on_stderr() {
+        let evs = drive(
+            &[
+                (execra::Stream::Stdout, "Notes"),
+                (execra::Stream::Stdout, "Keep this installation note."),
+                (execra::Stream::Stderr, "ERROR: next package failed"),
+            ],
+            ExitCode::from_code(1),
+        );
+        assert!(evs.iter().any(|e| matches!(e,
+            InterpreterEvent::Finding { finding } if finding.message == "Keep this installation note."
+        )));
+        assert_eq!(
+            evs.iter()
+                .filter(|e| matches!(e,
+                    InterpreterEvent::KnownError { message, .. } if message == "next package failed"
+                ))
+                .count(),
+            1
+        );
     }
 
     #[test]
