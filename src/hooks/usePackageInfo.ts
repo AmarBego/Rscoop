@@ -10,7 +10,7 @@ export function usePackageInfo() {
     const [error, setError] = createSignal<string | null>(null);
 
     const fetchPackageInfo = async (pkg: ScoopPackage) => {
-        if (selectedPackage()?.name === pkg.name) {
+        if (selectedPackage()?.name === pkg.name && selectedPackage()?.source === pkg.source) {
             closeModal();
             return;
         }
@@ -23,6 +23,7 @@ export function usePackageInfo() {
         try {
             const infoResponse = await invoke<ScoopInfo>("get_package_info", {
                 packageName: pkg.name,
+                bucket: pkg.source,
             });
             setInfo(infoResponse);
         } catch (err) {
@@ -40,8 +41,8 @@ export function usePackageInfo() {
     };
 
     const updateSelectedPackage = (pkg: ScoopPackage) => {
-        // Only update if it's the same package (by name)
-        if (selectedPackage()?.name === pkg.name) {
+        // Keep the exact bucket selected when names exist in multiple buckets.
+        if (selectedPackage()?.name === pkg.name && selectedPackage()?.source === pkg.source) {
             setSelectedPackage(pkg);
         }
     };

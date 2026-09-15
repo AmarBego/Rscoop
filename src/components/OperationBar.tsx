@@ -2,6 +2,7 @@ import { Show, For, createSignal } from "solid-js";
 import { Maximize2, ShieldAlert, CircleCheck, CircleX, TriangleAlert, Info } from "lucide-solid";
 import operationsStore, { CompletedOperation } from "../stores/operations";
 import Modal from "./common/Modal";
+import { manifestReview } from "../stores/manifestReview";
 import { useI18n } from "../i18n";
 
 // Reuse the line renderer from OperationModal
@@ -264,7 +265,9 @@ function OperationBar() {
             </div>
             <ul class="ms-6 list-disc text-base-content/80">
               <For each={viewingLog()?.operationWarnings ?? []}>
-                {(w) => <li>{w.message}</li>}
+                {(w) => <li>{w.message}<Show when={w.manifest}>
+                  <button class="btn btn-xs btn-ghost text-warning ms-2" onClick={() => { setViewingLog(null); operationsStore.minimize(); void manifestReview.open(w.manifest!); }}>{t("modal.manifest.review")}</button>
+                </Show></li>}
               </For>
             </ul>
           </div>

@@ -5,6 +5,7 @@ import { ScoopPackage } from "../types/scoop";
 import installedPackagesStore from "./installedPackagesStore";
 import settingsStore from "./settings";
 import { getErrorMessage } from "../utils/errors";
+import type { ManifestReviewTarget } from "./manifestReview";
 
 export interface ScanWarning {
   detectionsFound: boolean;
@@ -18,6 +19,7 @@ export interface ScanWarning {
 export interface OperationWarning {
   code: string;
   message: string;
+  manifest?: ManifestReviewTarget;
 }
 
 /// Mirrors Execra's `Finding` — a structured note/recommendation the

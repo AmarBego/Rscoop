@@ -1,6 +1,7 @@
 pub mod app_info;
 pub mod auto_cleanup;
 pub mod bucket;
+mod bucket_checkout;
 pub mod bucket_install;
 pub mod bucket_parser;
 pub mod bucket_search;

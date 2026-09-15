@@ -1,6 +1,6 @@
 [package]
 name = "rscoop"
-version = "1.9.9"
+version = "1.10.0"
 description = "A modern, powerful GUI for Scoop"
 authors = ["AmarBego"]
 license = "MIT"
@@ -24,6 +24,7 @@ tauri = { version = "2.11.5", features = ["tray-icon"] }
 tauri-plugin-shell = "2.3.6"
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+tempfile = "3.23.0"
 log = "0.4.34"
 tauri-plugin-log = { version = "2.9.1" }
 winreg = "0.56.0"
@@ -55,6 +56,13 @@ git2 = { version = "0.21.0", features = ["https"] }
 url = "2.5.8"
 
 [target."cfg(windows)".dependencies]
+windows = { version = "0.61.3", features = [
+    "Win32_System_Com",
+    "Win32_System_Ole",
+    "Win32_System_Variant",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
 tauri-plugin-updater = "2.11.0"
 tauri-plugin-single-instance = "2.4.4"
 tauri-winrt-notification = "0.8.1"

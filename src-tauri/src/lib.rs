@@ -2,7 +2,10 @@
 mod cold_start;
 mod commands;
 mod icons;
+#[cfg(windows)]
+mod launch;
 mod models;
+mod manifest_review;
 mod operations;
 mod scheduler;
 mod state;
@@ -15,7 +18,7 @@ use tauri_plugin_log::{Target, TargetKind};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(windows)]
-    utils::ensure_correct_cwd_and_launch();
+    let launch_result = launch::ensure_correct_cwd_and_launch();
 
     let mut builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
 
@@ -76,9 +79,17 @@ pub fn run() {
         ))
         .plugin(log_plugin)
         .plugin(tauri_plugin_store::Builder::new().build())
-        .setup(|app| {
+        .setup(move |app| {
             #[cfg(windows)]
             {
+                if let Err(error) = &launch_result {
+                    log::warn!("{}", error);
+                }
+                log::info!(
+                    "Startup context: executable={:?}, cwd={:?}",
+                    std::env::current_exe(),
+                    std::env::current_dir()
+                );
                 // Check if installed via Scoop
                 let is_scoop = utils::is_scoop_installation();
                 log::info!("Application installed via Scoop: {}", is_scoop);
@@ -222,6 +233,11 @@ pub fn run() {
             commands::path::open_bucket_path,
             commands::info::get_package_info,
             commands::manifest::get_package_manifest,
+            commands::manifest::get_package_manifest_document,
+            manifest_review::consume_pending_manifest_review,
+            commands::manifest::save_package_manifest,
+            commands::manifest::restore_package_manifest_backup,
+            commands::manifest::open_package_manifest_editor,
             commands::updates::check_for_updates,
             commands::operations::enqueue_operation,
             commands::operations::get_operation_state,
