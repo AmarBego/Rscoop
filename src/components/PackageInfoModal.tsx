@@ -1,14 +1,17 @@
-import { For, Show, createEffect, createSignal, createMemo, Switch, Match } from "solid-js";
+import { For, Show, createEffect, createSignal, createMemo, Switch, Match, on, onCleanup } from "solid-js";
 import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
 
 import json from 'highlight.js/lib/languages/json';
-import { Copy, Download, Ellipsis, FileText, Trash2, ExternalLink, Check } from "lucide-solid";
+import { Download, Ellipsis, FileText, Trash2, ExternalLink, Check } from "lucide-solid";
 import { invoke } from "@tauri-apps/api/core";
+import { ask } from "@tauri-apps/plugin-dialog";
 import Modal from "./common/Modal";
+import ManifestPanel from "./ManifestPanel";
+import { manifestReview } from "../stores/manifestReview";
 import { Dropdown, DropdownItem } from "./common/Dropdown";
 import { useI18n } from "../i18n";
-import { writeClipboardText } from "../utils/clipboard";
+import installedPackagesStore from "../stores/installedPackagesStore";
 import { getErrorMessage } from "../utils/errors";
 
 hljs.registerLanguage('json', json);
@@ -27,6 +30,9 @@ type PackageDetailKey =
   | "License";
 
 interface PackageInfoModalProps {
+  initialTab?: PackageTab;
+  reviewRequest?: number;
+  reviewOnly?: boolean;
   pkg: ScoopPackage | null;
   info: ScoopInfo | null;
   loading: boolean;
@@ -125,10 +131,44 @@ function LicenseValue(props: { value: string }) {
 function PackageInfoModal(props: PackageInfoModalProps) {
   const { t } = useI18n();
   let notesCodeRef: HTMLElement | undefined;
-  let manifestCodeRef: HTMLElement | undefined;
+  const [manifestDirty, setManifestDirty] = createSignal(false);
+  const [manifestBusy, setManifestBusy] = createSignal(false);
+  const [refreshedInfo, setRefreshedInfo] = createSignal<ScoopInfo | null>(null);
+  const displayInfo = () => refreshedInfo() ?? props.info;
+  const packageKey = () => `${props.pkg?.source}\0${props.pkg?.name}`;
+  let closePending = false;
+
+  const requestClose = async () => {
+    if (manifestBusy() || closePending) return false;
+    closePending = true;
+    try {
+      if (manifestDirty() && !await ask(t("modal.manifest.discardMessage"), {
+        title: t("modal.manifest.unsaved"), kind: "warning",
+        okLabel: t("modal.manifest.discard"), cancelLabel: t("modal.manifest.keepEditing"),
+      })) return false;
+      props.onClose();
+      return true;
+    } catch (err) {
+      console.error("Failed to confirm closing the manifest editor:", getErrorMessage(err));
+      return false;
+    } finally {
+      closePending = false;
+    }
+  };
+
+  const manifestChanged = () => {
+    const key = packageKey();
+    const pkg = props.pkg;
+    if (!pkg) return;
+    invoke<ScoopInfo>("get_package_info", { packageName: pkg.name, bucket: pkg.source }).then(result => {
+      if (packageKey() === key) setRefreshedInfo(result);
+    }).catch(err => console.error("Failed to refresh package details:", getErrorMessage(err)));
+    void installedPackagesStore.reload();
+    props.onPackageStateChanged?.();
+  };
 
   const orderedDetails = createMemo(() => {
-    if (!props.info?.details) return [];
+    if (!displayInfo()?.details) return [];
 
     const desiredOrder: PackageDetailKey[] = [
       'Name',
@@ -143,7 +183,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       'License'
     ];
 
-    const detailsMap = new Map(props.info.details);
+    const detailsMap = new Map(displayInfo()!.details);
     const result: [string, string][] = [];
 
     for (const key of desiredOrder) {
@@ -173,7 +213,22 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   };
 
   // Active tab
-  const [activeTab, setActiveTab] = createSignal<PackageTab>("details");
+  const [activeTab, setActiveTab] = createSignal<PackageTab>(props.initialTab ?? "details");
+  const [reviewRequest, setReviewRequest] = createSignal(0);
+  createEffect(on(() => props.reviewRequest, request => {
+    if (request) { setActiveTab("manifest"); setReviewRequest(value => value + 1); }
+  }));
+  createEffect(() => {
+    if (!props.pkg) return;
+    onCleanup(manifestReview.registerDialog(async target => {
+      if (props.pkg?.name === target.packageName && props.pkg?.source === target.bucket) {
+        setActiveTab("manifest");
+        setReviewRequest(value => value + 1);
+        return false;
+      }
+      return requestClose();
+    }));
+  });
 
   // State for versioned install
   const [installVersion, setInstallVersion] = createSignal("");
@@ -184,12 +239,6 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     setTimeout(() => setActionFired(null), 1500);
   };
 
-  // State for manifest (folded in from former ManifestModal)
-  const [manifestContent, setManifestContent] = createSignal<string | null>(null);
-  const [manifestLoading, setManifestLoading] = createSignal(false);
-  const [manifestError, setManifestError] = createSignal<string | null>(null);
-  const [copied, setCopied] = createSignal(false);
-
   // State for version switching
   const [versionInfo, setVersionInfo] = createSignal<VersionedPackageInfo | null>(null);
   const [versionLoading, setVersionLoading] = createSignal(false);
@@ -197,18 +246,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   const [switchingVersion, setSwitchingVersion] = createSignal<string | null>(null);
 
   createEffect(() => {
-    if (props.info?.notes && notesCodeRef) {
+    if (displayInfo()?.notes && notesCodeRef) {
       hljs.highlightElement(notesCodeRef);
-    }
-  });
-
-  // Highlight manifest when it appears in the active tab
-  createEffect(() => {
-    const content = manifestContent();
-    if (activeTab() === "manifest" && content && manifestCodeRef) {
-      manifestCodeRef.textContent = content;
-      manifestCodeRef.className = 'language-json font-mono text-sm leading-relaxed !bg-transparent';
-      hljs.highlightElement(manifestCodeRef);
     }
   });
 
@@ -222,11 +261,9 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   // Clear state when modal closes
   createEffect(() => {
     if (!props.pkg) {
-      setActiveTab("details");
-      setManifestContent(null);
-      setManifestError(null);
-      setManifestLoading(false);
-      setCopied(false);
+      setActiveTab(props.initialTab ?? "details");
+      setReviewRequest(0);
+      setRefreshedInfo(null);
       setVersionInfo(null);
       setVersionError(null);
       setVersionLoading(false);
@@ -236,13 +273,10 @@ function PackageInfoModal(props: PackageInfoModalProps) {
 
   // Clear state when switching to a different package
   createEffect((prevPackageName) => {
-    const currentPackageName = props.pkg?.name;
+    const currentPackageName = packageKey();
     if (prevPackageName !== undefined && prevPackageName !== currentPackageName) {
-      setActiveTab("details");
-      setManifestContent(null);
-      setManifestError(null);
-      setManifestLoading(false);
-      setCopied(false);
+      setActiveTab(props.initialTab ?? "details");
+      setRefreshedInfo(null);
       setVersionInfo(null);
       setVersionError(null);
       setVersionLoading(false);
@@ -252,51 +286,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     return currentPackageName;
   });
 
-  const fetchManifest = async (pkg: ScoopPackage) => {
-    setManifestLoading(true);
-    setManifestError(null);
-    setManifestContent(null);
-
-    try {
-      const result = await invoke<string>("get_package_manifest", {
-        packageName: pkg.name,
-        bucket: pkg.source,
-      });
-      setManifestContent(result);
-    } catch (err) {
-      const errorMsg = getErrorMessage(err);
-      console.error(`Failed to fetch manifest for ${pkg.name}:`, errorMsg);
-      setManifestError(t("modal.package.manifestLoadError", { name: pkg.name, error: errorMsg }));
-    } finally {
-      setManifestLoading(false);
-    }
-  };
-
-  const maybeLoadManifest = () => {
-    if (props.pkg && !manifestContent() && !manifestLoading()) {
-      fetchManifest(props.pkg);
-    }
-  };
-
-  const handleCopy = async () => {
-    const content = manifestContent();
-    if (content) {
-      try {
-        await writeClipboardText(content);
-        setManifestError(null);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch (err) {
-        const errorMsg = getErrorMessage(err);
-        console.error("Failed to copy manifest to clipboard:", errorMsg);
-        setManifestError(t("modal.package.manifestCopyError", { error: errorMsg }));
-      }
-    }
-  };
-
   const selectTab = (tab: PackageTab) => {
     setActiveTab(tab);
-    if (tab === "manifest") maybeLoadManifest();
   };
 
   const handleTabKeyDown = (e: KeyboardEvent) => {
@@ -330,6 +321,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   };
 
   const switchVersion = async (pkg: ScoopPackage, targetVersion: string) => {
+    if (manifestDirty() || manifestBusy() || switchingVersion()) return;
     setSwitchingVersion(targetVersion);
     try {
       await invoke<string>("switch_package_version", {
@@ -403,7 +395,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
 
   const footer = (
     <div class="flex gap-2">
-      <Show when={!props.pkg?.is_installed && props.onInstall}>
+      <Show when={!props.reviewOnly && activeTab() === "details" && !props.pkg?.is_installed && props.onInstall}>
         <div class="flex items-center gap-2">
           <input
             type="text"
@@ -416,7 +408,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             type="button"
             class="btn btn-primary btn-md"
             classList={{ "btn-success": actionFired() === "install" }}
-            disabled={actionFired() === "install"}
+            disabled={actionFired() === "install" || manifestDirty() || manifestBusy()}
             onClick={() => {
               if (props.pkg) {
                 const ver = installVersion().trim();
@@ -439,12 +431,12 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           </button>
         </div>
       </Show>
-      <Show when={props.pkg?.is_installed}>
+      <Show when={!props.reviewOnly && activeTab() === "details" && props.pkg?.is_installed}>
         <button
           type="button"
           class="btn btn-error btn-md"
           classList={{ "btn-success": actionFired() === "uninstall" }}
-          disabled={actionFired() === "uninstall"}
+          disabled={actionFired() === "uninstall" || manifestDirty() || manifestBusy()}
           onClick={() => {
             if (props.pkg) {
               props.onUninstall?.(props.pkg);
@@ -464,7 +456,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           </Show>
         </button>
       </Show>
-      <button class="btn-close-outline" onClick={props.onClose}>
+      <button class="btn-close-outline" disabled={manifestBusy()} onClick={requestClose}>
         {props.showBackButton ? t("modal.package.backToBucket") : t("common.close")}
       </button>
     </div>
@@ -474,29 +466,29 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     <Show when={!!props.pkg}>
       <Modal
         isOpen={!!props.pkg}
-        onClose={props.onClose}
+        onClose={requestClose}
         title={
           <span class="flex items-center gap-2">
             {t("modal.package.title", { name: "" })}<span class="text-info font-mono">{props.pkg?.name}</span>
           </span>
         }
         size="large"
-        headerAction={headerAction}
+        headerAction={!props.reviewOnly && activeTab() === "details" ? headerAction : undefined}
         footer={footer}
         preventBackdropClose={false}
       >
-        <Show when={props.loading}>
+        <Show when={props.loading && activeTab() === "details"}>
           <div class="flex justify-center items-center h-40">
             <span class="loading loading-spinner loading-lg"></span>
           </div>
         </Show>
-        <Show when={props.error}>
+        <Show when={props.error && !refreshedInfo() && activeTab() === "details"}>
           <div role="alert" class="alert alert-error">
             <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
             <span>{props.error}</span>
           </div>
         </Show>
-        <Show when={props.info}>
+        <Show when={props.pkg}>
           {/* Tablist */}
           <div role="tablist" class="tabs tabs-border mb-4" onKeyDown={handleTabKeyDown}>
             <button
@@ -560,12 +552,12 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                     </For>
                   </div>
                 </div>
-                <Show when={props.info?.notes}>
+                <Show when={displayInfo()?.notes}>
                   <div class="flex-1">
                     <h4 class="text-lg font-medium mb-3 border-b pb-2">{t("modal.package.notes")}</h4>
                     <div class="bg-code rounded-xl overflow-hidden border border-base-content/10 shadow-inner">
                       <pre class="p-4 m-0">
-                        <code ref={notesCodeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{props.info?.notes}</code>
+                        <code ref={notesCodeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{displayInfo()?.notes}</code>
                       </pre>
                     </div>
                   </div>
@@ -601,7 +593,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                             <Show when={!version.is_current}>
                               <button
                                 class="btn btn-xs btn-primary"
-                                disabled={switchingVersion() === version.version}
+                                disabled={!!switchingVersion() || manifestDirty() || manifestBusy()}
                                 onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
                               >
                                 <Show when={switchingVersion() === version.version}
@@ -630,48 +622,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             </div>
           </Show>
 
-          {/* Manifest panel */}
-          <Show when={activeTab() === "manifest"}>
-            <div
-              role="tabpanel"
-              id="pkg-tab-manifest-panel"
-              aria-labelledby="pkg-tab-manifest-btn"
-            >
-              <Show when={manifestLoading()}>
-                <div class="flex flex-col justify-center items-center h-64 gap-4">
-                  <span class="loading loading-spinner loading-lg text-primary"></span>
-                  <span class="text-base-content/60">{t("modal.manifest.loading")}</span>
-                </div>
-              </Show>
-
-              <Show when={manifestError()}>
-                <div role="alert" class="alert alert-error shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  <span>{manifestError()}</span>
-                </div>
-              </Show>
-
-              <Show when={manifestContent()}>
-                <div dir="ltr" class="bg-code relative rounded-xl border border-base-content/10 shadow-inner group">
-                  <div class="absolute end-2 top-2 z-10 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity duration-200">
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-square btn-ghost text-base-content/70 hover:text-base-content hover:bg-base-content/10"
-                      onClick={handleCopy}
-                      title={t("modal.manifest.copyToClipboard")}
-                      aria-label={t("modal.manifest.copyToClipboard")}
-                    >
-                      <Show when={copied()} fallback={<Copy class="w-4 h-4" />}>
-                        <Check class="w-4 h-4 text-success" />
-                      </Show>
-                    </button>
-                  </div>
-                  <div class="overflow-y-auto max-h-[calc(70vh-10rem)] custom-scrollbar">
-                    <pre class="p-4 m-0 text-start"><code ref={manifestCodeRef} class="language-json font-mono text-sm leading-relaxed !bg-transparent"></code></pre>
-                  </div>
-                </div>
-              </Show>
-            </div>
+          {/* Keep drafts mounted when switching between Details and Manifest. */}
+          <Show when={props.pkg}>
+            <ManifestPanel pkg={props.pkg!} active={activeTab() === "manifest"}
+              reviewRequest={reviewRequest()}
+              onDirtyChange={setManifestDirty} onBusyChange={setManifestBusy} onChanged={manifestChanged} />
           </Show>
         </Show>
       </Modal>

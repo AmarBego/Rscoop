@@ -527,9 +527,11 @@ pub async fn update_bucket(
     let bucket_name_clone = bucket_name.clone();
     let bucket_path_clone = bucket_path.clone();
 
-    tokio::task::spawn_blocking(move || update_bucket_sync(&bucket_name_clone, &bucket_path_clone))
+    let result = tokio::task::spawn_blocking(move || update_bucket_sync(&bucket_name_clone, &bucket_path_clone))
         .await
-        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    crate::manifest_review::after_update(&app, Some(bucket_name)).await;
+    result
 }
 
 fn is_transient_fetch_error(error: &git2::Error) -> bool {
@@ -665,18 +667,10 @@ fn update_bucket_sync(
                                     });
                                 }
 
-                                // Perform fast-forward merge
-                                let mut checkout_builder = git2::build::CheckoutBuilder::new();
-                                checkout_builder.force();
-
-                                repo.reset(
-                                    remote_commit.as_object(),
-                                    git2::ResetType::Hard,
-                                    Some(&mut checkout_builder),
-                                )
-                                .map_err(|e| {
-                                    format!("Failed to update bucket '{}': {}", bucket_name, e)
-                                })?;
+                                // Preserve local manifest edits just like Scoop's git pull.
+                                fast_forward_bucket(&repo, &local_commit, &remote_commit).map_err(
+                                    |e| format!("Failed to update bucket '{}': {}", bucket_name, e),
+                                )?;
 
                                 let manifest_count = utils::count_manifests(bucket_path);
 
@@ -746,10 +740,201 @@ fn update_bucket_sync(
     }
 }
 
+fn fast_forward_bucket(
+    repo: &Repository,
+    local: &git2::Commit<'_>,
+    remote: &git2::Commit<'_>,
+) -> Result<(), String> {
+    let _manifest_guard = super::manifest::MANIFEST_WRITES
+        .lock()
+        .map_err(|e| e.to_string())?;
+    if !repo
+        .graph_descendant_of(remote.id(), local.id())
+        .map_err(|e| e.to_string())?
+    {
+        return Err("Bucket history has local commits or diverged from upstream. Resolve it in Git before updating; local files were kept.".into());
+    }
+    let head = repo.head().map_err(|e| e.to_string())?;
+    if !head.is_branch() {
+        return Err("Bucket HEAD is detached. Check out its branch before updating.".into());
+    }
+    let reference = head.name().map_err(|e| e.to_string())?;
+    // Acquire the branch lock before touching the working tree. Safe checkout
+    // refuses overlapping edits before writing, while keeping unrelated edits.
+    let mut transaction = repo.transaction().map_err(|e| e.to_string())?;
+    transaction.lock_ref(reference).map_err(|e| e.to_string())?;
+    if repo.head().map_err(|e| e.to_string())?.target() != Some(local.id()) {
+        return Err("Bucket HEAD changed during the update. Retry; local files were kept.".into());
+    }
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.safe();
+    repo.checkout_tree(remote.as_object(), Some(&mut checkout)).map_err(|e| {
+        format!("Local changes prevent this bucket update: {e}. Review the edited manifest and keep or undo your changes, then retry. Local files were kept.")
+    })?;
+    transaction
+        .set_target(reference, remote.id(), None, "rScoop: fast-forward bucket")
+        .map_err(|e| e.to_string())?;
+    transaction.commit().map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod fetch_tests {
     use super::*;
     use git2::{Error, ErrorClass, ErrorCode};
+
+    fn commit_files(repo: &Repository, changes: &[(&str, &str)]) -> git2::Oid {
+        let mut index = repo.index().unwrap();
+        for (name, contents) in changes {
+            let path = repo.workdir().unwrap().join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, contents).unwrap();
+            index.add_path(Path::new(name)).unwrap();
+        }
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let signature = git2::Signature::now("rScoop test", "test@example.invalid").unwrap();
+        let parent = repo.head().ok().and_then(|head| head.peel_to_commit().ok());
+        repo.commit(
+            Some("HEAD"),
+            &signature,
+            &signature,
+            "test update",
+            &tree,
+            &parent.iter().collect::<Vec<_>>(),
+        )
+        .unwrap()
+    }
+
+    fn local_bucket() -> (tempfile::TempDir, Repository, Repository) {
+        let temp = tempfile::tempdir().unwrap();
+        let mut options = git2::RepositoryInitOptions::new();
+        options.initial_head("main");
+        let upstream = Repository::init_opts(temp.path().join("upstream"), &options).unwrap();
+        // Keep fixture bytes deterministic regardless of the user's autocrlf setting.
+        commit_files(
+            &upstream,
+            &[
+                (".gitattributes", "* -text\n"),
+                ("bucket/edited.json", "original\n"),
+                ("bucket/other.json", "other\n"),
+            ],
+        );
+        let local = Repository::clone(
+            upstream.workdir().unwrap().to_str().unwrap(),
+            temp.path().join("local"),
+        )
+        .unwrap();
+        (temp, upstream, local)
+    }
+
+    fn fetch_and_fast_forward(repo: &Repository) -> Result<(), String> {
+        repo.find_remote("origin")
+            .unwrap()
+            .fetch(&[] as &[&str], None, None)
+            .unwrap();
+        let local = repo.head().unwrap().peel_to_commit().unwrap();
+        let remote = repo
+            .find_reference("refs/remotes/origin/main")
+            .unwrap()
+            .peel_to_commit()
+            .unwrap();
+        fast_forward_bucket(repo, &local, &remote)
+    }
+
+    #[test]
+    fn bucket_update_preserves_edits_when_upstream_changes_another_manifest() {
+        let (_temp, upstream, local) = local_bucket();
+        let edited = local.workdir().unwrap().join("bucket/edited.json");
+        std::fs::write(&edited, "my local fix\n").unwrap();
+        let upstream_id = commit_files(&upstream, &[("bucket/other.json", "other update\n")]);
+        fetch_and_fast_forward(&local).unwrap();
+        assert_eq!(std::fs::read_to_string(edited).unwrap(), "my local fix\n");
+        assert_eq!(local.head().unwrap().target(), Some(upstream_id));
+        assert_eq!(
+            std::fs::read_to_string(local.workdir().unwrap().join("bucket/other.json")).unwrap(),
+            "other update\n"
+        );
+        assert!(local
+            .status_file(Path::new("bucket/edited.json"))
+            .unwrap()
+            .is_wt_modified());
+    }
+
+    #[test]
+    fn bucket_update_keeps_worktree_and_head_when_edited_manifest_conflicts() {
+        let (_temp, upstream, local) = local_bucket();
+        let edited = local.workdir().unwrap().join("bucket/edited.json");
+        std::fs::write(&edited, "my local fix\n").unwrap();
+        let before = local.head().unwrap().target();
+        commit_files(
+            &upstream,
+            &[
+                ("bucket/edited.json", "new upstream\n"),
+                ("bucket/other.json", "other update\n"),
+            ],
+        );
+        assert!(fetch_and_fast_forward(&local)
+            .unwrap_err()
+            .contains("Local changes"));
+        let conflicts = crate::manifest_review::bucket_conflicts(local.workdir().unwrap(), "main");
+        assert_eq!(conflicts.len(), 1);
+        assert_eq!(conflicts[0].package_name, "edited");
+        assert_eq!(conflicts[0].bucket, "main");
+        assert_eq!(std::fs::read_to_string(&edited).unwrap(), "my local fix\n");
+        assert_eq!(
+            std::fs::read_to_string(local.workdir().unwrap().join("bucket/other.json")).unwrap(),
+            "other\n"
+        );
+        assert_eq!(local.head().unwrap().target(), before);
+        // Accepting upstream in the manifest editor resolves this conflict.
+        std::fs::write(&edited, "new upstream\n").unwrap();
+        assert!(crate::manifest_review::bucket_conflicts(local.workdir().unwrap(), "main").is_empty());
+        fetch_and_fast_forward(&local).unwrap();
+        assert_eq!(
+            local.head().unwrap().target(),
+            upstream.head().unwrap().target()
+        );
+    }
+
+    #[test]
+    fn bucket_update_does_not_discard_local_commits() {
+        let (_temp, upstream, local) = local_bucket();
+        let before = commit_files(&local, &[("bucket/edited.json", "committed fix\n")]);
+        commit_files(&upstream, &[("bucket/other.json", "upstream change\n")]);
+        assert!(fetch_and_fast_forward(&local)
+            .unwrap_err()
+            .contains("diverged"));
+        assert_eq!(local.head().unwrap().target(), Some(before));
+    }
+
+    #[test]
+    fn scoop_style_git_pull_preserves_local_fix_and_refuses_overlap() {
+        let (_temp, upstream, local) = local_bucket();
+        let edited = local.workdir().unwrap().join("bucket/edited.json");
+        std::fs::write(&edited, "my local fix\n").unwrap();
+        commit_files(&upstream, &[("bucket/other.json", "unrelated update\n")]);
+        let pull = || {
+            std::process::Command::new("git")
+                .arg("-C")
+                .arg(local.workdir().unwrap())
+                .args(["-c", "pull.rebase=false", "pull", "--ff-only"])
+                .output()
+                .unwrap()
+        };
+        let first = pull();
+        assert!(
+            first.status.success(),
+            "{}",
+            String::from_utf8_lossy(&first.stderr)
+        );
+        assert_eq!(std::fs::read_to_string(&edited).unwrap(), "my local fix\n");
+        commit_files(
+            &upstream,
+            &[("bucket/edited.json", "upstream replacement\n")],
+        );
+        assert!(!pull().status.success());
+        assert_eq!(std::fs::read_to_string(edited).unwrap(), "my local fix\n");
+    }
 
     fn response_error() -> Error {
         Error::new(

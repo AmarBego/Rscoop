@@ -107,18 +107,27 @@ fn parse_manifest_details(json_value: &Value) -> (Vec<(String, String)>, Option<
 pub fn get_package_info(
     state: State<'_, AppState>,
     package_name: String,
+    bucket: Option<String>,
 ) -> Result<ScoopInfo, String> {
     log::info!("Fetching info for package: {}", package_name);
 
     let scoop_dir = state.scoop_path();
-    let (manifest_path, bucket_name) =
-        utils::locate_package_manifest(&scoop_dir, &package_name, None)?;
+    let (manifest_path, bucket_name) = if let Some(bucket) = bucket {
+        let (path, source) = super::manifest::resolve_manifest(&scoop_dir, &package_name, &bucket)?;
+        (
+            path,
+            source.unwrap_or_else(|| "Installed (Bucket missing)".into()),
+        )
+    } else {
+        utils::locate_package_manifest(&scoop_dir, &package_name, None)?
+    };
 
     let manifest_content = fs::read_to_string(&manifest_path)
         .map_err(|e| format!("Failed to read manifest for {}: {}", package_name, e))?;
 
-    let json_value: Value = serde_json::from_str(&manifest_content)
-        .map_err(|e| format!("Failed to parse JSON for {}: {}", package_name, e))?;
+    let json_value: Value =
+        serde_json::from_str(manifest_content.trim_start_matches('\u{feff}'))
+            .map_err(|e| format!("Failed to parse JSON for {}: {}", package_name, e))?;
 
     let (mut details, notes) = parse_manifest_details(&json_value);
 

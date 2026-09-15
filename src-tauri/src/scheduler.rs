@@ -125,6 +125,7 @@ async fn run_auto_bucket_update(
                         app,
                         operations::OperationWarning {
                             code: "scoop.bucket.update_failed".to_string(),
+                            manifest: None,
                             message: format!(
                                 "Bucket '{}' was not updated: {}",
                                 result.bucket_name, result.message

@@ -11,6 +11,7 @@ import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
 import OperationModal from "./components/OperationModal.tsx";
 import OperationBar from "./components/OperationBar.tsx";
+import ManifestReviewHost from "./components/ManifestReviewHost";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import i18n from "./i18n";
@@ -283,6 +284,7 @@ function App() {
             </Show>
             <OperationModal />
             <OperationBar />
+            <ManifestReviewHost ready={isReady() && !error()} />
         </>
     );
 }

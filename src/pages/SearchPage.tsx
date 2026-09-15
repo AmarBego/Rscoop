@@ -21,6 +21,7 @@ function SearchPage() {
     handleUninstall,
     fetchPackageInfo,
     closeModal,
+    refreshAfterOperation,
   } = useSearch();
 
   return (
@@ -54,7 +55,7 @@ function SearchPage() {
         onClose={closeModal}
         onInstall={handleInstall}
         onUninstall={handleUninstall}
-        onPackageStateChanged={() => {}}
+        onPackageStateChanged={refreshAfterOperation}
       />
     </div>
   );

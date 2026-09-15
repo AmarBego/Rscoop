@@ -3893,7 +3893,7 @@ dependencies = [
 
 [[package]]
 name = "rscoop"
-version = "1.9.9"
+version = "1.10.0"
 dependencies = [
  "chrono",
  "csv",
@@ -3921,6 +3921,7 @@ dependencies = [
  "tauri-plugin-store",
  "tauri-plugin-updater",
  "tauri-winrt-notification",
+ "tempfile",
  "tokio",
  "url",
  "windows 0.61.3",

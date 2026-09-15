@@ -55,6 +55,8 @@ pub struct CommandResult {
 pub struct OperationWarning {
     pub code: String,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifest: Option<crate::manifest_review::ManifestReviewTarget>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -475,6 +477,9 @@ fn notify_result(app: &AppHandle, title: &str, success: bool, status: &str, mess
         })
     };
 
+    let review_target = manager(app).lock().unwrap().current.as_ref()
+        .and_then(|op| op.operation_warnings.iter().find_map(|warning| warning.manifest.clone()));
+
     let marker = match status {
         "warning" => "⚠",
         _ if success => "✓",
@@ -498,7 +503,9 @@ fn notify_result(app: &AppHandle, title: &str, success: bool, status: &str, mess
                 .add_button("Install Anyway", "install-anyway")
                 .add_button("Cancel", "dismiss");
         }
-        None => {}
+        None => {
+            if review_target.is_some() { toast = toast.add_button("Review manifest", "review-manifest"); }
+        }
     }
 
     // Activation callback — fires on body click (argument = None) and on
@@ -506,9 +513,16 @@ fn notify_result(app: &AppHandle, title: &str, success: bool, status: &str, mess
     let app_for_cb = app.clone();
     toast = toast.on_activated(move |action: Option<String>| {
         let app = app_for_cb.clone();
+        let review_target = review_target.clone();
         // Dispatch on the main thread: window recreation + Tauri command
         // invocations must not happen on the WinRT callback thread.
         let _ = app.clone().run_on_main_thread(move || {
+            if action.is_none() || action.as_deref() == Some("review-manifest") {
+                if let Some(target) = review_target {
+                    crate::manifest_review::request_review(&app, target);
+                    return;
+                }
+            }
             match action.as_deref() {
                 Some("clear-cache") => {
                     if let Err(e) = run_pending_chain(&app) {
@@ -543,6 +557,27 @@ fn notify_result(app: &AppHandle, title: &str, success: bool, status: &str, mess
         log::warn!("failed to show toast: {}", e);
     }
 }
+
+/// Manual bucket updates do not have an operation result to attach a toast to.
+#[cfg(windows)]
+pub fn notify_manifest_review(app: &AppHandle, target: crate::manifest_review::ManifestReviewTarget) {
+    use tauri_winrt_notification::Toast;
+    if app.get_webview_window("main").is_some_and(|window| window.is_focused().unwrap_or(false)) { return; }
+    let message = format!("{}/{}: upstream changed. Your local edits were kept.", target.bucket, target.package_name);
+    let app_for_cb = app.clone();
+    let result = Toast::new(&resolve_aumid(app)).title("Manifest update needs review")
+        .text1(&message).add_button("Review manifest", "review-manifest")
+        .on_activated(move |_| {
+            let app = app_for_cb.clone();
+            let target = target.clone();
+            let _ = app.clone().run_on_main_thread(move || crate::manifest_review::request_review(&app, target));
+            Ok(())
+        }).show();
+    if let Err(error) = result { log::warn!("Failed to show manifest review notification: {error}"); }
+}
+
+#[cfg(not(windows))]
+pub fn notify_manifest_review(_app: &AppHandle, _target: crate::manifest_review::ManifestReviewTarget) {}
 
 /// Pick the AppUserModelID for toasts. Uses our bundle identifier when the
 /// binary is in an installed location (installer registers the AUMID via

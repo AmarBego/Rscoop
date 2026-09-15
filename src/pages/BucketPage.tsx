@@ -1,4 +1,4 @@
-import { createSignal, onMount, Show } from "solid-js";
+import { createSignal, onMount, Show, For } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { useBuckets, type BucketInfo } from "../hooks/useBuckets";
 import { usePackageInfo } from "../hooks/usePackageInfo";
@@ -6,6 +6,7 @@ import operationsStore from "../stores/operations";
 import { ScoopPackage } from "../types/scoop";
 import BucketInfoModal from "../components/BucketInfoModal";
 import PackageInfoModal from "../components/PackageInfoModal";
+import { manifestReview } from "../stores/manifestReview";
 import BucketSearch from "../components/page/buckets/BucketSearch";
 import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
@@ -262,6 +263,15 @@ function BucketPage() {
         <Show when={error() && !isSearchActive()}>
           <div class="alert alert-error mb-4">
             <span>{error()}</span>
+          </div>
+        </Show>
+
+        <Show when={manifestReview.conflicts().length > 0}>
+          <div class="flex flex-wrap items-center gap-2 mb-3 text-xs text-warning" role="status">
+            <span>{t("modal.manifest.upstreamChanged")}</span>
+            <For each={manifestReview.conflicts()}>{target =>
+              <button class="btn btn-xs btn-ghost" onClick={() => void manifestReview.open(target)}>{target.bucket}/{target.packageName} · {t("modal.manifest.review")}</button>
+            }</For>
           </div>
         </Show>
 

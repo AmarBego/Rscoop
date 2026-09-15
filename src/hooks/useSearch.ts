@@ -45,7 +45,7 @@ export function useSearch() {
         }
         const currentSelected = packageInfo.selectedPackage();
         if (currentSelected) {
-            const updatedPackage = results().find(p => p.name === currentSelected.name);
+            const updatedPackage = results().find(p => p.name === currentSelected.name && p.source === currentSelected.source);
             if (updatedPackage) {
                 packageInfo.updateSelectedPackage(updatedPackage);
             }
@@ -95,5 +95,6 @@ export function useSearch() {
         handleInstall,
         handleUninstall,
         handleInstallConfirm: operationsStore.handleInstallConfirm,
+        refreshAfterOperation,
     };
 }

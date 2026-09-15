@@ -3,6 +3,7 @@ import { ExternalLink, CircleCheck, CircleX, ShieldAlert, TriangleAlert, Info } 
 import operationsStore from "../stores/operations";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
+import { manifestReview } from "../stores/manifestReview";
 
 /// Format a raw phase hint like "updating_buckets" into a user-facing
 /// "Updating buckets…". Keeps display logic colocated with the consumer.
@@ -191,7 +192,9 @@ function OperationModal() {
           </div>
           <ul class="ms-6 list-disc text-base-content/80">
             <For each={op()?.operationWarnings ?? []}>
-              {(w) => <li>{w.message}</li>}
+              {(w) => <li>{w.message}<Show when={w.manifest}>
+                <button class="btn btn-xs btn-ghost text-warning ms-2" onClick={() => { operationsStore.minimize(); void manifestReview.open(w.manifest!); }}>{t("modal.manifest.review")}</button>
+              </Show></li>}
             </For>
           </ul>
         </div>

@@ -5,6 +5,7 @@ mod icons;
 #[cfg(windows)]
 mod launch;
 mod models;
+mod manifest_review;
 mod operations;
 mod scheduler;
 mod state;
@@ -232,6 +233,11 @@ pub fn run() {
             commands::path::open_bucket_path,
             commands::info::get_package_info,
             commands::manifest::get_package_manifest,
+            commands::manifest::get_package_manifest_document,
+            manifest_review::consume_pending_manifest_review,
+            commands::manifest::save_package_manifest,
+            commands::manifest::restore_package_manifest_backup,
+            commands::manifest::open_package_manifest_editor,
             commands::updates::check_for_updates,
             commands::operations::enqueue_operation,
             commands::operations::get_operation_state,

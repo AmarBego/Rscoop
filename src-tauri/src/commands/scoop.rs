@@ -104,6 +104,7 @@ pub async fn run_operation(app: AppHandle, command: execra::Command) -> Result<O
                     OperationWarning {
                         code: code.clone().unwrap_or_else(|| "interpreter.warning".into()),
                         message: message.clone(),
+                        manifest: None,
                     },
                 );
             }
@@ -187,7 +188,10 @@ async fn execute_scoop_labeled_outcome(
     let cmd = scoop_cmd(app.clone(), args)
         .label(label.clone())
         .interpreter(scoop_interpreter());
-    let outcome = run_operation(app, cmd).await?;
+    let outcome = run_operation(app.clone(), cmd).await?;
+    if matches!(op, ScoopOp::Install | ScoopOp::Update | ScoopOp::UpdateAll) {
+        crate::manifest_review::after_update(&app, None).await;
+    }
     Ok((outcome, label))
 }
 
