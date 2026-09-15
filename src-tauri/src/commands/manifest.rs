@@ -226,7 +226,7 @@ fn preserve_text_format(content: &str, original: &str) -> String {
 
 /// Unique .bak names preserve earlier backups and are ignored by Scoop's JSON
 /// discovery. Never overwrite a pre-existing file or follow a backup symlink.
-fn backup_manifest(path: &Path, content: &str) -> Result<String, String> {
+fn prepare_backup(path: &Path, content: &str) -> Result<tempfile::NamedTempFile, String> {
     let prefix = backup_prefix(path);
     let mut backup = tempfile::Builder::new()
         .prefix(&prefix)
@@ -240,10 +240,34 @@ fn backup_manifest(path: &Path, content: &str) -> Result<String, String> {
         .as_file()
         .sync_all()
         .map_err(|e| format!("Cannot flush manifest backup: {e}"))?;
-    let (_, backup_path) = backup
+    Ok(backup)
+}
+
+fn backup_manifest(path: &Path, content: &str) -> Result<String, String> {
+    let (_, backup_path) = prepare_backup(path, content)?
         .keep()
         .map_err(|e| format!("Cannot keep manifest backup: {e}"))?;
     Ok(display_path(&backup_path))
+}
+
+fn commit_manifest_save(
+    path: &Path,
+    original: &str,
+    pending: tempfile::NamedTempFile,
+    verify_current: impl FnOnce() -> Result<(), String>,
+) -> Result<String, String> {
+    // Keep the backup temporary until the final snapshot check succeeds. A
+    // rejected save must not become the latest restorable backup.
+    let backup = prepare_backup(path, original)?;
+    verify_current()?;
+    let (_, backup_path) = backup
+        .keep()
+        .map_err(|e| format!("Cannot keep manifest backup: {e}"))?;
+    let backup_path = display_path(&backup_path);
+    pending
+        .persist(path)
+        .map_err(|e| format!("Cannot replace manifest (backup: {backup_path}): {e}"))?;
+    Ok(backup_path)
 }
 
 fn save_document(
@@ -285,13 +309,11 @@ fn save_document(
         .set_permissions(permissions)
         .map_err(|e| e.to_string())?;
     pending.as_file().sync_all().map_err(|e| e.to_string())?;
-    let backup_path = backup_manifest(&path, original)?;
     // Recheck after preparing the replacement; external editors and bucket
     // updates may have changed the file since the user entered edit mode.
-    verify_snapshot(&read_document(root, name, bucket)?, expected_path, original)?;
-    pending
-        .persist(&path)
-        .map_err(|e| format!("Cannot replace manifest (backup: {backup_path}): {e}"))?;
+    let backup_path = commit_manifest_save(&path, &document.content, pending, || {
+        verify_snapshot(&read_document(root, name, bucket)?, expected_path, original)
+    })?;
     let upstream = if document.bucket.is_some() {
         crate::manifest_review::upstream_manifest(&path, &content)
     } else {
@@ -621,6 +643,42 @@ mod tests {
         .contains("changed on disk"));
         assert_eq!(fs::read_to_string(&path).unwrap(), external);
         assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn rejected_final_save_check_removes_only_the_pending_backup() {
+        let (temp, path) = fixture();
+        let original = read_document(temp.path(), "example", "main").unwrap();
+        let previous_backup = backup_manifest(&path, r#"{"version":"previous"}"#).unwrap();
+        let mut pending = tempfile::NamedTempFile::new_in(path.parent().unwrap()).unwrap();
+        pending.write_all(br#"{"version":"draft"}"#).unwrap();
+        let external = r#"{"version":"external"}"#;
+        let error = commit_manifest_save(&path, &original.content, pending, || {
+            // Deterministically reproduce an external write after the new backup
+            // was prepared but before the final on-disk snapshot validation.
+            fs::write(&path, external).unwrap();
+            verify_snapshot(
+                &read_document(temp.path(), "example", "main")?,
+                &original.path,
+                &original.content,
+            )
+        })
+        .unwrap_err();
+        assert!(error.contains("changed on disk"));
+        assert_eq!(fs::read_to_string(&path).unwrap(), external);
+        assert_eq!(
+            fs::read_to_string(&previous_backup).unwrap(),
+            r#"{"version":"previous"}"#
+        );
+        assert_eq!(
+            latest_backup(&path).unwrap().name,
+            Path::new(&previous_backup)
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+        );
+        assert_eq!(fs::read_dir(path.parent().unwrap()).unwrap().count(), 2);
     }
 
     #[test]
