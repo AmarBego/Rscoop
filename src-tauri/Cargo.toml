@@ -55,6 +55,13 @@ git2 = { version = "0.21.0", features = ["https"] }
 url = "2.5.8"
 
 [target."cfg(windows)".dependencies]
+windows = { version = "0.61.3", features = [
+    "Win32_System_Com",
+    "Win32_System_Ole",
+    "Win32_System_Variant",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
 tauri-plugin-updater = "2.11.0"
 tauri-plugin-single-instance = "2.4.4"
 tauri-winrt-notification = "0.8.1"

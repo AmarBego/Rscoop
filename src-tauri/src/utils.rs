@@ -648,60 +648,6 @@ pub fn launch_scoop_app(target_path: &str, working_directory: &str) -> Result<()
     }
 }
 
-/// Checks if the current working directory matches the executable directory.
-/// If not, it relaunches the application with the correct working directory.
-/// This fixes issues with MSI installers launching the app with the wrong CWD and restricted tokens.
-pub fn ensure_correct_cwd_and_launch() {
-    // Skip this check in development mode
-    if cfg!(debug_assertions) {
-        return;
-    }
-
-    use std::env;
-    use std::fs;
-    use std::process::Command;
-
-    let sentinel_path = env::temp_dir().join("rscoop_relaunch.lock");
-
-    // Check for sentinel file (loop breaker)
-    if sentinel_path.exists() {
-        // If sentinel exists, we are the relaunched process.
-        // Force CWD to exe dir and clean up.
-        if let Ok(exe_path) = env::current_exe() {
-            if let Some(exe_dir) = exe_path.parent() {
-                let _ = env::set_current_dir(exe_dir);
-            }
-        }
-        let _ = fs::remove_file(&sentinel_path);
-        return;
-    }
-
-    if let (Ok(exe_path), Ok(_cwd)) = (env::current_exe(), env::current_dir()) {
-        if let Some(_exe_dir) = exe_path.parent() {
-            // Use the shared mismatch check
-            if !is_cwd_mismatch() {
-                return;
-            }
-
-            // Create sentinel file to prevent loop
-            let _ = fs::write(&sentinel_path, "Relaunching...");
-
-            if let Err(e) = Command::new(&exe_path)
-                .args(env::args_os().skip(1))
-                .current_dir(_exe_dir)
-                .spawn()
-            {
-                let _ = fs::remove_file(&sentinel_path);
-                let _ = env::set_current_dir(_exe_dir);
-                eprintln!("Failed to relaunch rscoop with corrected cwd: {}", e);
-                return;
-            }
-
-            std::process::exit(0);
-        }
-    }
-}
-
 /// Checks if the current working directory matches the application's install directory.
 /// Returns true if they don't match.
 pub fn is_cwd_mismatch() -> bool {
