@@ -25,6 +25,7 @@ Results show the package name, bucket, version, and whether it's already install
 Click any result to open the package details modal. From there you can:
 
 - Read the full Scoop manifest (description, homepage, notes, architecture)
+- Edit the manifest in rScoop or open it in your text editor or IDE
 - View shim details and cache usage
 - Hit **Install** to kick off the install with live progress output
 
@@ -33,4 +34,4 @@ If VirusTotal scanning is enabled, the scan result shows up before the install s
 ## Tips
 
 - Click the help icon next to the search bar for advanced search syntax (quotes for exact matches, etc.).
-- Toggle the manifest view in the modal to see the raw JSON without leaving rScoop.
+- Open the Manifest tab to read or edit the JSON. See [Manifest Editing](manifests.md) for backups and what happens when the bucket updates.

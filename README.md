@@ -38,7 +38,7 @@ Or grab the `.msi` or portable `.exe` from [Releases](https://github.com/AmarBeg
 
 **Package search**
 
-Search every added bucket at once. Results show the bucket, version, and install state, with quick actions for viewing the manifest or starting an install.
+Search every added bucket at once. Results show the bucket, version, and install state, with quick actions for viewing or editing the manifest, or starting an install.
 
 **Installed packages**
 

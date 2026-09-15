@@ -19,6 +19,8 @@ Every bucket you've added shows up in a grid with its manifest count and last-up
 - Update a bucket to pull the latest commits
 - Remove buckets you don't need
 
+Local manifest edits survive updates to other files. If upstream changes a file you've edited, the bucket update may be blocked until you review it. See [Manifest Editing](manifests.md#when-a-bucket-updates) for the steps.
+
 ![Bucket modal](../assets/images/bucketmodal.png)
 
 ## Discovering new buckets

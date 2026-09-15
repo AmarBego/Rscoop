@@ -12,5 +12,6 @@ rScoop has four main pages and a settings panel with six tabs. Pick a page below
 - [Search](search.md), find and install packages across all your buckets
 - [Installed](installed.md), manage what's on your machine
 - [Buckets](buckets.md), add, remove, and discover Scoop buckets
+- [Manifest Editing](manifests.md), edit manifests, use your own editor, restore backups, and review bucket changes
 - [System Health](system-health.md), run diagnostics, clean up, manage shims and cache
 - [Settings](settings.md), configure automation, security, appearance, tray, and more. Includes profile export & import for moving your setup between machines.
