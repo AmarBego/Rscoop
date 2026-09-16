@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -164,6 +166,16 @@ jobs:
           
           Set-Content -Path "./update.json" -Value $json
 
+      - name: Attest build provenance
+        # actions/attest-build-provenance@v4.2.2
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+        with:
+          subject-path: |
+            ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe
+            ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi
+            ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi.sig
+            ./update.json
+
       - name: Create GitHub Release with artifacts
         # ncipollo/release-action@v1
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd
@@ -174,6 +186,7 @@ jobs:
           bodyFile: RELEASE_NOTES.md
           draft: false
           prerelease: false
+          immutableCreate: true
           artifacts: >-
             ./src-tauri/target/release/${{ steps.meta.outputs.product }}.exe,
             ./src-tauri/target/release/bundle/msi/${{ steps.meta.outputs.product }}_${{ steps.meta.outputs.version }}_x64_en-US.msi,
