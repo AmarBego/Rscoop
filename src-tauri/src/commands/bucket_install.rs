@@ -8,7 +8,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex, OnceLock,
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{command, AppHandle, Manager, Runtime};
 
 use crate::commands::search::invalidate_manifest_cache;
@@ -17,6 +17,24 @@ use crate::state::AppState;
 use crate::utils;
 
 static BUCKET_INSTALL_CANCEL: OnceLock<Mutex<Option<Arc<AtomicBool>>>> = OnceLock::new();
+static LAST_SUCCESSFUL_BUCKET_REFRESH: OnceLock<Mutex<Option<Instant>>> = OnceLock::new();
+const BUCKET_REFRESH_FRESH_FOR: Duration = Duration::from_secs(3 * 60 * 60);
+
+fn last_successful_bucket_refresh() -> &'static Mutex<Option<Instant>> {
+    LAST_SUCCESSFUL_BUCKET_REFRESH.get_or_init(|| Mutex::new(None))
+}
+
+pub(crate) fn buckets_recently_refreshed() -> bool {
+    last_successful_bucket_refresh()
+        .lock()
+        .ok()
+        .and_then(|last| *last)
+        .is_some_and(|last| last.elapsed() < BUCKET_REFRESH_FRESH_FOR)
+}
+
+fn all_bucket_updates_succeeded(results: &[BucketInstallResult]) -> bool {
+    results.iter().all(|result| result.success)
+}
 
 fn bucket_install_cancel_slot() -> &'static Mutex<Option<Arc<AtomicBool>>> {
     BUCKET_INSTALL_CANCEL.get_or_init(|| Mutex::new(None))
@@ -826,6 +844,23 @@ mod fetch_tests {
     use super::*;
     use git2::{Error, ErrorClass, ErrorCode};
 
+    #[test]
+    fn global_refresh_only_succeeds_when_every_bucket_succeeds() {
+        let result = |success| BucketInstallResult {
+            success,
+            message: String::new(),
+            bucket_name: String::new(),
+            bucket_path: None,
+            manifest_count: None,
+        };
+
+        assert!(all_bucket_updates_succeeded(&[result(true), result(true)]));
+        assert!(!all_bucket_updates_succeeded(&[
+            result(true),
+            result(false)
+        ]));
+    }
+
     fn commit_files(repo: &Repository, changes: &[(&str, &str)]) -> git2::Oid {
         let mut index = repo.index().unwrap();
         for (name, contents) in changes {
@@ -1310,11 +1345,15 @@ pub async fn update_all_buckets(app: AppHandle) -> Result<Vec<BucketInstallResul
         }
     }
 
-    // Scoop uses this timestamp to decide whether install/update commands
-    // should run its own `git pull`. rScoop has already refreshed every
-    // bucket with conflict-aware checkout logic, so prevent a redundant pull
-    // from aborting on locally edited manifests.
-    crate::commands::settings::mark_scoop_updated_now()?;
+    if all_bucket_updates_succeeded(&results) {
+        // Scoop uses this timestamp to decide whether install/update commands
+        // should run its own `git pull`. Only claim a completed refresh when
+        // every bucket succeeded.
+        crate::commands::settings::mark_scoop_updated_now()?;
+        *last_successful_bucket_refresh()
+            .lock()
+            .map_err(|error| error.to_string())? = Some(Instant::now());
+    }
 
     log::info!("Completed updating {} buckets", results.len());
     Ok(results)
