@@ -44,7 +44,7 @@ fn build_scoop_args(
                 Some(b) => format!("{}/{}", b, pkg),
                 None => pkg.to_string(),
             };
-            Ok(vec!["install".into(), target])
+            Ok(vec!["install".into(), target, "--no-update-scoop".into()])
         }
         ScoopOp::Uninstall => {
             let pkg = package.ok_or("A package name is required to uninstall.")?;
@@ -230,4 +230,29 @@ pub async fn run_scoop_operation(
         .label(label.into())
         .interpreter(scoop_interpreter());
     run_operation(app, cmd).await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{build_scoop_args, ScoopOp};
+
+    #[test]
+    fn installs_never_run_scoops_own_bucket_updater() {
+        assert_eq!(
+            build_scoop_args(ScoopOp::Install, Some("extras/example"), None).unwrap(),
+            vec!["install", "extras/example", "--no-update-scoop"]
+        );
+    }
+
+    #[test]
+    fn package_updates_keep_the_normal_scoop_arguments() {
+        assert_eq!(
+            build_scoop_args(ScoopOp::Update, Some("example"), None).unwrap(),
+            vec!["update", "example"]
+        );
+        assert_eq!(
+            build_scoop_args(ScoopOp::UpdateAll, None, None).unwrap(),
+            vec!["update", "*"]
+        );
+    }
 }

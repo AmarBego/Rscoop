@@ -1,6 +1,7 @@
 //! Commands for reading and writing application settings from the persistent store.
 use crate::state::AppState;
 use serde_json::{Map, Value};
+use std::env;
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime, State};
@@ -38,9 +39,13 @@ where
 ///
 /// Typically: `C:\Users\USER\.config\scoop\config.json`
 fn get_scoop_config_path() -> Result<PathBuf, String> {
-    dirs::config_dir()
-        .ok_or_else(|| "Could not determine config directory".to_string())
-        .map(|p| p.join("scoop").join("config.json"))
+    let config_home = env::var_os("XDG_CONFIG_HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|home| home.join(".config")))
+        .ok_or_else(|| "Could not determine Scoop config directory".to_string())?;
+
+    Ok(config_home.join("scoop").join("config.json"))
 }
 
 /// Reads the Scoop configuration file and returns its contents as a JSON map.
@@ -69,6 +74,18 @@ fn write_scoop_config(config: &Map<String, Value>) -> Result<(), String> {
     let content = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize Scoop config: {}", e))?;
     fs::write(&path, content).map_err(|e| format!("Failed to write to {:?}: {}", path, e))
+}
+
+/// Tell Scoop that rScoop has just refreshed its buckets. Without this,
+/// `scoop install` / `scoop update <app>` may immediately run Scoop's own
+/// updater and abort on manifest edits that rScoop intentionally preserves.
+pub(crate) fn mark_scoop_updated_now() -> Result<(), String> {
+    let mut config = read_scoop_config()?;
+    config.insert(
+        "last_update".to_string(),
+        serde_json::json!(chrono::Utc::now().to_rfc3339()),
+    );
+    write_scoop_config(&config)
 }
 
 /// Gets the configured Scoop path from the store.

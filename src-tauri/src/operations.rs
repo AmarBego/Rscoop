@@ -1212,6 +1212,13 @@ fn update_current_title(app: &AppHandle, new_title: String) {
 }
 
 async fn execute_action(app: &AppHandle, action: &EnqueueAction) -> Result<(), String> {
+    if matches!(
+        action,
+        EnqueueAction::Install { .. } | EnqueueAction::Update { .. } | EnqueueAction::UpdateAll
+    ) {
+        refresh_buckets_before_package_action(app).await?;
+    }
+
     match action {
         EnqueueAction::Install {
             package,
@@ -1271,6 +1278,41 @@ async fn execute_action(app: &AppHandle, action: &EnqueueAction) -> Result<(), S
             Err("ScanAndInstall was not expanded before execution".to_string())
         }
     }
+}
+
+async fn refresh_buckets_before_package_action(app: &AppHandle) -> Result<(), String> {
+    append_output(
+        app,
+        "Refreshing buckets before package operation...".into(),
+        "stdout",
+    );
+
+    let results = crate::commands::bucket_install::update_all_buckets(app.clone()).await?;
+    for result in results {
+        if result.success {
+            append_output(
+                app,
+                format!("Bucket '{}' is ready.", result.bucket_name),
+                "stdout",
+            );
+        } else {
+            let message = format!(
+                "Bucket '{}' could not be refreshed: {}",
+                result.bucket_name, result.message
+            );
+            append_output(app, message.clone(), "stderr");
+            push_operation_warning(
+                app,
+                OperationWarning {
+                    code: "scoop.bucket.update_failed".into(),
+                    message,
+                    manifest: None,
+                },
+            );
+        }
+    }
+
+    Ok(())
 }
 
 async fn run_post_hooks(app: &AppHandle, pending: &PendingOp, result: &Result<(), String>) {

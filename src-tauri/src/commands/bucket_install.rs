@@ -1310,6 +1310,12 @@ pub async fn update_all_buckets(app: AppHandle) -> Result<Vec<BucketInstallResul
         }
     }
 
+    // Scoop uses this timestamp to decide whether install/update commands
+    // should run its own `git pull`. rScoop has already refreshed every
+    // bucket with conflict-aware checkout logic, so prevent a redundant pull
+    // from aborting on locally edited manifests.
+    crate::commands::settings::mark_scoop_updated_now()?;
+
     log::info!("Completed updating {} buckets", results.len());
     Ok(results)
 }
