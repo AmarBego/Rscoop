@@ -348,6 +348,18 @@ function PackageInfoModal(props: PackageInfoModalProps) {
     }
   };
 
+  const openPackagePath = async () => {
+    if (!props.pkg) return;
+
+    try {
+      await invoke("open_package_path", {
+        packageName: props.pkg.name,
+      });
+    } catch (error) {
+      console.error('Failed to open package path:', getErrorMessage(error));
+    }
+  };
+
   const headerAction = (
     <Show when={props.pkg?.is_installed}>
       <Dropdown
@@ -357,17 +369,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       >
         <DropdownItem
           icon={<ExternalLink class="w-4 h-4" aria-hidden="true" />}
-          onClick={async () => {
-            if (props.pkg) {
-              try {
-                await invoke("open_package_path", {
-                  packageName: props.pkg.name
-                });
-              } catch (error) {
-                console.error('Failed to open package path:', getErrorMessage(error));
-              }
-            }
-          }}
+          onClick={openPackagePath}
         >
           {t("modal.package.openInExplorer")}
         </DropdownItem>
@@ -538,6 +540,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                               </Match>
                               <Match when={key === 'Homepage'}>
                                 <a href={value} target="_blank" rel="noopener noreferrer" class="link link-primary break-all">{value}</a>
+                              </Match>
+                              <Match when={key === 'Installed'}>
+                                <button type="button" class="link link-primary break-all text-start" onClick={openPackagePath}>
+                                  {value}
+                                </button>
                               </Match>
                               <Match when={key === 'License'}>
                                 <LicenseValue value={value} />
