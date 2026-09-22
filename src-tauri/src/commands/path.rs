@@ -21,8 +21,14 @@ pub fn open_package_path<R: Runtime>(
 ) -> Result<(), String> {
     let package_path =
         validate_scoop_child_dir(&state.scoop_path().join("apps"), &package_name, "Package")?;
+    let current_path = package_path.join("current");
+    let path_to_open = if current_path.is_dir() {
+        current_path
+    } else {
+        package_path
+    };
 
-    open_validated_path(app, package_path)
+    open_validated_path(app, path_to_open)
 }
 
 #[tauri::command]

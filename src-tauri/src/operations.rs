@@ -1047,8 +1047,16 @@ fn spawn_runner(app: AppHandle, pending: PendingOp) {
 }
 
 async fn run_action(app: AppHandle, pending: PendingOp) {
-    // Execute the primary action
-    let primary_result = execute_action(&app, &pending.action).await;
+    // Refresh once before the whole logical operation. For scan-and-install,
+    // this guarantees the scan and chained install use the same manifest.
+    let primary_result = if pending_needs_bucket_refresh(&pending) {
+        match refresh_buckets_before_package_action(&app).await {
+            Ok(()) => execute_action(&app, &pending.action).await,
+            Err(error) => Err(error),
+        }
+    } else {
+        execute_action(&app, &pending.action).await
+    };
     let primary_had_warnings = has_operation_warnings(&app);
 
     // If success and there's an auto chain, run it in the SAME op
@@ -1273,6 +1281,65 @@ async fn execute_action(app: &AppHandle, action: &EnqueueAction) -> Result<(), S
     }
 }
 
+fn pending_needs_bucket_refresh(pending: &PendingOp) -> bool {
+    matches!(
+        pending.action,
+        EnqueueAction::Install { .. } | EnqueueAction::Update { .. } | EnqueueAction::UpdateAll
+    ) || matches!(
+        pending.chain.as_deref(),
+        Some(EnqueueAction::Install { .. })
+    )
+}
+
+async fn refresh_buckets_before_package_action(app: &AppHandle) -> Result<(), String> {
+    if crate::commands::bucket_install::buckets_recently_refreshed() {
+        append_output(app, "Using recently refreshed buckets.".into(), "stdout");
+        return Ok(());
+    }
+
+    append_output(
+        app,
+        "Refreshing buckets before package operation...".into(),
+        "stdout",
+    );
+
+    let results = crate::commands::bucket_install::update_all_buckets(app.clone()).await?;
+    let mut failures = Vec::new();
+    for result in results {
+        if result.success {
+            append_output(
+                app,
+                format!("Bucket '{}' is ready.", result.bucket_name),
+                "stdout",
+            );
+        } else {
+            let message = format!(
+                "Bucket '{}' could not be refreshed: {}",
+                result.bucket_name, result.message
+            );
+            append_output(app, message.clone(), "stderr");
+            push_operation_warning(
+                app,
+                OperationWarning {
+                    code: "scoop.bucket.update_failed".into(),
+                    message,
+                    manifest: None,
+                },
+            );
+            failures.push(result.bucket_name);
+        }
+    }
+
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Bucket refresh failed for {}. The package operation was not started.",
+            failures.join(", ")
+        ))
+    }
+}
+
 async fn run_post_hooks(app: &AppHandle, pending: &PendingOp, result: &Result<(), String>) {
     use crate::commands::installed::invalidate_installed_cache;
     use crate::commands::search::invalidate_manifest_cache;
@@ -1293,5 +1360,40 @@ async fn run_post_hooks(app: &AppHandle, pending: &PendingOp, result: &Result<()
             invalidate_installed_cache(state.clone()).await;
         }
         _ => {}
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pending(action: EnqueueAction, chain: Option<EnqueueAction>) -> PendingOp {
+        PendingOp {
+            id: "test".into(),
+            title: "test".into(),
+            kind: action.kind(),
+            package_name: action.package_name(),
+            action,
+            chain: chain.map(Box::new),
+            auto_chain: true,
+        }
+    }
+
+    #[test]
+    fn scan_and_install_refreshes_before_the_scan() {
+        let operation = pending(
+            EnqueueAction::Scan {
+                package: "example".into(),
+                bucket: "main".into(),
+            },
+            Some(EnqueueAction::Install {
+                package: "example".into(),
+                bucket: "main".into(),
+                version: None,
+            }),
+        );
+
+        assert!(pending_needs_bucket_refresh(&operation));
+        assert!(!matches!(operation.action, EnqueueAction::Install { .. }));
     }
 }

@@ -109,7 +109,11 @@ async fn run_auto_bucket_update(
         Ok(results) => {
             let successes = results.iter().filter(|r| r.success).count();
             let total = results.len();
-            should_update_packages = successes > 0 && read_config_bool(app, UPDATE_PACKAGES_KEY);
+            should_update_packages = should_run_package_update(
+                successes,
+                total,
+                read_config_bool(app, UPDATE_PACKAGES_KEY),
+            );
 
             log::info!(
                 "Auto bucket update completed: {} successes / {} total",
@@ -152,8 +156,12 @@ async fn run_auto_bucket_update(
                 ),
             );
 
-            if read_config_bool(app, UPDATE_PACKAGES_KEY) && successes == 0 {
-                log::warn!("Skipping automatic package update because no bucket updated cleanly");
+            if read_config_bool(app, UPDATE_PACKAGES_KEY) && successes != total {
+                log::warn!(
+                    "Skipping automatic package update because {} of {} buckets failed",
+                    total - successes,
+                    total
+                );
             }
         }
         Err(e) => {
@@ -246,6 +254,10 @@ fn bucket_update_succeeded(successes: usize, total: usize) -> bool {
     successes > 0 || total == 0
 }
 
+fn should_run_package_update(successes: usize, total: usize, enabled: bool) -> bool {
+    enabled && successes > 0 && successes == total
+}
+
 fn parse_auto_update_interval(raw: &str) -> AutoUpdateInterval {
     let trimmed = raw.trim();
     match trimmed {
@@ -328,6 +340,14 @@ mod tests {
         assert!(bucket_update_succeeded(6, 6));
         assert!(bucket_update_succeeded(0, 0));
         assert!(!bucket_update_succeeded(0, 6));
+    }
+
+    #[test]
+    fn package_update_requires_every_bucket_to_refresh() {
+        assert!(should_run_package_update(3, 3, true));
+        assert!(!should_run_package_update(2, 3, true));
+        assert!(!should_run_package_update(3, 3, false));
+        assert!(!should_run_package_update(0, 0, true));
     }
 
     #[test]
