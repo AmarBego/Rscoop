@@ -1,4 +1,4 @@
-import { Component, JSX, Show } from "solid-js";
+import { Show, type Component, type JSX } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
 interface CardProps {
@@ -28,7 +28,7 @@ export default function Card(props: CardProps) {
                             <Dynamic component={props.icon} class="w-6 h-6 me-2 text-primary shrink-0" />
                         )}
 
-                        <span class="min-w-0 break-words">{props.title}</span>
+                        <span class="min-w-0 wrap-break-word">{props.title}</span>
                     </h2>
                     <Show when={props.headerAction}>
                         <div class="form-control w-full sm:w-auto sm:shrink-0">{props.headerAction}</div>
@@ -36,7 +36,7 @@ export default function Card(props: CardProps) {
                 </div>
 
                 <Show when={props.description}>
-                    <div id={descriptionId} class="mb-4 text-sm text-base-content/70 break-words">
+                    <div id={descriptionId} class="mb-4 text-sm text-base-content/70 wrap-break-word">
                         {props.description}
                     </div>
                 </Show>

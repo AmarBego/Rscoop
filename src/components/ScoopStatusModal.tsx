@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 import { CircleCheckBig, TriangleAlert, WifiOff, FolderOpen } from "lucide-solid";
-import { View } from "../types/scoop";
+import type { View } from "../types/scoop";
 import type { AppStatusInfo, ScoopStatus } from "../hooks/useInstalledPackages";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
@@ -94,6 +94,7 @@ function ScoopStatusModal(props: ScoopStatusModalProps) {
       footer={
         <Show when={props.status?.bucket_needs_update && props.onNavigate}>
           <button
+            type="button"
             class="btn btn-primary btn-sm"
             onClick={() => {
               props.onNavigate?.("bucket");

@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { ScoopPackage, ScoopInfo } from "../types/scoop";
+import type { ScoopPackage, ScoopInfo } from "../types/scoop";
 import { getErrorMessage } from "../utils/errors";
 
 export function usePackageInfo() {

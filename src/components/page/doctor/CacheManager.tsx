@@ -95,7 +95,7 @@ function CacheManager() {
             // Unselect only the visible items
             setSelectedItems(prev => {
                 const next = new Set(prev);
-                currentIdentifiers.forEach(id => next.delete(id));
+                currentIdentifiers.forEach(id => { next.delete(id); });
                 return next;
             });
         } else {

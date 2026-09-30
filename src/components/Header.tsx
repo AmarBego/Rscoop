@@ -1,5 +1,5 @@
-import { Component, For, createSignal } from "solid-js";
-import { View } from "../types/scoop.ts";
+import { For, createSignal, type Component } from "solid-js";
+import type { View } from "../types/scoop.ts";
 import { Package, Search, Settings, Stethoscope, FolderOpen } from "lucide-solid";
 import installedPackagesStore from '../stores/installedPackagesStore';
 import { useI18n } from "../i18n";

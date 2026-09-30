@@ -3,7 +3,7 @@ import { Home, ChevronDown } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
 import Card from "../../common/Card";
 import { Dropdown, DropdownItem } from "../../common/Dropdown";
-import { View } from "../../../types/scoop";
+import type { View } from "../../../types/scoop";
 import { useI18n } from "../../../i18n";
 
 function DefaultLaunchPageSettings() {

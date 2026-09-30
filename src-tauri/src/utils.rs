@@ -340,6 +340,59 @@ pub fn resolve_scoop_root<R: Runtime>(app: AppHandle<R>) -> Result<PathBuf, Stri
 }
 
 // -----------------------------------------------------------------------------
+// Scoop install/manifest file compat
+// -----------------------------------------------------------------------------
+
+pub const SCOOP_INSTALL_FILENAME: &str = "scoop-install.json";
+pub const SCOOP_MANIFEST_FILENAME: &str = "scoop-manifest.json";
+
+#[deprecated(
+    since = "1.11.0",
+    note = "Scoop 0.6.0 renamed install.json to scoop-install.json. Remove after 2027-10."
+)]
+pub const LEGACY_INSTALL_FILENAME: &str = "install.json";
+
+#[deprecated(
+    since = "1.11.0",
+    note = "Scoop 0.6.0 renamed manifest.json to scoop-manifest.json. Remove after 2027-10."
+)]
+pub const LEGACY_MANIFEST_FILENAME: &str = "manifest.json";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoopJsonKind {
+    Install,
+    Manifest,
+}
+
+#[allow(deprecated)]
+pub fn resolve_scoop_json(dir: &Path, kind: ScoopJsonKind) -> Option<PathBuf> {
+    let (new_name, legacy_name) = match kind {
+        ScoopJsonKind::Install => (SCOOP_INSTALL_FILENAME, LEGACY_INSTALL_FILENAME),
+        ScoopJsonKind::Manifest => (SCOOP_MANIFEST_FILENAME, LEGACY_MANIFEST_FILENAME),
+    };
+    let path = dir.join(new_name);
+    if path.is_file() {
+        return Some(path);
+    }
+    let legacy_path = dir.join(legacy_name);
+    legacy_path.is_file().then_some(legacy_path)
+}
+
+pub fn is_workspace_manifest_url(scoop_dir: &Path, app_name: &str, url: &str) -> bool {
+    let expected = scoop_dir
+        .join("workspace")
+        .join(format!("{app_name}.json"))
+        .to_string_lossy()
+        .replace('/', "\\");
+    let expected = expected
+        .strip_prefix(r"\\?\UNC\")
+        .map(|rest| format!(r"\\{rest}"))
+        .or_else(|| expected.strip_prefix(r"\\?\").map(str::to_string))
+        .unwrap_or(expected);
+    expected.eq_ignore_ascii_case(&url.replace('/', "\\"))
+}
+
+// -----------------------------------------------------------------------------
 // Manifest helpers
 // -----------------------------------------------------------------------------
 
@@ -399,24 +452,14 @@ pub fn locate_package_manifest(
     }
 
     // 3. Check installed apps if not found in buckets
-    let installed_manifest_path = scoop_dir
-        .join("apps")
-        .join(package_name)
-        .join("current")
-        .join("manifest.json");
+    let current_dir = scoop_dir.join("apps").join(package_name).join("current");
 
-    if installed_manifest_path.exists() {
-        // Try to read install.json to get the original bucket name if possible
-        let install_json_path = scoop_dir
-            .join("apps")
-            .join(package_name)
-            .join("current")
-            .join("install.json");
-
+    if let Some(installed_manifest_path) = resolve_scoop_json(&current_dir, ScoopJsonKind::Manifest)
+    {
         let mut bucket_name = "Installed (Bucket missing)".to_string();
 
-        if install_json_path.exists() {
-            if let Ok(content) = std::fs::read_to_string(install_json_path) {
+        if let Some(install_info_path) = resolve_scoop_json(&current_dir, ScoopJsonKind::Install) {
+            if let Ok(content) = std::fs::read_to_string(install_info_path) {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
                     if let Some(bucket) = json.get("bucket").and_then(|b| b.as_str()) {
                         bucket_name = format!("{} (missing)", bucket);
@@ -1120,6 +1163,77 @@ pub fn validate_and_normalize_url(url: &str) -> Result<String, String> {
     match Url::parse(&final_url) {
         Ok(_) => Ok(final_url),
         Err(_) => Err("Invalid URL format".to_string()),
+    }
+}
+
+#[cfg(test)]
+mod scoop_json_tests {
+    use super::*;
+
+    fn write(dir: &Path, name: &str) -> PathBuf {
+        let path = dir.join(name);
+        fs::write(&path, "{}").expect("write test file");
+        path
+    }
+
+    #[test]
+    fn resolver_prefers_new_names_and_falls_back_to_legacy() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path();
+        assert_eq!(resolve_scoop_json(dir, ScoopJsonKind::Install), None);
+        assert_eq!(resolve_scoop_json(dir, ScoopJsonKind::Manifest), None);
+
+        let legacy_install = write(dir, "install.json");
+        let legacy_manifest = write(dir, "manifest.json");
+        assert_eq!(
+            resolve_scoop_json(dir, ScoopJsonKind::Install).as_deref(),
+            Some(legacy_install.as_path())
+        );
+        assert_eq!(
+            resolve_scoop_json(dir, ScoopJsonKind::Manifest).as_deref(),
+            Some(legacy_manifest.as_path())
+        );
+
+        let new_install = write(dir, "scoop-install.json");
+        let new_manifest = write(dir, "scoop-manifest.json");
+        assert_eq!(
+            resolve_scoop_json(dir, ScoopJsonKind::Install).as_deref(),
+            Some(new_install.as_path())
+        );
+        assert_eq!(
+            resolve_scoop_json(dir, ScoopJsonKind::Manifest).as_deref(),
+            Some(new_manifest.as_path())
+        );
+    }
+
+    #[test]
+    fn workspace_url_matches_generated_manifest_only() {
+        let scoop_dir = PathBuf::from(r"C:\Users\demo\scoop");
+        assert!(is_workspace_manifest_url(
+            &scoop_dir,
+            "example",
+            r"C:\Users\demo\scoop\workspace\example.json"
+        ));
+        assert!(is_workspace_manifest_url(
+            &scoop_dir,
+            "example",
+            "c:/users/demo/scoop/workspace/example.json"
+        ));
+        assert!(!is_workspace_manifest_url(
+            &scoop_dir,
+            "example",
+            "https://example.com/example.json"
+        ));
+        assert!(!is_workspace_manifest_url(
+            &scoop_dir,
+            "example",
+            r"C:\Users\demo\scoop\workspace\other.json"
+        ));
+        assert!(!is_workspace_manifest_url(
+            &scoop_dir,
+            "example",
+            r"C:\Users\demo\example.json"
+        ));
     }
 }
 

@@ -1,7 +1,8 @@
 import { createSignal, Show } from "solid-js";
 import { Trash2, Eye, EyeOff } from "lucide-solid";
-import { Shim } from "./ShimManager";
+import type { Shim } from "./ShimManager";
 import { useI18n } from "../../../i18n";
+import { normalizeShimPath } from "../../../utils/format";
 import Modal from "../../common/Modal";
 
 interface ShimDetailsModalProps {
@@ -27,7 +28,6 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
     }
 
     return (
-        <>
             <Modal
                 isOpen={true}
                 onClose={props.onClose}
@@ -87,7 +87,7 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
                         <span class="font-semibold text-base-content">{t("doctor.shimDetailsSource")} </span> {props.shim.source}
                     </p>
                     <p class="text-sm  break-all">
-                        <span class="font-semibold text-base-content">{t("doctor.shimDetailsPath")} </span> {props.shim.path}
+                        <span class="font-semibold text-base-content">{t("doctor.shimDetailsPath")} </span> {normalizeShimPath(props.shim.path)}
                     </p>
                     <Show when={props.shim.args}>
                         <p class="text-sm  break-all">
@@ -97,8 +97,7 @@ function ShimDetailsModal(props: ShimDetailsModalProps) {
                     </Show>
                 </div>
             </Modal>
-        </>
     );
 }
 
-export default ShimDetailsModal; 
+export default ShimDetailsModal;

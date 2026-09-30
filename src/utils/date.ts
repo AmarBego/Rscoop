@@ -6,7 +6,7 @@ export function formatIsoDate(isoString: string): string {
   }
   try {
     const date = new Date(isoString);
-    if (isNaN(date.getTime())) {
+    if (Number.isNaN(date.getTime())) {
         return 'Invalid Date';
     }
     const day = String(date.getDate()).padStart(2, '0');

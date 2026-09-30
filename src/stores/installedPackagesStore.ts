@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { ScoopPackage, UpdatablePackage } from "../types/scoop";
+import type { ScoopPackage, UpdatablePackage } from "../types/scoop";
 import heldStore from "./held";
 import { getErrorMessage } from "../utils/errors";
 

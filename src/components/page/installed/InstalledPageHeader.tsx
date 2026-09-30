@@ -1,4 +1,4 @@
-import { For, Show, Accessor, Setter, createSignal, createEffect, onCleanup } from "solid-js";
+import { For, Show, type Accessor, type Setter, createSignal, createEffect, onCleanup } from "solid-js";
 import {
   Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, Activity
 } from 'lucide-solid';
@@ -61,7 +61,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
       <Show
         when={!isSearchOpen()}
         fallback={
-          <div class="flex-grow flex items-center gap-2">
+          <div class="grow flex items-center gap-2">
             <div class="join w-full">
               <span class="join-item btn btn-disabled bg-base-200 border-none"> <Search class="w-4 h-4" /></span>
               <input

@@ -1,20 +1,22 @@
 //! Command for checking the overall status of Scoop and installed packages.
 //! This implements the equivalent of `scoop status` command.
 
+use crate::commands::auto_cleanup::compare_versions;
 use crate::commands::installed::get_installed_packages_full;
 use crate::models::{
     AppStatusInfo, PackageManifest, ScoopPackage as InstalledPackage, ScoopStatus,
 };
 use crate::state::AppState;
-use crate::utils::locate_package_manifest;
+use crate::utils::{locate_package_manifest, resolve_scoop_json, ScoopJsonKind};
 use git2::Repository;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime, State};
 
-/// Represents the structure of an install.json file
+/// Represents the structure of an install info file
 #[derive(Deserialize, Debug)]
 struct InstallInfo {
     #[serde(default)]
@@ -122,13 +124,9 @@ fn get_app_status(
     }
 
     // Check install info for additional status
-    let install_info_path = scoop_path
-        .join("apps")
-        .join(&package.name)
-        .join("current")
-        .join("install.json");
+    let current_dir = scoop_path.join("apps").join(&package.name).join("current");
 
-    if install_info_path.exists() {
+    if let Some(install_info_path) = resolve_scoop_json(&current_dir, ScoopJsonKind::Install) {
         if let Ok(content) = fs::read_to_string(install_info_path) {
             if let Ok(install_info) = serde_json::from_str::<InstallInfo>(&content) {
                 if install_info.hold.unwrap_or(false)
@@ -258,4 +256,86 @@ pub async fn check_scoop_status<R: Runtime>(
         apps_with_issues,
         is_everything_ok,
     })
+}
+
+/// First Scoop release with the `scoop-*.json` install layout.
+const MODERN_SCOOP_CUTOFF: &str = "0.6.0";
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ScoopVersionInfo {
+    pub version: Option<String>,
+    pub is_legacy: bool,
+}
+
+fn is_legacy_scoop_version(version: &str) -> bool {
+    version.chars().next().is_some_and(|c| c.is_ascii_digit())
+        && compare_versions(version, MODERN_SCOOP_CUTOFF) == Ordering::Less
+}
+
+/// Scoop installs itself as a git checkout, so its version comes from tags
+/// (e.g. `v0.6.0`, `v0.5.3-12-gabc`) rather than an install manifest.
+fn describe_scoop_version(scoop_dir: &Path) -> Option<String> {
+    let repo = Repository::open(scoop_dir.join("apps").join("scoop").join("current")).ok()?;
+    let mut options = git2::DescribeOptions::new();
+    options.describe_tags();
+    let description = repo.describe(&options).ok()?.format(None).ok()?;
+    parse_describe_output(&description)
+}
+
+fn parse_describe_output(description: &str) -> Option<String> {
+    let base = description
+        .strip_prefix('v')
+        .unwrap_or(description)
+        .split('-')
+        .next()?;
+    base.chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_digit())
+        .then(|| base.to_string())
+}
+
+/// Reports Scoop's own version for the legacy-version banner.
+/// Unknown or unparseable versions are never flagged legacy.
+#[tauri::command]
+pub async fn get_scoop_version<R: Runtime>(
+    _app: AppHandle<R>,
+    state: State<'_, AppState>,
+) -> Result<ScoopVersionInfo, String> {
+    let scoop_path = state.scoop_path();
+    let version = tokio::task::spawn_blocking(move || describe_scoop_version(&scoop_path))
+        .await
+        .unwrap_or(None);
+    Ok(ScoopVersionInfo {
+        is_legacy: version.as_deref().is_some_and(is_legacy_scoop_version),
+        version,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_legacy_scoop_version, parse_describe_output};
+
+    #[test]
+    fn legacy_detection() {
+        assert!(is_legacy_scoop_version("0.5.3"));
+        assert!(is_legacy_scoop_version("0.5"));
+        assert!(!is_legacy_scoop_version("0.6.0"));
+        assert!(!is_legacy_scoop_version("0.6.1"));
+        assert!(!is_legacy_scoop_version("1.0.0"));
+        assert!(!is_legacy_scoop_version("nightly"));
+        assert!(!is_legacy_scoop_version(""));
+    }
+
+    #[test]
+    fn describe_parsing() {
+        assert_eq!(parse_describe_output("v0.5.3").as_deref(), Some("0.5.3"));
+        assert_eq!(
+            parse_describe_output("v0.5.3-12-gabc1234").as_deref(),
+            Some("0.5.3")
+        );
+        assert_eq!(parse_describe_output("0.6.0").as_deref(), Some("0.6.0"));
+        assert_eq!(parse_describe_output("nightly"), None);
+        assert_eq!(parse_describe_output(""), None);
+    }
 }

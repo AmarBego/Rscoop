@@ -5,7 +5,7 @@ import heldStore from "../stores/held";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import { usePackageInfo } from "./usePackageInfo";
 import operationsStore from "../stores/operations";
-import { ScoopPackage } from "../types/scoop";
+import type { ScoopPackage } from "../types/scoop";
 import { getErrorMessage } from "../utils/errors";
 
 type SortKey = 'name' | 'version' | 'source' | 'updated';

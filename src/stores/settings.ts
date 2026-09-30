@@ -2,7 +2,7 @@ import { createRoot } from "solid-js";
 import { createStore } from "solid-js/store";
 import { invoke } from "@tauri-apps/api/core";
 import i18n from "../i18n";
-import { View } from "../types/scoop";
+import type { View } from "../types/scoop";
 import { getErrorMessage } from "../utils/errors";
 import { SETTINGS_STORAGE_KEY } from "./settingsStorage";
 

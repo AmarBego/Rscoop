@@ -2,7 +2,7 @@ import { createSignal, onMount, Show } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { RefreshCcw, ChevronDown } from "lucide-solid";
 import settingsStore from "../../../stores/settings";
-import { BucketAutoUpdateInterval } from "../../../stores/settings";
+import type { BucketAutoUpdateInterval } from "../../../stores/settings";
 import Card from "../../common/Card";
 import { Dropdown, DropdownItem } from "../../common/Dropdown";
 import { useI18n } from "../../../i18n";
@@ -106,7 +106,7 @@ export default function BucketAutoUpdateSettings() {
         >
             {/* Interval selector */}
             <div class="flex items-center gap-2">
-                <div class="flex w-full flex-wrap bg-base-100 rounded-lg p-1 gap-1 sm:w-auto" role="group" aria-label={t("settings.bucketUpdate.title")}>
+                <fieldset class="flex w-full flex-wrap bg-base-100 rounded-lg p-1 gap-1 sm:w-auto" aria-label={t("settings.bucketUpdate.title")}>
                     {PRESET_VALUES.map(opt => (
                         <button
                             type="button"
@@ -138,7 +138,7 @@ export default function BucketAutoUpdateSettings() {
                     >
                         {t("settings.bucketUpdate.custom")}
                     </button>
-                </div>
+                </fieldset>
             </div>
 
             {/* Custom interval editor */}

@@ -91,14 +91,15 @@ export default function UpdateBanner() {
   return (
     <Show when={show()}>
       <div role="status" class="alert alert-info alert-soft mb-4 flex items-center gap-3">
-        <Sparkles class="w-5 h-5 flex-shrink-0" />
+        <Sparkles class="w-5 h-5 shrink-0" />
         <span class="flex-1 text-sm">
           {t("update.bannerMessage", { version: version() ?? "" })}
         </span>
-        <button class="btn btn-sm btn-primary" onClick={openNotes}>
+        <button type="button" class="btn btn-sm btn-primary" onClick={openNotes}>
           {t("update.whatsNew")}
         </button>
         <button
+          type="button"
           class="btn btn-sm btn-ghost btn-square"
           onClick={acknowledgeAndHide}
           aria-label={t("common.dismiss")}
@@ -122,6 +123,8 @@ export default function UpdateBanner() {
               so we style inline. Link clicks bubble up to the container and
               we route them through the OS via plugin-opener so they don't
               navigate the webview. */}
+          {/* biome-ignore lint/a11y/useKeyWithClickEvents: keyboard activation of the inner links fires click events that bubble here, so keyboard users are already served. */}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: click delegation for rendered markdown links; the links themselves are natively focusable. */}
           <div
             class="release-notes-body"
             innerHTML={notesHtml()}

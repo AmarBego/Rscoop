@@ -34,6 +34,7 @@ export default function HeldPackagesManagement(props: HeldPackagesManagementProp
                   <li class="flex flex-col gap-2 bg-base-100 px-3 py-2 rounded-lg sm:flex-row sm:items-center sm:justify-between">
                     <span class="font-mono text-sm break-all">{pkgName}</span>
                     <button
+                      type="button"
                       class="btn btn-xs btn-ghost text-info sm:shrink-0"
                       onClick={() => props.onUnhold(pkgName)}
                       aria-label={t("settings.heldPackages.unholdAriaLabel", { name: pkgName })}

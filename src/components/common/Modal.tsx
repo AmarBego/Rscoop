@@ -1,4 +1,4 @@
-import { Show, JSX, onMount, onCleanup, createEffect, createUniqueId } from "solid-js";
+import { Show, type JSX, onMount, onCleanup, createEffect, createUniqueId } from "solid-js";
 import { useI18n } from "../../i18n";
 
 interface ModalProps {
@@ -149,6 +149,8 @@ export default function Modal(props: ModalProps) {
                         </div>
                     </Show>
                 </div>
+                {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop is mouse-only by design; keyboard users close via Escape or the close button. */}
+                {/* biome-ignore lint/a11y/noStaticElementInteractions: decorative backdrop click-to-dismiss; keyboard path is Escape. */}
                 <div class="modal-backdrop" onClick={handleBackdropClick}></div>
             </div>
         </Show>

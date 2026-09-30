@@ -103,10 +103,12 @@ pub(super) fn resolve_manifest(
         utils::validate_scoop_child_dir(&root.join("apps"), name, "Package").map_err(|_| {
             format!("No manifest found for {name} in the selected bucket or installed package")
         })?;
-    Ok((
-        checked_file(app_dir.join("current/manifest.json"), &app_dir)?,
-        None,
-    ))
+    let installed_path =
+        utils::resolve_scoop_json(&app_dir.join("current"), utils::ScoopJsonKind::Manifest)
+            .ok_or_else(|| {
+                format!("No manifest found for {name} in the selected bucket or installed package")
+            })?;
+    Ok((checked_file(installed_path, &app_dir)?, None))
 }
 
 fn display_path(path: &Path) -> String {
@@ -725,6 +727,19 @@ mod tests {
                 Err(e) => panic!("cannot create test symlink: {e}"),
             }
         }
+    }
+
+    #[test]
+    fn installed_fallback_prefers_new_manifest_name() {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("apps/example/current");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("manifest.json"), r#"{"version":"1.0"}"#).unwrap();
+        fs::write(dir.join("scoop-manifest.json"), r#"{"version":"2.0"}"#).unwrap();
+        let doc = read_document(temp.path(), "example", "missing").unwrap();
+        assert!(doc.installed_copy);
+        assert!(doc.content.contains("2.0"));
+        assert!(doc.path.ends_with("scoop-manifest.json"));
     }
 
     #[test]

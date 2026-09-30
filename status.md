@@ -13,6 +13,11 @@ Codes such as `scoop.download.failed` are stable identifiers emitted by
 the interpreter. Source links point at the upstream Scoop files that own
 the corresponding output.
 
+Matching is ANSI-blind: escape sequences are stripped from a copy of
+each line before classification (the raw transcript is unaffected).
+Anchored error/warning patterns tolerate an optional leading `ERROR `,
+`WARN `, or `INFO ` prefix (Scoop 0.6.0 `error()`/`warn()` output).
+
 ## Sources
 
 - [lib/install.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/lib/install.ps1)
@@ -154,7 +159,7 @@ instead of a generic exit-code message.
 | `scoop.download.cache_missing` | `cached file not found` | [lib/download.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/lib/download.ps1) |
 | `scoop.download.no_hash_in_manifest` | `Couldn't find hash in manifest for '<url>'` | [lib/download.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/lib/download.ps1) |
 | `scoop.download.unsupported_hash` | `Hash type '<algo>' isn't supported` | [lib/download.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/lib/download.ps1) |
-| `scoop.command_error` | `ERROR: <message>` | [libexec/scoop-install.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-install.ps1), [libexec/scoop-uninstall.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-uninstall.ps1), [libexec/scoop-download.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-download.ps1), [libexec/scoop-cleanup.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-cleanup.ps1) |
+| `scoop.command_error` | `ERROR[:] <message>` | [libexec/scoop-install.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-install.ps1), [libexec/scoop-uninstall.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-uninstall.ps1), [libexec/scoop-download.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-download.ps1), [libexec/scoop-cleanup.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/libexec/scoop-cleanup.ps1) |
 
 ---
 
@@ -183,7 +188,7 @@ Structured notes attached to the operation via
 
 | Code | Source pattern | Source |
 | --- | --- | --- |
-| `scoop.notes` | `Notes` followed by a block, terminated by a blank line or process exit | [lib/install.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/lib/install.ps1) |
+| `scoop.notes` | `Notes` followed by a block, terminated by a blank line or process exit; leading/trailing `-----` separators are trimmed | [lib/install.ps1](https://github.com/ScoopInstaller/Scoop/blob/master/lib/install.ps1) |
 
 ---
 

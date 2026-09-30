@@ -4,9 +4,10 @@ import Header from "./components/Header.tsx";
 import SearchPage from "./pages/SearchPage.tsx";
 import InstalledPage from "./pages/InstalledPage.tsx";
 import BucketPage from "./pages/BucketPage.tsx";
-import { View } from "./types/scoop.ts";
+import type { View } from "./types/scoop.ts";
 import SettingsPage from "./pages/SettingsPage.tsx";
 import UpdateBanner from "./components/UpdateBanner.tsx";
+import ScoopVersionBanner from "./components/ScoopVersionBanner.tsx";
 import DoctorPage from "./pages/DoctorPage.tsx";
 import DebugModal from "./components/DebugModal.tsx";
 import OperationModal from "./components/OperationModal.tsx";
@@ -16,7 +17,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import i18n from "./i18n";
 import { info, error as logError } from "@tauri-apps/plugin-log";
-import { check, Update } from "@tauri-apps/plugin-updater";
+import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import installedPackagesStore from "./stores/installedPackagesStore";
 import settingsStore from "./stores/settings";
@@ -58,10 +59,11 @@ function App() {
 
 
     const handleInstallUpdate = async () => {
-        if (!update()) return;
+        const pending = update();
+        if (!pending) return;
         setIsInstalling(true);
         try {
-            await update()!.downloadAndInstall();
+            await pending.downloadAndInstall();
             await relaunch();
         } catch (e) {
             console.error("Failed to install update", getErrorMessage(e));
@@ -218,8 +220,9 @@ function App() {
 
             <Show when={update() && !error() && !isScoopInstalled()}>
                 <div class="bg-sky-600 text-white p-2 text-center text-sm flex justify-center items-center gap-4">
-                    <span>{i18n.t("app.updateAvailable", { version: update()!.version })}</span>
+                    <span>{i18n.t("app.updateAvailable", { version: update()?.version ?? "" })}</span>
                     <button
+                        type="button"
                         class="bg-sky-800 hover:bg-sky-900 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                         disabled={isInstalling()}
                         onClick={handleInstallUpdate}
@@ -227,6 +230,7 @@ function App() {
                         {isInstalling() ? i18n.t("about.updateInstalling") : i18n.t("about.installNow")}
                     </button>
                     <button
+                        type="button"
                         class="hover:bg-sky-700 text-white font-bold py-1 px-3 rounded text-xs disabled:opacity-50"
                         disabled={isInstalling()}
                         onClick={() => setUpdate(null)}
@@ -258,6 +262,7 @@ function App() {
                         <Header currentView={view()} onNavigate={setView} />
                         <main class="flex-1 p-4 sm:p-6 md:p-8 overflow-y-auto">
                             <UpdateBanner />
+                            <ScoopVersionBanner />
                             <Show when={view() === "search"}>
                                 <SearchPage />
                             </Show>

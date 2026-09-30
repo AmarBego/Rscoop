@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use crate::utils::{resolve_scoop_json, ScoopJsonKind};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -183,6 +184,13 @@ pub async fn switch_package_version(
         ));
     }
 
+    if fs::symlink_metadata(&current_link).is_err() {
+        return Err(format!(
+            "Cannot switch '{}' to version '{}': 'current' link is missing (NO_JUNCTION setups have none)",
+            package_name, target_version
+        ));
+    }
+
     // Use direct Windows API calls to handle junction operations
     let result = switch_junction_direct(&current_link, &target_version_dir).await;
     if let Err(e) = result {
@@ -259,11 +267,8 @@ fn create_junction(target: &Path, link: &Path) -> Result<(), String> {
 
 /// Check if a directory looks like a version directory
 fn is_version_directory(path: &Path) -> bool {
-    // Check if it contains typical scoop installation files
-    let manifest_file = path.join("manifest.json");
-    let install_json = path.join("install.json");
-
-    manifest_file.exists() || install_json.exists()
+    resolve_scoop_json(path, ScoopJsonKind::Manifest).is_some()
+        || resolve_scoop_json(path, ScoopJsonKind::Install).is_some()
 }
 
 /// Get packages that have multiple versions installed

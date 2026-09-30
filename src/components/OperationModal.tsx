@@ -1,9 +1,10 @@
-import { For, Show, createEffect, Component } from "solid-js";
+import { For, Show, createEffect, type Component } from "solid-js";
 import { ExternalLink, CircleCheck, CircleX, ShieldAlert, TriangleAlert, Info } from "lucide-solid";
 import operationsStore from "../stores/operations";
 import Modal from "./common/Modal";
 import { useI18n } from "../i18n";
 import { manifestReview } from "../stores/manifestReview";
+import { stripAnsi } from "../utils/ansi";
 
 /// Format a raw phase hint like "updating_buckets" into a user-facing
 /// "Updating buckets…". Keeps display logic colocated with the consumer.
@@ -25,12 +26,11 @@ const formatPhase = (hint: string, t: (key: string) => string): string => {
   const words = hint.replace(/_/g, " ").split(" ").filter(Boolean);
   if (words.length === 0) return "";
   const head = words[0].charAt(0).toUpperCase() + words[0].slice(1);
-  return [head, ...words.slice(1)].join(" ") + "…";
+  return `${[head, ...words.slice(1)].join(" ")}…`;
 };
 
 const LineWithLinks: Component<{ line: string }> = (props) => {
-  const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
-  const cleanLine = props.line.replace(ansiRegex, '');
+  const cleanLine = stripAnsi(props.line);
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = cleanLine.split(urlRegex);
 
@@ -40,7 +40,7 @@ const LineWithLinks: Component<{ line: string }> = (props) => {
         {(part) => {
           if (part.match(urlRegex)) {
             return (
-              <a href={part} target="_blank" class="link link-info">
+              <a href={part} target="_blank" rel="noopener noreferrer" class="link link-info">
                 {part}
                 <ExternalLink class="inline w-3 h-3 ms-1" />
               </a>
@@ -69,8 +69,9 @@ function OperationModal() {
     const o = op();
     if (o) o.output.length; // track
     if (scrollRef) {
+      const el = scrollRef;
       requestAnimationFrame(() => {
-        scrollRef!.scrollTop = scrollRef!.scrollHeight;
+        el.scrollTop = el.scrollHeight;
       });
     }
   });
@@ -110,14 +111,14 @@ function OperationModal() {
               <span class="flex items-center gap-2 text-sm text-base-content/50">
                 <span class="loading loading-spinner loading-xs"></span>
                 <Show
-                  when={(op()?.phaseStack.length ?? 0) > 0}
+                  when={(op()?.phaseStack?.length ?? 0) > 0}
                   fallback={
                     <Show when={op()?.currentPhase} fallback={t("operation.running")}>
-                      {formatPhase(op()!.currentPhase!, t)}
+                      {(phase) => <>{formatPhase(phase(), t)}</>}
                     </Show>
                   }
                 >
-                  <span class="truncate">{op()!.phaseStack.join(" › ")}</span>
+                  <span class="truncate">{op()?.phaseStack?.join(" › ") ?? ""}</span>
                 </Show>
               </span>
             </Show>
@@ -126,19 +127,19 @@ function OperationModal() {
                 <Show when={op()?.result?.status === "warning"} fallback={<CircleCheck class="w-4 h-4 shrink-0" />}>
                   <TriangleAlert class="w-4 h-4 shrink-0" />
                 </Show>
-                <span class="truncate">{op()!.result!.message}</span>
+                <span class="truncate">{op()?.result?.message ?? ""}</span>
               </span>
             </Show>
             <Show when={op()?.result && !op()?.result?.success && !op()?.scanWarning}>
               <span class="flex items-center gap-2 text-sm text-error">
                 <CircleX class="w-4 h-4 shrink-0" />
-                <span class="truncate">{op()!.result!.message}</span>
+                <span class="truncate">{op()?.result?.message ?? ""}</span>
               </span>
             </Show>
             <Show when={op()?.scanWarning}>
               <span class="flex items-center gap-2 text-sm text-warning">
                 <ShieldAlert class="w-4 h-4 shrink-0" />
-                <span class="truncate">{op()!.scanWarning!.message}</span>
+                <span class="truncate">{op()?.scanWarning?.message ?? ""}</span>
               </span>
             </Show>
           </div>
@@ -146,33 +147,33 @@ function OperationModal() {
           {/* Right: actions */}
           <div class="flex items-center gap-2 shrink-0">
             <Show when={isRunning()}>
-              <button class="btn btn-sm btn-ghost text-base-content/50" onClick={() => operationsStore.minimize()}>
+              <button type="button" class="btn btn-sm btn-ghost text-base-content/50" onClick={() => operationsStore.minimize()}>
                 {t("operation.background")}
               </button>
             </Show>
             <Show when={op()?.scanWarning}>
-              <button class="btn btn-sm btn-ghost text-warning" onClick={() => operationsStore.handleInstallConfirm()}>
+              <button type="button" class="btn btn-sm btn-ghost text-warning" onClick={() => operationsStore.handleInstallConfirm()}>
                 <TriangleAlert class="w-3.5 h-3.5" />
                 {t("operation.installAnyway")}
               </button>
             </Show>
             <Show when={op()?.canClearCache}>
-              <button class="btn btn-sm btn-primary" onClick={handleNextStep}>
+              <button type="button" class="btn btn-sm btn-primary" onClick={handleNextStep}>
                 {t("operation.clearCacheButton")}
               </button>
             </Show>
             <Show when={isRunning()}>
-              <button class="btn btn-sm" onClick={() => operationsStore.cancel()}>
+              <button type="button" class="btn btn-sm" onClick={() => operationsStore.cancel()}>
                 {t("common.cancel")}
               </button>
             </Show>
             <Show when={!op()?.scanWarning && op()?.result}>
-              <button class="btn btn-sm" onClick={() => operationsStore.close(op()!.result!.success)}>
+              <button type="button" class="btn btn-sm" onClick={() => operationsStore.close(op()?.result?.success ?? false)}>
                 {t("common.dismiss")}
               </button>
             </Show>
             <Show when={op()?.scanWarning}>
-              <button class="btn btn-sm" onClick={() => operationsStore.cancel()}>
+              <button type="button" class="btn btn-sm" onClick={() => operationsStore.cancel()}>
                 {t("common.cancel")}
               </button>
             </Show>
@@ -180,38 +181,38 @@ function OperationModal() {
         </div>
       }
     >
-      <Show when={(op()?.operationWarnings.length ?? 0) > 0}>
-        <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1 [overflow-wrap:anywhere]">
+      <Show when={(op()?.operationWarnings?.length ?? 0) > 0}>
+        <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1 wrap-anywhere">
           <div class="flex items-center gap-2 text-warning font-medium">
             <TriangleAlert class="w-4 h-4 shrink-0" />
             <span>
-              {op()!.operationWarnings.length === 1
+              {(op()?.operationWarnings?.length ?? 0) === 1
                 ? t("operation.warningsOne")
-                : t("operation.warningsMany", { count: String(op()!.operationWarnings.length) })}
+                : t("operation.warningsMany", { count: String(op()?.operationWarnings?.length ?? 0) })}
             </span>
           </div>
           <ul class="ms-6 list-disc text-base-content/80">
             <For each={op()?.operationWarnings ?? []}>
               {(w) => <li>{w.message}<Show when={w.manifest}>
-                <button class="btn btn-xs btn-ghost text-warning ms-2" onClick={() => { operationsStore.minimize(); void manifestReview.open(w.manifest!); }}>{t("modal.manifest.review")}</button>
+                <button type="button" class="btn btn-xs btn-ghost text-warning ms-2" onClick={() => { operationsStore.minimize(); if (w.manifest) void manifestReview.open(w.manifest); }}>{t("modal.manifest.review")}</button>
               </Show></li>}
             </For>
           </ul>
         </div>
       </Show>
-      <Show when={(op()?.findings.length ?? 0) > 0}>
+      <Show when={(op()?.findings?.length ?? 0) > 0}>
         <div class="mb-3 min-w-0 max-h-64 overflow-y-auto rounded-lg border border-info/40 bg-info/5 p-3 text-sm space-y-2">
           <div class="flex items-center gap-2 text-info font-medium">
             <Info class="w-4 h-4 shrink-0" />
             <span>
-              {op()!.findings.length === 1
+              {(op()?.findings?.length ?? 0) === 1
                 ? t("operation.findingsOne")
-                : t("operation.findingsMany", { count: String(op()!.findings.length) })}
+                : t("operation.findingsMany", { count: String(op()?.findings?.length ?? 0) })}
             </span>
           </div>
           <For each={op()?.findings ?? []}>
             {(f) => (
-              <div class="ms-6 whitespace-pre-wrap [overflow-wrap:anywhere] text-base-content/80">
+              <div class="ms-6 whitespace-pre-wrap wrap-anywhere text-base-content/80">
                 {f.message}
               </div>
             )}
@@ -220,9 +221,9 @@ function OperationModal() {
       </Show>
       <div
         ref={scrollRef}
-        class="bg-base-100 font-mono text-sm p-4 rounded-lg min-w-0 max-h-96 overflow-y-auto [overflow-wrap:anywhere] border border-base-content/5"
+        class="bg-base-100 font-mono text-sm p-4 rounded-lg min-w-0 max-h-96 overflow-y-auto wrap-anywhere border border-base-content/5"
       >
-        <Show when={op()?.output.length === 0 && isRunning()}>
+        <Show when={(op()?.output?.length ?? 0) === 0 && isRunning()}>
           <span class="text-base-content/30">{t("operation.waitingForOutput")}</span>
         </Show>
         <For each={op()?.output ?? []}>

@@ -1,4 +1,4 @@
-import { createSignal, createEffect, Signal } from "solid-js";
+import { createSignal, createEffect, type Signal } from "solid-js";
 import { getErrorMessage } from "../utils/errors";
 
 export function createStoredSignal<T extends string>(

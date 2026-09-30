@@ -1,6 +1,6 @@
 import { Show, For } from "solid-js";
 import { Plus, RefreshCw, TriangleAlert } from "lucide-solid";
-import { BucketInfo } from "../../../hooks/useBuckets";
+import type { BucketInfo } from "../../../hooks/useBuckets";
 import BucketCard from "./BucketCard";
 import { useI18n } from "../../../i18n";
 

@@ -1,14 +1,13 @@
 //! Commands for holding and unholding Scoop packages.
 use crate::state::AppState;
+use crate::utils::{resolve_scoop_json, ScoopJsonKind};
 use rayon::prelude::*;
 use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime, State};
 
-/// Resolves the path to the `install.json` file for the currently installed version of a package.
-/// This file contains metadata about the installation, including its hold status.
-fn get_current_install_json_path(
+fn get_current_install_info_path(
     scoop_dir: &std::path::Path,
     package_name: &str,
 ) -> Result<PathBuf, String> {
@@ -29,33 +28,30 @@ fn get_current_install_json_path(
         )
     })?;
 
-    let install_json_path = version_path.join("install.json");
-    if !install_json_path.is_file() {
-        return Err(format!(
-            "install.json not found for package '{}' at {}.",
+    resolve_scoop_json(&version_path, ScoopJsonKind::Install).ok_or_else(|| {
+        format!(
+            "Install info not found for package '{}' at {}.",
             package_name,
-            install_json_path.display()
-        ));
-    }
-
-    Ok(install_json_path)
+            version_path.display()
+        )
+    })
 }
 
 /// Checks if a specific package is currently on hold.
 fn is_package_held(scoop_dir: &std::path::Path, package_name: &str) -> Result<bool, String> {
-    let install_json_path = get_current_install_json_path(scoop_dir, package_name)?;
-    let content = fs::read_to_string(&install_json_path).map_err(|e| e.to_string())?;
+    let install_info_path = get_current_install_info_path(scoop_dir, package_name)?;
+    let content = fs::read_to_string(&install_info_path).map_err(|e| e.to_string())?;
     let value: Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
     Ok(value.get("hold").and_then(Value::as_bool) == Some(true))
 }
 
-/// Modifies the hold status of a package by updating its `install.json`.
+/// Modifies the hold status of a package by updating its install info file.
 fn modify_hold_status(scoop_dir: &Path, package_name: &str, hold: bool) -> Result<(), String> {
-    let install_json_path = get_current_install_json_path(scoop_dir, package_name)?;
-    let content = fs::read_to_string(&install_json_path).map_err(|e| e.to_string())?;
+    let install_info_path = get_current_install_info_path(scoop_dir, package_name)?;
+    let content = fs::read_to_string(&install_info_path).map_err(|e| e.to_string())?;
 
     let mut value: Value = serde_json::from_str(&content)
-        .map_err(|e| format!("Invalid JSON in install.json: {}", e))?;
+        .map_err(|e| format!("Invalid JSON in {}: {}", install_info_path.display(), e))?;
 
     if let Some(obj) = value.as_object_mut() {
         if hold {
@@ -66,10 +62,13 @@ fn modify_hold_status(scoop_dir: &Path, package_name: &str, hold: bool) -> Resul
 
         let new_content = serde_json::to_string_pretty(&value)
             .map_err(|e| format!("Failed to serialize JSON: {}", e))?;
-        fs::write(&install_json_path, new_content)
-            .map_err(|e| format!("Failed to write to install.json: {}", e))
+        fs::write(&install_info_path, new_content)
+            .map_err(|e| format!("Failed to write to {}: {}", install_info_path.display(), e))
     } else {
-        Err("install.json is not a valid JSON object.".to_string())
+        Err(format!(
+            "{} is not a valid JSON object.",
+            install_info_path.display()
+        ))
     }
 }
 
@@ -81,7 +80,7 @@ pub async fn list_held_packages<R: Runtime>(
     _app: AppHandle<R>,
     state: State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
-    log::info!("Listing held packages by checking install.json files");
+    log::info!("Listing held packages by checking install info files");
 
     let scoop_path = state.scoop_path();
     let apps_path = scoop_path.join("apps");
@@ -91,7 +90,7 @@ pub async fn list_held_packages<R: Runtime>(
     }
 
     // First, try to get app dirs from cache if available
-    // If cache exists, we can extract held packages from it directly by re-reading install.json
+    // If cache exists, we can extract held packages from it directly by re-reading install info
     let app_dirs = fs::read_dir(apps_path)
         .map_err(|e| format!("Failed to read apps directory: {}", e))?
         .filter_map(Result::ok)
@@ -150,4 +149,41 @@ pub async fn unhold_package<R: Runtime>(
     log::info!("Removing hold from: {}", package_name);
     let scoop_path = state.scoop_path();
     modify_hold_status(&scoop_path, &package_name, false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn install_fixture(filename: &str) -> tempfile::TempDir {
+        let temp = tempfile::tempdir().unwrap();
+        let dir = temp.path().join("apps/demo/current");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join(filename), r#"{"bucket":"main"}"#).unwrap();
+        temp
+    }
+
+    fn hold_roundtrip(filename: &str) {
+        let temp = install_fixture(filename);
+        assert!(!is_package_held(temp.path(), "demo").unwrap());
+        modify_hold_status(temp.path(), "demo", true).unwrap();
+        assert!(is_package_held(temp.path(), "demo").unwrap());
+        modify_hold_status(temp.path(), "demo", false).unwrap();
+        assert!(!is_package_held(temp.path(), "demo").unwrap());
+        assert!(temp
+            .path()
+            .join("apps/demo/current")
+            .join(filename)
+            .is_file());
+    }
+
+    #[test]
+    fn hold_roundtrip_on_new_install_file() {
+        hold_roundtrip("scoop-install.json");
+    }
+
+    #[test]
+    fn hold_roundtrip_on_legacy_install_file() {
+        hold_roundtrip("install.json");
+    }
 }

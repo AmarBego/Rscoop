@@ -172,20 +172,8 @@ function ShimManager() {
                         <tbody>
                             <For each={filteredShims()}>
                                 {(item) => (
-                                    <tr
-                                        class="hover cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-                                        tabindex="0"
-                                        role="button"
-                                        aria-label={t("doctor.shimRowLabel", { name: item.name })}
-                                        onClick={() => setSelectedShim(item)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter" || e.key === " ") {
-                                                e.preventDefault();
-                                                setSelectedShim(item);
-                                            }
-                                        }}
-                                    >
-                                        <td class="font-mono text-sm">{item.name}</td>
+                                    <tr class="hover">
+                                        <td><button type="button" class="font-mono text-sm link link-hover" onClick={() => setSelectedShim(item)} aria-label={t("doctor.shimRowLabel", { name: item.name })}>{item.name}</button></td>
                                         <td>
                                             <div class="flex items-center gap-2">
                                                 <Link class="w-4 h-4 text-base-content/60" aria-hidden="true" />
@@ -210,8 +198,9 @@ function ShimManager() {
                 </div>
 
                 <Show when={selectedShim()}>
+                    {(shim) => (
                     <ShimDetailsModal
-                        shim={selectedShim()!}
+                        shim={shim()}
                         onClose={() => {
                             setMutationError(null);
                             setSelectedShim(null);
@@ -221,6 +210,7 @@ function ShimManager() {
                         isOperationRunning={isProcessing()}
                         error={mutationError()}
                     />
+                    )}
                 </Show>
 
                 <Show when={isAddModalOpen()}>

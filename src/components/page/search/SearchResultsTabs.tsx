@@ -1,4 +1,4 @@
-import { Accessor, Setter } from "solid-js";
+import type { Accessor, Setter } from "solid-js";
 import { useI18n } from "../../../i18n";
 
 type SearchTab = "packages" | "includes";

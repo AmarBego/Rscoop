@@ -36,7 +36,7 @@ export default function ManifestReviewHost(props: { ready: boolean }) {
     await consume();
   });
   createEffect(() => { if (props.ready) void consume(); });
-  onCleanup(() => { disposed = true; unlisteners.forEach(unlisten => unlisten()); });
+  onCleanup(() => { disposed = true; unlisteners.forEach(unlisten => { unlisten(); }); });
 
   const pkg = createMemo<ScoopPackage | null>(() => {
     const target = manifestReview.target();

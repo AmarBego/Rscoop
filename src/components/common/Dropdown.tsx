@@ -1,4 +1,4 @@
-import { JSX, Show } from "solid-js";
+import { Show, type JSX } from "solid-js";
 import { Check } from "lucide-solid";
 
 export type DropdownSize = "sm" | "md" | "lg";
@@ -76,7 +76,7 @@ export function Dropdown(props: DropdownProps) {
       </button>
       <ul
         tabindex="0"
-        class={`dropdown-content menu p-2 shadow ${toneSurfaceClass(tone())} rounded-box ${menuWidth()} z-[100] ${props.scrollable ? "max-h-80 overflow-y-auto flex-nowrap" : ""}`}
+        class={`dropdown-content menu p-2 shadow ${toneSurfaceClass(tone())} rounded-box ${menuWidth()} z-100 ${props.scrollable ? "max-h-80 overflow-y-auto flex-nowrap" : ""}`}
       >
         {props.children}
       </ul>

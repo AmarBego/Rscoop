@@ -58,7 +58,7 @@ export default function ManifestCodeEditor(props: Props) {
         class="p-4 m-0 font-mono text-sm leading-relaxed text-start overflow-auto max-h-[45vh] min-h-48 rounded-b-xl custom-scrollbar"
         classList={{ "pointer-events-none": props.editing }}
         style={{ height: height() ? `${height()}px` : undefined, "tab-size": 2 }}>
-        <code class="language-json !bg-transparent" style={{ font: "inherit" }}
+        <code class="language-json bg-transparent" style={{ font: "inherit" }}
           innerHTML={highlighted() + (props.editing ? "\n" : "")} />
       </pre>
       <Show when={props.editing}>

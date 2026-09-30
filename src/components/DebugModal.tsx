@@ -19,7 +19,7 @@ function FingerprintDisplay(props: { fingerprint: string | null }) {
                 return (
                     <div class="mt-1">
                         <Show when={prefix}>
-                            <span class="text-info font-semibold me-1">{t("debug.fingerprintApps", { count: prefix! })}</span>
+                            {(p) => <span class="text-info font-semibold me-1">{t("debug.fingerprintApps", { count: p() })}</span>}
                         </Show>
                         <div class="flex flex-wrap gap-1 mt-1">
                             {entries.map((entry) => {
@@ -133,7 +133,7 @@ const DebugModal = () => {
             <Show when={settingsStore.settings.debug.enabled}>
                 <button
                     type="button"
-                    class="btn btn-sm btn-outline gap-2 fixed bottom-4 end-4 z-40"
+                    class="btn btn-sm btn-outline gap-2 fixed bottom-4 inset-e-4 z-40"
                     onClick={() => {
                         setIsOpen(true);
                         refreshDebugInfo();
@@ -280,13 +280,13 @@ const DebugModal = () => {
                     {/* Logs Tab */}
                     <Show when={activeTab() === "logs"}>
                         <Show when={logFileContent()} fallback={
-                            <pre dir="ltr" class="text-xs overflow-auto max-h-full whitespace-pre-wrap break-words text-start">
+                            <pre dir="ltr" class="text-xs overflow-auto max-h-full whitespace-pre-wrap wrap-break-word text-start">
                                 {appLogs() ? t("debug.logsLoading") : t("debug.logsNone")}
                             </pre>
                         }>
                             <pre
                                 dir="ltr"
-                                class="log-viewer text-xs overflow-auto max-h-full whitespace-pre-wrap break-words text-start"
+                                class="log-viewer text-xs overflow-auto max-h-full whitespace-pre-wrap wrap-break-word text-start"
                                 ref={(el) => {
                                     createEffect(() => {
                                         const content = logFileContent();

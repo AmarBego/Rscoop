@@ -1,4 +1,4 @@
-import { For, Show, Accessor } from "solid-js";
+import { For, Show, type Accessor } from "solid-js";
 import {
   Ellipsis, CircleArrowUp, Trash2, ArrowUp, ArrowDown, Lock, LockOpen, RefreshCw
 } from 'lucide-solid';
@@ -76,7 +76,7 @@ function PackageListView(props: PackageListViewProps) {
               <tr data-no-close-search>
                 <td>
                   <div class="flex items-center gap-2">
-                    <button class="btn btn-ghost btn-sm" onClick={() => props.onViewInfo(pkg)}>
+                    <button type="button" class="btn btn-ghost btn-sm" onClick={() => props.onViewInfo(pkg)}>
                       {pkg.name}
                     </button>
                     <Show when={pkg.available_version && !pkg.is_versioned_install}>

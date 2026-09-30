@@ -1,21 +1,21 @@
 import { Show, For, createSignal } from "solid-js";
 import { Maximize2, ShieldAlert, CircleCheck, CircleX, TriangleAlert, Info } from "lucide-solid";
-import operationsStore, { CompletedOperation } from "../stores/operations";
+import operationsStore, { type CompletedOperation } from "../stores/operations";
 import Modal from "./common/Modal";
 import { manifestReview } from "../stores/manifestReview";
 import { useI18n } from "../i18n";
+import { stripAnsi } from "../utils/ansi";
 
 // Reuse the line renderer from OperationModal
 const LineWithLinks = (props: { line: string }) => {
-  const ansiRegex = /[\u001b\u009b][[()#;?]*.{0,2}(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
-  const cleanLine = props.line.replace(ansiRegex, '');
+  const cleanLine = stripAnsi(props.line);
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const parts = cleanLine.split(urlRegex);
   return (
     <span>
       <For each={parts}>
         {(part) => part.match(urlRegex)
-          ? <a href={part} target="_blank" class="link link-info">{part}</a>
+          ? <a href={part} target="_blank" rel="noopener noreferrer" class="link link-info">{part}</a>
           : <span>{part}</span>
         }
       </For>
@@ -76,23 +76,24 @@ function OperationBar() {
     const words = hint.replace(/_/g, " ").split(" ").filter(Boolean);
     if (words.length === 0) return "";
     const head = words[0].charAt(0).toUpperCase() + words[0].slice(1);
-    return [head, ...words.slice(1)].join(" ") + "…";
+    return `${[head, ...words.slice(1)].join(" ")}…`;
   };
 
   const barText = () => {
     const c = operationsStore.completed();
+    const current = op();
 
-    if (op()?.scanWarning || op()?.canClearCache) return t("operationbar.actionRequired");
-    if (isWarning()) return op()?.result?.message ?? op()?.title;
+    if (current?.scanWarning || current?.canClearCache) return t("operationbar.actionRequired");
+    if (isWarning()) return current?.result?.message ?? current?.title;
     if (isRunning()) {
-      const stack = op()?.phaseStack ?? [];
-      if (stack.length > 0) return `${op()!.title} › ${stack[stack.length - 1]}`;
-      const phase = op()?.currentPhase;
-      return phase ? `${op()!.title} › ${formatPhase(phase)}` : op()!.title;
+      const stack = current?.phaseStack ?? [];
+      if (stack.length > 0) return `${current?.title} › ${stack[stack.length - 1]}`;
+      const phase = current?.currentPhase;
+      return phase ? `${current?.title} › ${formatPhase(phase)}` : (current?.title ?? "");
     }
 
     // Single completed op still in current (no batch history)
-    if (isDone()) return formatTitle(op()!.title, isSuccess());
+    if (isDone()) return formatTitle(current?.title ?? "", isSuccess());
 
     // Batch finished — all in history, no current
     if (c.length > 0) {
@@ -112,12 +113,7 @@ function OperationBar() {
   return (
     <>
       <Show when={isVisible()}>
-        <div
-          class="fixed bottom-0 inset-x-0 z-50 cursor-pointer group"
-          onClick={() => {
-            if (op()) operationsStore.restore();
-          }}
-        >
+        <div class="fixed bottom-0 inset-x-0 z-50 group">
           {/* Progress indicator — determinate when the interpreter has
               byte progress, marquee otherwise. */}
           <Show when={isRunning()}>
@@ -128,7 +124,7 @@ function OperationBar() {
               >
                 <div
                   class="h-full bg-primary transition-[width] duration-150 ease-out"
-                  style={{ width: `${Math.round((op()!.progressFraction ?? 0) * 100)}%` }}
+                  style={{ width: `${Math.round((op()?.progressFraction ?? 0) * 100)}%` }}
                 />
               </Show>
             </div>
@@ -144,8 +140,29 @@ function OperationBar() {
           </Show>
 
           {/* Content */}
-          <div class="bg-base-300 border-t border-base-content/10 px-4 py-2 flex items-center justify-between">
-            <div class="flex items-center gap-3 min-w-0">
+          <div class="bg-base-300 border-t border-base-content/10 px-4 py-2 flex items-center justify-between gap-2">
+            <Show when={op()} fallback={
+              <div class="flex items-center gap-3 min-w-0 flex-1">
+                <Show when={!isRunning() && !needsAttention() && (isDone() || hasCompleted())}>
+                  <Show when={failCount() > 0} fallback={
+                    <Show when={hasCompletedWarnings()} fallback={<CircleCheck class="w-4 h-4 text-success shrink-0" />}>
+                      <TriangleAlert class="w-4 h-4 text-warning shrink-0" />
+                    </Show>
+                  }>
+                    <CircleX class="w-4 h-4 text-error shrink-0" />
+                  </Show>
+                </Show>
+                <span class="text-sm truncate">{barText()}</span>
+                <Show when={operationsStore.queue().length > 0}>
+                  <span class="text-xs text-base-content/40">{t("operationbar.queued", { count: String(operationsStore.queue().length) })}</span>
+                </Show>
+              </div>
+            }>
+              <button
+                type="button"
+                class="flex items-center gap-3 min-w-0 flex-1 text-left cursor-pointer"
+                onClick={() => operationsStore.restore()}
+              >
               <Show when={isRunning()}>
                 <span class="loading loading-spinner loading-xs shrink-0"></span>
               </Show>
@@ -167,11 +184,14 @@ function OperationBar() {
               <Show when={operationsStore.queue().length > 0}>
                 <span class="text-xs text-base-content/40">{t("operationbar.queued", { count: String(operationsStore.queue().length) })}</span>
               </Show>
-            </div>
+              <Maximize2 class="w-3.5 h-3.5 text-base-content/40 shrink-0" />
+            </button>
+            </Show>
 
-            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity">
+            <div class="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 supports-[hover:none]:opacity-100 transition-opacity">
               <Show when={!isRunning()}>
                 <button
+                  type="button"
                   class="btn btn-xs btn-ghost"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -181,9 +201,6 @@ function OperationBar() {
                 >
                   {t("common.dismiss")}
                 </button>
-              </Show>
-              <Show when={op()}>
-                <Maximize2 class="w-3.5 h-3.5 text-base-content/40" />
               </Show>
             </div>
           </div>
@@ -242,31 +259,31 @@ function OperationBar() {
       <Modal
         isOpen={!!viewingLog()}
         onClose={() => setViewingLog(null)}
-        title={viewingLog() ? formatTitle(viewingLog()!.title, viewingLog()!.success) : ""}
+        title={viewingLog() ? formatTitle(viewingLog()?.title ?? "", viewingLog()?.success ?? false) : ""}
         size="large"
         footer={
           <div class="flex items-center w-full">
             <span class="flex-1 text-sm" classList={{ "text-success": !!viewingLog()?.success && viewingLog()?.status !== "warning", "text-warning": viewingLog()?.status === "warning", "text-error": !viewingLog()?.success }}>
               {viewingLog()?.message}
             </span>
-            <button class="btn btn-sm" onClick={() => setViewingLog(null)}>{t("common.close")}</button>
+            <button type="button" class="btn btn-sm" onClick={() => setViewingLog(null)}>{t("common.close")}</button>
           </div>
         }
       >
         <Show when={(viewingLog()?.operationWarnings?.length ?? 0) > 0}>
-          <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1 [overflow-wrap:anywhere]">
+          <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1 wrap-anywhere">
             <div class="flex items-center gap-2 text-warning font-medium">
               <TriangleAlert class="w-4 h-4 shrink-0" />
               <span>
-                {viewingLog()!.operationWarnings!.length === 1
+                {(viewingLog()?.operationWarnings?.length ?? 0) === 1
                   ? t("operation.warningsOne")
-                  : t("operation.warningsMany", { count: String(viewingLog()!.operationWarnings!.length) })}
+                  : t("operation.warningsMany", { count: String(viewingLog()?.operationWarnings?.length ?? 0) })}
               </span>
             </div>
             <ul class="ms-6 list-disc text-base-content/80">
               <For each={viewingLog()?.operationWarnings ?? []}>
                 {(w) => <li>{w.message}<Show when={w.manifest}>
-                  <button class="btn btn-xs btn-ghost text-warning ms-2" onClick={() => { setViewingLog(null); operationsStore.minimize(); void manifestReview.open(w.manifest!); }}>{t("modal.manifest.review")}</button>
+                  <button type="button" class="btn btn-xs btn-ghost text-warning ms-2" onClick={() => { setViewingLog(null); operationsStore.minimize(); if (w.manifest) void manifestReview.open(w.manifest); }}>{t("modal.manifest.review")}</button>
                 </Show></li>}
               </For>
             </ul>
@@ -277,17 +294,17 @@ function OperationBar() {
             <div class="flex items-center gap-2 text-info font-medium">
               <Info class="w-4 h-4 shrink-0" />
               <span>
-                {viewingLog()!.findings!.length === 1
+                {(viewingLog()?.findings?.length ?? 0) === 1
                   ? t("operation.findingsOne")
-                  : t("operation.findingsMany", { count: String(viewingLog()!.findings!.length) })}
+                  : t("operation.findingsMany", { count: String(viewingLog()?.findings?.length ?? 0) })}
               </span>
             </div>
             <For each={viewingLog()?.findings ?? []}>
-              {(f) => <div class="ms-6 whitespace-pre-wrap [overflow-wrap:anywhere] text-base-content/80">{f.message}</div>}
+              {(f) => <div class="ms-6 whitespace-pre-wrap wrap-anywhere text-base-content/80">{f.message}</div>}
             </For>
           </div>
         </Show>
-        <div class="bg-base-100 font-mono text-sm p-4 rounded-lg min-w-0 max-h-96 overflow-y-auto [overflow-wrap:anywhere] border border-base-content/5">
+        <div class="bg-base-100 font-mono text-sm p-4 rounded-lg min-w-0 max-h-96 overflow-y-auto wrap-anywhere border border-base-content/5">
           <For each={viewingLog()?.output ?? []}>
             {(line) => (
               <p class="text-base-content/80">
