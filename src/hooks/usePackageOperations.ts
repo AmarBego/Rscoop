@@ -1,4 +1,4 @@
-import { ScoopPackage } from "../types/scoop";
+import type { ScoopPackage } from "../types/scoop";
 import operationsStore from "../stores/operations";
 
 export function usePackageOperations() {

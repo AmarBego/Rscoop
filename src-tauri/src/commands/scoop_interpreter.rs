@@ -36,7 +36,7 @@
 //! - **Stream-agnostic.** Classify on text, never on stream. PowerShell
 //!   happily routes status to stderr.
 //! - **First-match wins.** Order in the table matters: benign/specific
-//!   matches come before the generic `ERROR:` catch-all.
+//!   matches come before the generic `ERROR[:]` catch-all.
 //! - **Interpreters don't decide success.** Exit code does. `KnownError`
 //!   enriches a failure; `Summary` enriches a success.
 //! - **No double-emit.** A rule `KnownError` suppresses the on-exit
@@ -109,12 +109,12 @@ impl PhaseModel for ScoopPhases {
 //
 // Ordering rationale:
 //   1. Benign noise — must short-circuit before any later rule.
-//   2. Specific KnownErrors — beat the generic `ERROR:` catch-all.
+//   2. Specific KnownErrors — beat the generic `ERROR[:]` catch-all.
 //   3. Specific Warnings.
 //   4. Phases (auto-exit each other; flat stack).
 //   5. Byte progress.
 //   6. Success summaries.
-//   7. Generic `ERROR:` catch-all (must be last).
+//   7. Generic `ERROR[:]` catch-all (must be last).
 fn scoop_rules() -> Vec<Rule> {
     rules![
         // --- Benign PowerShell/Scoop status -----------------------------
@@ -142,27 +142,27 @@ fn scoop_rules() -> Vec<Rule> {
         known, "scoop.git_missing",
             "Scoop uses Git to update itself. Run `scoop install git` and try again.",
             r"Scoop uses Git to update itself";
-        known, "scoop.update_failed", "Scoop update failed", r"^(?i)Update failed\.?$";
-        known, "scoop.update_failed", "Scoop download failed", r"^(?i)Scoop download failed";
+        known, "scoop.update_failed", "Scoop update failed", r"^(?:(?:ERROR|WARN|INFO)\s+)?(?i)Update failed\.?$";
+        known, "scoop.update_failed", "Scoop download failed", r"^(?:(?:ERROR|WARN|INFO)\s+)?(?i)Scoop download failed";
         known, "scoop.install_aborted",
             "Installation aborted. You might need to run `scoop uninstall` before trying again.",
-            r"^Installation aborted";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Installation aborted";
         known, "scoop.folder_in_use", "Folder is in use; close any apps using Scoop and retry.",
             r"(?i)Folder in use";
         known, "scoop.access_denied", "Access denied: $1. You might need to restart.",
-            r"^Access denied:\s+([^.]+)\.";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Access denied:\s+([^.]+)\.";
         // Download pipeline.
         known, "scoop.download.failed", "Download failed (error $1): $2",
-            r"^Download failed!\s*\(Error\s*([^)]+)\)\s*(.*)$";
-        known, "scoop.download.failed", "Download failed.", r"^Download failed!";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Download failed!\s*\(Error\s*([^)]+)\)\s*(.*)$";
+        known, "scoop.download.failed", "Download failed.", r"^(?:(?:ERROR|WARN|INFO)\s+)?Download failed!";
         known, "scoop.download.invalid_url", "URL $1 is not valid",
-            r"^URL\s+(\S+)\s+is not valid";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?URL\s+(\S+)\s+is not valid";
         known, "scoop.download.cache_missing", "Cached file not found.",
-            r"^(?i)cached file not found";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?(?i)cached file not found";
         known, "scoop.download.no_hash_in_manifest", "Couldn't find hash in manifest for '$1'.",
-            r"^Couldn't find hash in manifest for '([^']+)'";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Couldn't find hash in manifest for '([^']+)'";
         known, "scoop.download.unsupported_hash", "Hash type '$1' isn't supported.",
-            r"^Hash type '([^']+)' isn't supported";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Hash type '([^']+)' isn't supported";
 
         // --- Warnings (partial success / user action implied) ----------
         warning, "scoop.update.running_process",
@@ -174,24 +174,24 @@ fn scoop_rules() -> Vec<Rule> {
         warning, "scoop.update.held", "'$1' is held to a fixed version and was not updated.",
             r"'([^']+)' is held to version";
         warning, "scoop.install.already_installed", "'$1' is already installed.",
-            r"^(?:WARN\s+)?'([^']+)'.*is already installed\b";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?'([^']+)'.*is already installed\b";
         warning, "scoop.outdated",
             "Scoop itself is out of date. Run `scoop update` to refresh.",
-            r"^(?i)Scoop is out of date\.";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?(?i)Scoop is out of date\.";
         warning, "scoop.install.added_to_path", "Installer added a path to system PATH.",
-            r"^Installer added '.*' to system path";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Installer added '.*' to system path";
         warning, "scoop.update.sourceforge",
             "SourceForge.net is known for causing hash validation failures.",
             r"SourceForge\.net is known for causing";
         warning, "scoop.download.cache_ignored", "Cache is being ignored — fetching fresh.",
-            r"^Cache is being ignored";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Cache is being ignored";
         warning, "scoop.download.token_misconfigured", "Token might be misconfigured.",
-            r"^Token might be misconfigured";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Token might be misconfigured";
         warning, "scoop.download.no_hash_in_manifest",
             "Manifest has no hash for '$1'. SHA256 was computed but not verified.",
-            r"^Warning: No hash in manifest\. SHA256 for '([^']+)' is";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Warning: No hash in manifest\. SHA256 for '([^']+)' is";
         warning, "scoop.download.hash_skipped", "Hash verification skipped.",
-            r"^Skipping hash verification";
+            r"^(?:(?:ERROR|WARN|INFO)\s+)?Skipping hash verification";
 
         // --- Phases (top-level pipeline; auto-exit each other) ---------
         // Top-level intent — populates the modal subtitle immediately,
@@ -231,8 +231,8 @@ fn scoop_rules() -> Vec<Rule> {
         summary, "Everything is clean",       r"^Everything is shiny now";
         summary, "Scoop has been uninstalled", r"^Scoop has been uninstalled";
 
-        // --- Generic ERROR: catch-all (MUST be last) -------------------
-        known, "scoop.command_error", "$1", r"^(?i)ERROR:\s*(.+)$";
+        // --- Generic ERROR[:] catch-all (MUST be last) -------------------
+        known, "scoop.command_error", "$1", r"^(?i)ERROR\b:?\s*(.+)$";
     ]
 }
 
@@ -247,36 +247,73 @@ pub fn scoop_interpreter() -> impl Interpreter {
             r"^(?:Notes\s*$|(?:Updating|Installing|Uninstalling) '[^']+'|Updating (?:Scoop|Buckets|cache)\.{3}|(?:WARN|ERROR)(?::|\s))",
         )
         .expect("valid Scoop notes boundary regex"),
+        ansi: Regex::new(r"\x1b\[[0-9;?]*[A-Za-z]").expect("valid ANSI regex"),
     }
 }
 
 struct ScoopInterpreter {
     inner: RuleInterpreter<ScoopPhases>,
     notes_boundary: Regex,
+    ansi: Regex,
+}
+
+fn is_notes_separator(line: &str) -> bool {
+    let line = line.trim();
+    line.len() >= 3 && line.bytes().all(|b| b == b'-')
+}
+
+fn trim_notes_separators(message: &str) -> String {
+    let lines: Vec<&str> = message.lines().collect();
+    let mut start = 0;
+    let mut end = lines.len();
+    while start < end && is_notes_separator(lines[start]) {
+        start += 1;
+    }
+    while end > start && is_notes_separator(lines[end - 1]) {
+        end -= 1;
+    }
+    lines[start..end].join("\n")
+}
+
+fn trim_notes_findings(events: &mut [InterpreterEvent]) {
+    for event in events.iter_mut() {
+        if let InterpreterEvent::Finding { finding } = event {
+            if finding.code == "scoop.notes" {
+                finding.message = trim_notes_separators(&finding.message);
+            }
+        }
+    }
 }
 
 impl Interpreter for ScoopInterpreter {
     fn on_line(&mut self, ctx: &Context, line: &Line) -> Vec<InterpreterEvent> {
+        // Scoop 0.6.0 embeds ANSI colors in status lines; match on a clean
+        // copy. The raw transcript is appended separately in `scoop.rs`.
+        let mut probe = line.clone();
+        probe.text = self.ansi.replace_all(&line.text, "").into_owned();
         let mut events = Vec::new();
         // Execra ends notes on a blank line, but Scoop can start the next
         // package immediately after a note. Flush before that boundary,
         // then classify the original line so phases/errors still reach the UI.
         // This separator is interpreter-only; the raw transcript is untouched.
-        if self.notes_boundary.is_match(line.text.trim()) {
+        if self.notes_boundary.is_match(probe.text.trim()) {
             events.extend(self.inner.on_line(
                 ctx,
                 &Line {
                     text: String::new(),
-                    ..line.clone()
+                    ..probe.clone()
                 },
             ));
         }
-        events.extend(self.inner.on_line(ctx, line));
+        events.extend(self.inner.on_line(ctx, &probe));
+        trim_notes_findings(&mut events);
         events
     }
 
     fn on_exit(&mut self, ctx: &Context, exit: &ExitCode) -> Vec<InterpreterEvent> {
-        self.inner.on_exit(ctx, exit)
+        let mut events = self.inner.on_exit(ctx, exit);
+        trim_notes_findings(&mut events);
+        events
     }
 }
 
@@ -363,6 +400,66 @@ mod tests {
     }
 
     #[test]
+    fn error_catchall_accepts_colon_and_colonless() {
+        for line in ["ERROR something broke", "ERROR: something broke"] {
+            let evs = classify(&[line]);
+            assert!(
+                matches!(evs.as_slice(), [InterpreterEvent::KnownError { code, message }]
+                    if code == "scoop.command_error" && message == "something broke"),
+                "got {evs:?} for {line:?}"
+            );
+        }
+        assert!(classify(&["Errors: 3 warnings"]).is_empty());
+    }
+
+    #[test]
+    fn prefixed_errors_and_warnings_still_classify() {
+        let cases: &[(&str, &str)] = &[
+            (
+                "ERROR Download failed! (Error 6) couldn't resolve host",
+                "scoop.download.failed",
+            ),
+            ("ERROR Download failed!", "scoop.download.failed"),
+            (
+                "ERROR URL https://foo/bar.zip is not valid",
+                "scoop.download.invalid_url",
+            ),
+            (
+                "WARN Cache is being ignored.",
+                "scoop.download.cache_ignored",
+            ),
+            (
+                "WARN Token might be misconfigured.",
+                "scoop.download.token_misconfigured",
+            ),
+            (
+                "WARN Warning: No hash in manifest. SHA256 for 'x.zip' is abc",
+                "scoop.download.no_hash_in_manifest",
+            ),
+            (
+                "WARN Skipping hash verification.",
+                "scoop.download.hash_skipped",
+            ),
+            ("INFO Scoop is out of date.", "scoop.outdated"),
+            ("ERROR Access denied: C:\\scoop.", "scoop.access_denied"),
+            ("ERROR Scoop download failed.", "scoop.update_failed"),
+            ("ERROR Update failed.", "scoop.update_failed"),
+            (
+                "ERROR Hash type 'md5' isn't supported.",
+                "scoop.download.unsupported_hash",
+            ),
+        ];
+        for (line, code) in cases {
+            let evs = classify(&[line]);
+            assert!(
+                matches!(evs.as_slice(), [InterpreterEvent::KnownError { code: c, .. }] if c == code)
+                    || matches!(evs.as_slice(), [InterpreterEvent::Warning { code: Some(c), .. }] if c == code),
+                "expected {code} for {line:?}, got {evs:?}"
+            );
+        }
+    }
+
+    #[test]
     fn running_process_warns() {
         let evs = classify(&["WARN  Running process detected, skip updating."]);
         assert!(
@@ -444,6 +541,29 @@ mod tests {
     }
 
     #[test]
+    fn ansi_wrapped_lines_still_classify() {
+        let evs = classify(&["\u{1b}[32mExtracting nupkg...\u{1b}[0m"]);
+        assert!(
+            matches!(evs.as_slice(), [InterpreterEvent::EnterPhase { name, label }, ..]
+                if name == "extract" && label.as_deref() == Some("Extracting nupkg")),
+            "got {evs:?}"
+        );
+        let evs = classify(&["\u{1b}[33mChecking hash of foo.zip ... ok.\u{1b}[0m"]);
+        assert!(
+            evs.iter().any(
+                |e| matches!(e, InterpreterEvent::EnterPhase { name, .. } if name == "verify")
+            ),
+            "got {evs:?}"
+        );
+        let evs = classify(&["\u{1b}[31mERROR Download failed!\u{1b}[0m"]);
+        assert!(
+            matches!(evs.as_slice(), [InterpreterEvent::KnownError { code, .. }]
+                if code == "scoop.download.failed"),
+            "got {evs:?}"
+        );
+    }
+
+    #[test]
     fn full_install_pipeline_fills_monotonically() {
         let evs = drive(
             &[
@@ -505,6 +625,44 @@ mod tests {
             .expect(&format!("expected a scoop.notes Finding, got {evs:?}"));
         assert!(f.message.contains("Add the install dir to PATH"));
         assert!(f.message.contains("don't forget to restart shells"));
+    }
+
+    #[test]
+    fn notes_separators_are_trimmed() {
+        assert_eq!(trim_notes_separators("-----\nline one\n-----"), "line one");
+        assert_eq!(trim_notes_separators("-----\nline one"), "line one");
+        assert_eq!(trim_notes_separators("line one\n-----"), "line one");
+        assert_eq!(trim_notes_separators("line one"), "line one");
+        assert_eq!(
+            trim_notes_separators("line one\n---\nline two"),
+            "line one\n---\nline two"
+        );
+    }
+
+    #[test]
+    fn notes_trailing_separator_is_dropped() {
+        for separator in ["-----", "\u{1b}[2m-----\u{1b}[0m"] {
+            let evs = drive(
+                &[
+                    (execra::Stream::Stdout, "Notes"),
+                    (execra::Stream::Stdout, "-----"),
+                    (execra::Stream::Stdout, "Remember to restart your shell."),
+                    (execra::Stream::Stdout, separator),
+                    (execra::Stream::Stdout, ""),
+                ],
+                ExitCode::from_code(0),
+            );
+            let f = evs
+                .iter()
+                .find_map(|e| match e {
+                    InterpreterEvent::Finding { finding } if finding.code == "scoop.notes" => {
+                        Some(finding)
+                    }
+                    _ => None,
+                })
+                .expect(&format!("expected a scoop.notes Finding, got {evs:?}"));
+            assert_eq!(f.message, "Remember to restart your shell.");
+        }
     }
 
     #[test]

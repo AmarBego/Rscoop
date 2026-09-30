@@ -1,4 +1,4 @@
-import { JSX, Show } from "solid-js";
+import { Show, type JSX } from "solid-js";
 import { useI18n } from "../../i18n";
 
 interface SettingsToggleProps {

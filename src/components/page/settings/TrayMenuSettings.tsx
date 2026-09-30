@@ -36,7 +36,7 @@ function AppIcon(props: { app: TrayApp; size?: number }) {
       when={props.app.iconDataUrl}
       fallback={
         <div
-          class="grid place-items-center font-bold flex-shrink-0 select-none"
+          class="grid place-items-center font-bold shrink-0 select-none"
           style={{
             width: `${size()}px`,
             height: `${size()}px`,
@@ -51,10 +51,11 @@ function AppIcon(props: { app: TrayApp; size?: number }) {
         </div>
       }
     >
+      {(src) => (
       <img
-        src={props.app.iconDataUrl!}
+        src={src()}
         alt=""
-        class="flex-shrink-0"
+        class="shrink-0"
         style={{
           width: `${size()}px`,
           height: `${size()}px`,
@@ -64,6 +65,7 @@ function AppIcon(props: { app: TrayApp; size?: number }) {
           "image-rendering": "auto",
         }}
       />
+      )}
     </Show>
   );
 }
@@ -200,7 +202,7 @@ function TrayPreview(props: {
               <Row>
                 <AppIcon app={a} size={16} />
                 <span class="flex-1 truncate">{a.displayName}</span>
-                <Pin class="w-2.5 h-2.5 flex-shrink-0" style={{ color: palette().pinGlyph }} />
+                <Pin class="w-2.5 h-2.5 shrink-0" style={{ color: palette().pinGlyph }} />
               </Row>
             )}
           </For>
@@ -232,7 +234,7 @@ function TrayPreview(props: {
 
       <Show when={pinnedAndHidden() > 0}>
         <div
-          class="absolute top-2 start-3 font-mono"
+          class="absolute top-2 inset-s-3 font-mono"
           style={{ "font-size": "10.5px", color: palette().overlay }}
         >
           {t("tray.preview.suppressed", { count: String(pinnedAndHidden()) })}
@@ -357,8 +359,8 @@ export default function TrayMenuSettings() {
         >
           <div class="p-4 border-b border-base-content/10">
             <div class="flex gap-2 items-center flex-wrap">
-              <label class="input input-bordered flex items-center gap-2 min-w-[200px] basis-full focus-within:outline-none focus-within:border-base-content/20 sm:basis-auto sm:flex-1">
-                <Search class="w-4 h-4 text-base-content/50 flex-shrink-0" />
+              <label class="input input-bordered flex items-center gap-2 min-w-50 basis-full focus-within:outline-none focus-within:border-base-content/20 sm:basis-auto sm:flex-1">
+                <Search class="w-4 h-4 text-base-content/50 shrink-0" />
                 <input
                   type="text"
                   class="grow min-w-0"
@@ -368,6 +370,7 @@ export default function TrayMenuSettings() {
                 />
               </label>
               <button
+                type="button"
                 class="btn btn-sm btn-ghost"
                 onClick={reset}
                 disabled={pinned().size === 0 && hidden().size === 0}
@@ -415,6 +418,7 @@ export default function TrayMenuSettings() {
 
                         <div class="flex gap-0.5">
                           <button
+                            type="button"
                             class="btn btn-square btn-sm btn-ghost"
                             classList={{ "text-warning bg-warning/15": isPinned() }}
                             onClick={() => togglePin(app.name)}
@@ -426,6 +430,7 @@ export default function TrayMenuSettings() {
                             </Show>
                           </button>
                           <button
+                            type="button"
                             class="btn btn-square btn-sm btn-ghost"
                             classList={{ "text-base-content/70 bg-base-content/10": isHidden() }}
                             onClick={() => toggleHide(app.name)}

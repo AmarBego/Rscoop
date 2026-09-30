@@ -5,7 +5,7 @@ import VirusTotalSettings from "../components/page/settings/VirusTotalSettings";
 import WindowBehaviorSettings from "../components/page/settings/WindowBehaviorSettings";
 import HeldPackagesManagement from "../components/page/settings/HeldPackagesManagement";
 import ExportImportSettings from "../components/page/settings/ExportImportSettings";
-import AboutSection, { AboutSectionRef } from "../components/page/settings/AboutSection";
+import AboutSection, { type AboutSectionRef } from "../components/page/settings/AboutSection";
 import DebugSettings from "../components/page/settings/DebugSettings";
 import AutoCleanupSettings from "../components/page/settings/AutoCleanupSettings";
 import BucketAutoUpdateSettings from "../components/page/settings/BucketAutoUpdateSettings";
@@ -101,7 +101,7 @@ function SettingsPage(props: SettingsPageProps) {
         <div class="p-0 sm:p-2">
                 <h1 class="text-2xl sm:text-3xl font-bold mb-4">{t("settings.title")}</h1>
                 {/* Tab Navigation */}
-                <div role="tablist" aria-label={t("settings.title")} class="tabs tabs-border mb-6 -mx-1 px-1 overflow-x-auto flex-nowrap touch-pan-x [scrollbar-width:none]">
+                <div role="tablist" aria-label={t("settings.title")} class="tabs tabs-border mb-6 -mx-1 px-1 overflow-x-auto flex-nowrap touch-pan-x scrollbar-none">
                     <For each={TABS}>
                         {(tab) => (
                             <button

@@ -1,6 +1,6 @@
-import { Accessor, Show, createSignal, createEffect, createUniqueId } from "solid-js";
+import { Show, type Accessor, createSignal, createEffect, createUniqueId } from "solid-js";
 import { Search, X, TriangleAlert, LoaderCircle, ChevronDown } from "lucide-solid";
-import { BucketSearchResultsSnapshot, BucketSortKey, ExpandedSearchInfo, useBucketSearch } from "../../../hooks/useBucketSearch";
+import { type BucketSearchResultsSnapshot, type BucketSortKey, type ExpandedSearchInfo, useBucketSearch } from "../../../hooks/useBucketSearch";
 import { useI18n } from "../../../i18n";
 import Modal from "../../common/Modal";
 import { Dropdown, DropdownItem } from "../../common/Dropdown";
@@ -101,7 +101,7 @@ function BucketSearch(props: BucketSearchProps) {
           {/* Search Input Row */}
           <div class="flex flex-wrap items-center gap-3">
             <div class="relative flex-1">
-              <span class="absolute inset-y-0 start-0 flex items-center ps-3 z-10">
+              <span class="absolute inset-y-0 inset-s-0 flex items-center ps-3 z-10">
                 <Show when={!bucketSearch.isSearching()} fallback={
                   <LoaderCircle class="h-5 w-5 text-base-content/40 animate-spin" aria-hidden="true" />
                 }>
@@ -123,7 +123,7 @@ function BucketSearch(props: BucketSearchProps) {
                 <button
                   type="button"
                   onClick={() => handleSearchInput("")}
-                  class="absolute inset-y-0 end-0 flex items-center pe-3 text-base-content/40 hover:text-base-content"
+                  class="absolute inset-y-0 inset-e-0 flex items-center pe-3 text-base-content/40 hover:text-base-content"
                   aria-label={t("buckets.clearSearch")}
                 >
                   <X class="h-4 w-4" aria-hidden="true" />

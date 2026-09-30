@@ -88,7 +88,7 @@ function AddShimModal(props: AddShimModalProps) {
                         aria-describedby={argsHintId}
                         disabled={props.isOperationRunning}
                     />
-                    <label class="label" id={argsHintId}><span class="label-text-alt">{t("doctor.shimAddArgsHint")}</span></label>
+                    <p class="label" id={argsHintId}><span class="label-text-alt">{t("doctor.shimAddArgsHint")}</span></p>
                 </div>
                 
                 <div class="form-control">

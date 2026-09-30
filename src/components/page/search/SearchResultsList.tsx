@@ -1,5 +1,5 @@
 import { For, Show, createSignal } from "solid-js";
-import { ScoopPackage } from "../../../types/scoop";
+import type { ScoopPackage } from "../../../types/scoop";
 import { Download, Check } from "lucide-solid";
 import { useI18n } from "../../../i18n";
 
@@ -55,25 +55,15 @@ function SearchResultsList(props: SearchResultsListProps) {
                 <For each={props.results}>
                     {(pkg) => (
                         <div
-                            role="button"
-                            tabindex="0"
-                            aria-label={pkg.name}
-                            onClick={() => props.onViewInfo(pkg)}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                    e.preventDefault();
-                                    props.onViewInfo(pkg);
-                                }
-                            }}
-                            class="bg-base-300 hover:bg-base-400 rounded-lg p-3 transition-colors cursor-pointer flex items-start justify-between gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+                            class="bg-base-300 hover:bg-base-400 rounded-lg p-3 transition-colors cursor-pointer flex items-start justify-between gap-3 relative"
                         >
                             <div class="min-w-0 flex-1">
-                                <h3 class="font-medium text-base truncate" title={pkg.name}>{pkg.name}</h3>
+                                <h3 class="font-medium text-base truncate" title={pkg.name}><button type="button" class="cursor-pointer after:absolute after:inset-0 after:content-['']" onClick={() => props.onViewInfo(pkg)}>{pkg.name}</button></h3>
                                 <p class="text-xs text-base-content/60 mt-0.5 truncate">
                                     {t("search.fromBucket", { source: pkg.source })}
                                 </p>
                             </div>
-                            <div class="flex items-center gap-2 shrink-0">
+                            <div class="flex items-center gap-2 shrink-0 relative">
                                 <span class="badge badge-primary badge-soft">{pkg.version}</span>
                                 <Show when={pkg.is_installed} fallback={
                                     <button

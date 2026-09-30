@@ -1,7 +1,10 @@
 //! Command for fetching all installed Scoop packages from the filesystem.
 use crate::models::{InstallManifest, PackageManifest, ScoopPackage};
 use crate::state::{AppState, InstalledPackagesCache};
-use crate::utils::{locate_package_manifest, validate_scoop_child_dir};
+use crate::utils::{
+    is_workspace_manifest_url, locate_package_manifest, resolve_scoop_json,
+    validate_scoop_child_dir, ScoopJsonKind,
+};
 use chrono::{DateTime, Utc};
 use rayon::prelude::*;
 use std::fs;
@@ -20,14 +23,12 @@ fn get_path_modification_time(path: &Path) -> u128 {
 }
 
 /// Helper to get modification time of an installation directory.
-/// Checks install.json, then manifest.json, then the directory itself.
 fn get_install_modification_time(install_dir: &Path) -> u128 {
-    let install_manifest = install_dir.join("install.json");
-    let manifest_path = install_dir.join("manifest.json");
+    let target = resolve_scoop_json(install_dir, ScoopJsonKind::Install)
+        .or_else(|| resolve_scoop_json(install_dir, ScoopJsonKind::Manifest))
+        .unwrap_or_else(|| install_dir.to_path_buf());
 
-    fs::metadata(&install_manifest)
-        .or_else(|_| fs::metadata(&manifest_path))
-        .or_else(|_| fs::metadata(install_dir))
+    fs::metadata(&target)
         .and_then(|meta| meta.modified())
         .ok()
         .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
@@ -51,7 +52,10 @@ fn find_latest_version_dir(package_path: &Path) -> Option<PathBuf> {
                     .map(|n| !n.eq_ignore_ascii_case("current"))
                     .unwrap_or(false)
         })
-        .filter(|path| path.join("install.json").exists() || path.join("manifest.json").exists())
+        .filter(|path| {
+            resolve_scoop_json(path, ScoopJsonKind::Install).is_some()
+                || resolve_scoop_json(path, ScoopJsonKind::Manifest).is_some()
+        })
         .map(|path| (get_install_modification_time(&path), path))
         .collect();
 
@@ -114,26 +118,28 @@ fn load_package_details(package_path: &Path, scoop_path: &Path) -> Result<ScoopP
         ));
     };
 
-    // Read and parse manifest.json
-    let manifest_path = install_root.join("manifest.json");
+    let manifest_path =
+        resolve_scoop_json(&install_root, ScoopJsonKind::Manifest).ok_or_else(|| {
+            format!(
+                "Failed to read manifest for {}: file not found",
+                package_name
+            )
+        })?;
     let manifest_content = fs::read_to_string(&manifest_path)
-        .map_err(|e| format!("Failed to read manifest.json for {}: {}", package_name, e))?;
+        .map_err(|e| format!("Failed to read manifest for {}: {}", package_name, e))?;
 
     let manifest: PackageManifest = serde_json::from_str(&manifest_content)
-        .map_err(|e| format!("Failed to parse manifest.json for {}: {}", package_name, e))?;
+        .map_err(|e| format!("Failed to parse manifest for {}: {}", package_name, e))?;
 
-    // install.json might not exist for versioned installs
-    let install_manifest_path = install_root.join("install.json");
-    let install_manifest: InstallManifest = if install_manifest_path.exists() {
-        let content = fs::read_to_string(&install_manifest_path)
-            .map_err(|e| format!("Failed to read install.json for {}: {}", package_name, e))?;
-        serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse install.json for {}: {}", package_name, e))?
-    } else {
-        InstallManifest {
-            bucket: None,
-            ..Default::default()
+    let install_info_path = resolve_scoop_json(&install_root, ScoopJsonKind::Install);
+    let install_manifest: InstallManifest = match install_info_path.as_deref() {
+        Some(path) => {
+            let content = fs::read_to_string(path)
+                .map_err(|e| format!("Failed to read install info for {}: {}", package_name, e))?;
+            serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse install info for {}: {}", package_name, e))?
         }
+        None => InstallManifest::default(),
     };
 
     let bucket = install_manifest
@@ -146,12 +152,16 @@ fn load_package_details(package_path: &Path, scoop_path: &Path) -> Result<ScoopP
         })
         .unwrap_or_else(|| "main".to_string());
 
-    // Versioned installs do not have a bucket field in install.json.
-    let is_versioned_install = install_manifest.bucket.is_none();
+    let is_versioned_install = install_manifest.bucket.is_none()
+        && install_manifest
+            .url
+            .as_deref()
+            .is_none_or(|url| is_workspace_manifest_url(scoop_path, &package_name, url));
 
     // Get the last modified time of the installation
-    let updated_time = fs::metadata(&install_manifest_path)
-        .and_then(|m| m.modified())
+    let updated_time = install_info_path
+        .as_deref()
+        .and_then(|path| fs::metadata(path).and_then(|m| m.modified()).ok())
         .map(|t| DateTime::<Utc>::from(t).to_rfc3339())
         .unwrap_or_default();
 

@@ -37,7 +37,7 @@ pub fn run() {
         }));
     }
 
-    // Set up logging with both stdout and file targets
+    // Set up logging with stdout and (when possible) file targets.
     // Determine log directory - use LOCALAPPDATA\rscoop\logs on Windows
     let log_dir = if let Some(local_data) = dirs::data_local_dir() {
         local_data.join("rscoop").join("logs")
@@ -45,24 +45,58 @@ pub fn run() {
         std::path::PathBuf::from("./logs")
     };
 
-    // Clear existing log files on launch
-    if log_dir.exists() {
-        if let Err(e) = std::fs::remove_dir_all(&log_dir) {
-            eprintln!("Failed to clear old logs: {}", e);
+    // File logging is best-effort: protection software such as Controlled
+    // Folder Access may block freshly built binaries from writing here.
+    // Probe first so that can never fail startup; stdout always works.
+    let file_logging = {
+        let probe = log_dir.join(format!(".rscoop-write-test-{}", std::process::id()));
+        let dir_ok = std::fs::create_dir_all(&log_dir).is_ok();
+        let write_ok = std::fs::write(&probe, b"ok").is_ok();
+        let remove_ok = std::fs::remove_file(&probe).is_ok();
+        if !(dir_ok && write_ok && remove_ok) {
+            eprintln!(
+                "Log directory {} probe: create_dir={} write={} remove={}",
+                log_dir.display(),
+                dir_ok,
+                write_ok,
+                remove_ok
+            );
         }
+        dir_ok && write_ok && remove_ok
+    };
+
+    let mut log_targets = vec![Target::new(TargetKind::Stdout)];
+    if file_logging {
+        // Truncate existing logs on launch. Another instance (e.g. in the tray)
+        // may hold them open; deleting open files fails on Windows, truncating works.
+        if let Ok(entries) = std::fs::read_dir(&log_dir) {
+            for path in entries
+                .flatten()
+                .map(|entry| entry.path())
+                .filter(|path| path.is_file())
+            {
+                if let Err(e) = std::fs::OpenOptions::new()
+                    .write(true)
+                    .truncate(true)
+                    .open(&path)
+                {
+                    eprintln!("Failed to clear log {}: {}", path.display(), e);
+                }
+            }
+        }
+        log_targets.push(Target::new(TargetKind::Folder {
+            path: log_dir.clone(),
+            file_name: None,
+        }));
+    } else {
+        eprintln!(
+            "Log directory {} is not writable; continuing with stdout logging only.",
+            log_dir.display()
+        );
     }
 
-    // Create log directory
-    let _ = std::fs::create_dir_all(&log_dir);
-
     let log_plugin = tauri_plugin_log::Builder::new()
-        .targets([
-            Target::new(TargetKind::Stdout),
-            Target::new(TargetKind::Folder {
-                path: log_dir.clone(),
-                file_name: None,
-            }),
-        ])
+        .targets(log_targets)
         .level(log::LevelFilter::Trace)
         // Suppress verbose output from external crates
         .level_for("lnk", log::LevelFilter::Warn)
@@ -247,6 +281,7 @@ pub fn run() {
             commands::operations::confirm_install_anyway,
             commands::operations::run_pending_chain,
             commands::status::check_scoop_status,
+            commands::status::get_scoop_version,
             commands::bucket_install::update_all_buckets,
             commands::settings::get_config_value,
             commands::settings::set_config_value,

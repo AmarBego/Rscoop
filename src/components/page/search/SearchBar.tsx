@@ -1,4 +1,4 @@
-import { Accessor, Setter, Show } from "solid-js";
+import { Show, type Accessor, type Setter } from "solid-js";
 import { CircleQuestionMark, Search, X, LoaderCircle } from "lucide-solid";
 import { useI18n } from "../../../i18n";
 
@@ -12,7 +12,7 @@ function SearchBar(props: SearchBarProps) {
     const { t, direction } = useI18n();
     return (
         <div class="relative w-full">
-            <span class="absolute inset-y-0 start-0 flex items-center ps-3 z-10">
+            <span class="absolute inset-y-0 inset-s-0 flex items-center ps-3 z-10">
                 <Show when={props.loading?.()} fallback={<Search class="h-5 w-5 text-base-content/50" aria-hidden="true" />}>
                     <LoaderCircle class="h-5 w-5 text-base-content/50 animate-spin" aria-hidden="true" />
                 </Show>
@@ -27,7 +27,7 @@ function SearchBar(props: SearchBarProps) {
                 onInput={(e) => props.setSearchTerm(e.currentTarget.value)}
             />
 
-            <div class="absolute inset-y-0 end-0 flex items-center pe-3 gap-2">
+            <div class="absolute inset-y-0 inset-e-0 flex items-center pe-3 gap-2">
                 <Show when={props.searchTerm().length > 0}>
                     <button
                         type="button"

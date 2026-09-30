@@ -1,4 +1,4 @@
-import { For, Show, Accessor } from "solid-js";
+import { For, Show, type Accessor } from "solid-js";
 import {
   Ellipsis, CircleArrowUp, Trash2, Lock, LockOpen, RefreshCw
 } from 'lucide-solid';
@@ -39,7 +39,7 @@ function PackageGridView(props: PackageGridViewProps) {
             >
               <div class="flex justify-between items-start gap-2 min-w-0">
                 <h3 class="font-medium text-base min-w-0 flex-1 flex items-center gap-1.5">
-                  <button class="hover:underline truncate text-start min-w-0" onClick={() => props.onViewInfo(pkg)} title={pkg.name}>
+                  <button type="button" class="hover:underline truncate text-start min-w-0" onClick={() => props.onViewInfo(pkg)} title={pkg.name}>
                     {pkg.name}
                   </button>
                   <Show when={hasAvailableUpdate()}>

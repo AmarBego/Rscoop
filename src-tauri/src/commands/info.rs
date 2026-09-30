@@ -178,11 +178,9 @@ pub fn get_package_info(
 
 /// Gets the installed version of a package by reading its manifest file.
 fn get_installed_version(scoop_dir: &std::path::Path, package_name: &str) -> Option<String> {
-    let installed_manifest_path = scoop_dir
-        .join("apps")
-        .join(package_name)
-        .join("current")
-        .join("manifest.json");
+    let current_dir = scoop_dir.join("apps").join(package_name).join("current");
+    let installed_manifest_path =
+        utils::resolve_scoop_json(&current_dir, utils::ScoopJsonKind::Manifest)?;
 
     fs::read_to_string(installed_manifest_path)
         .ok()

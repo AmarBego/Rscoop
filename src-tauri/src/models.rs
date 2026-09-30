@@ -100,4 +100,5 @@ pub struct PackageManifest {
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct InstallManifest {
     pub bucket: Option<String>,
+    pub url: Option<String>,
 }

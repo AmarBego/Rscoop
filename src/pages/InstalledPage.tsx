@@ -7,7 +7,7 @@ import installedPackagesStore from "../stores/installedPackagesStore";
 import InstalledPageHeader from "../components/page/installed/InstalledPageHeader";
 import PackageListView from "../components/page/installed/PackageListView";
 import PackageGridView from "../components/page/installed/PackageGridView";
-import { View } from "../types/scoop";
+import type { View } from "../types/scoop";
 import { useI18n } from "../i18n";
 
 interface InstalledPageProps {

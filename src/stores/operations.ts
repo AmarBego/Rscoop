@@ -1,7 +1,7 @@
 import { createRoot, createSignal } from "solid-js";
-import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { ScoopPackage } from "../types/scoop";
+import type { ScoopPackage } from "../types/scoop";
 import installedPackagesStore from "./installedPackagesStore";
 import settingsStore from "./settings";
 import { getErrorMessage } from "../utils/errors";

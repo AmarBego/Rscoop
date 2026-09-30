@@ -133,8 +133,9 @@ function Checkup(props: CheckupProps) {
                                     <Show when={item.status} fallback={<CircleX class="w-5 h-5 me-3 text-error" />}>
                                         <CircleCheckBig class="w-5 h-5 me-3 text-success" />
                                     </Show>
-                                    <span class="flex-grow">{checkText(item)}</span>
-                                    <Show when={item.fix && !item.status}>
+                                    <span class="grow">{checkText(item)}</span>
+                                    <Show when={!item.status ? item.fix : undefined}>
+                                        {(fix) => (
                                         <button
                                             type="button"
                                             class="btn btn-xs btn-outline btn-primary"
@@ -143,8 +144,8 @@ function Checkup(props: CheckupProps) {
                                         >
                                             <Show when={props.runningFix === checkupFixKey(item)} fallback={
                                                 <>
-                                                    <FixIcon fix={item.fix!} />
-                                                    {fixLabel(item.fix!)}
+                                                    <FixIcon fix={fix()} />
+                                                    {fixLabel(fix())}
                                                 </>
                                             }>
                                                 <span class="loading loading-spinner loading-xs"></span>
@@ -155,6 +156,7 @@ function Checkup(props: CheckupProps) {
                                                 </Show>
                                             </Show>
                                         </button>
+                                        )}
                                     </Show>
                                 </div>
                                 <Show when={item.suggestion}>

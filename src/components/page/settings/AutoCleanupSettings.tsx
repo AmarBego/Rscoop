@@ -53,6 +53,7 @@ function AutoCleanupSettings() {
                             <span class="text-xs text-base-content/60">{t("settings.cleanup.versionsToKeep")}</span>
                             <div class="flex items-center gap-2">
                                 <button
+                                    type="button"
                                     class="btn btn-xs btn-ghost font-mono"
                                     onClick={() => handleVersionCountChange(settings.cleanup.preserveVersionCount - 1)}
                                     disabled={settings.cleanup.preserveVersionCount <= 1}
@@ -63,6 +64,7 @@ function AutoCleanupSettings() {
                                     {settings.cleanup.preserveVersionCount}
                                 </span>
                                 <button
+                                    type="button"
                                     class="btn btn-xs btn-ghost font-mono"
                                     onClick={() => handleVersionCountChange(settings.cleanup.preserveVersionCount + 1)}
                                     disabled={settings.cleanup.preserveVersionCount >= 10}

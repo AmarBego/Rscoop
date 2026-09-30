@@ -7,7 +7,7 @@ import CacheManager from "../components/page/doctor/CacheManager";
 import ShimManager from "../components/page/doctor/ShimManager";
 import installedPackagesStore from "../stores/installedPackagesStore";
 import operationsStore from "../stores/operations";
-import { ScoopPackage } from "../types/scoop";
+import type { ScoopPackage } from "../types/scoop";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/errors";
 

@@ -1,6 +1,6 @@
 import { For, Show, createMemo, Switch, Match, createSignal } from "solid-js";
-import { BucketInfo } from "../hooks/useBuckets";
-import { SearchableBucket } from "../hooks/useBucketSearch";
+import type { BucketInfo } from "../hooks/useBuckets";
+import type { SearchableBucket } from "../hooks/useBucketSearch";
 import { useBucketInstall } from "../hooks/useBucketInstall";
 import hljs from 'highlight.js/lib/core';
 
@@ -42,7 +42,7 @@ function DetailValue(props: { value: string | number | undefined }) {
     return String(props.value);
   };
 
-  return <span class="break-words">{displayValue()}</span>;
+  return <span class="wrap-break-word">{displayValue()}</span>;
 }
 
 // Component to render manifest lists in a compact, scrollable form
@@ -357,9 +357,11 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                   fallback={
                     // Show basic info for external buckets
                     <Show when={props.searchBucket}>
+                      {(sb) => (
+                      <>
                       <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                         <div class="font-semibold text-base-content/70 col-span-1">{t("modal.bucket.name")}</div>
-                        <div class="col-span-2">{props.searchBucket!.name}</div>
+                        <div class="col-span-2">{sb().name}</div>
                       </div>
                       <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                         <div class="font-semibold text-base-content/70 col-span-1">{t("modal.bucket.type")}</div>
@@ -369,7 +371,7 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                         <div class="font-semibold text-base-content/70 col-span-1">{t("modal.bucket.packages")}</div>
                         <div class="col-span-2">
                           <div class="flex items-center gap-1">
-                            <span class="font-bold text-primary">{props.searchBucket!.apps}</span>
+                            <span class="font-bold text-primary">{sb().apps}</span>
                             <span class="text-xs text-base-content/70">{t("buckets.packages")}</span>
                           </div>
                         </div>
@@ -378,22 +380,24 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                         <div class="font-semibold text-base-content/70 col-span-1">{t("modal.bucket.repository")}</div>
                         <div class="col-span-2">
                           <a
-                            href={props.searchBucket!.url}
+                            href={sb().url}
                             target="_blank"
                             rel="noopener noreferrer"
                             class="link link-primary break-all text-xs flex items-center gap-1"
                           >
                             <GitBranch class="w-3 h-3" aria-hidden="true" />
-                            {props.searchBucket!.url}
+                            {sb().url}
                           </a>
                         </div>
                       </div>
-                      <Show when={props.searchBucket!.last_updated !== "Unknown"}>
+                      <Show when={sb().last_updated !== "Unknown"}>
                         <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                           <div class="font-semibold text-base-content/70 col-span-1">{t("modal.bucket.lastUpdated")}</div>
-                          <div class="col-span-2">{formatDate(props.searchBucket!.last_updated)}</div>
+                          <div class="col-span-2">{formatDate(sb().last_updated)}</div>
                         </div>
                       </Show>
+                      </>
+                      )}
                     </Show>
                   }
                 >
@@ -427,20 +431,22 @@ function BucketInfoModal(props: BucketInfoModalProps) {
                   </For>
 
                   <Show when={props.bucket?.git_url}>
+                    {(url) => (
                     <div class="grid grid-cols-3 gap-2 py-1 border-b border-base-content/10">
                       <div class="font-semibold text-base-content/70 col-span-1">{t("modal.bucket.repository")}</div>
                       <div class="col-span-2">
                         <a
-                          href={props.bucket!.git_url}
+                          href={url()}
                           target="_blank"
                           rel="noopener noreferrer"
                           class="link link-primary break-all text-xs flex items-center gap-1"
                         >
                           <GitBranch class="w-3 h-3" aria-hidden="true" />
-                          {props.bucket!.git_url}
+                          {url()}
                         </a>
                       </div>
                     </div>
+                    )}
                   </Show>
                 </Show>
               </div>

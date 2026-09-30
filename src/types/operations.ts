@@ -1,4 +1,4 @@
-import { ScoopPackage, ScoopInfo } from "./scoop";
+import type { ScoopPackage, ScoopInfo } from "./scoop";
 
 export interface OperationNextStep {
     buttonLabel: string;

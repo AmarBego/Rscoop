@@ -160,10 +160,11 @@ export default function ImportProfileModal(props: Props) {
                 {/* Paste area */}
                 <div>
                     <div class="flex flex-col gap-2 mb-2 sm:flex-row sm:items-center">
-                        <label class="text-sm font-semibold">
+                        <label for="import-profile-json" class="text-sm font-semibold">
                             {t("settings.exim.import.pasteLabel")}
                         </label>
                         <button
+                            type="button"
                             class="btn btn-xs btn-ghost sm:ms-auto"
                             onClick={handleFilePick}
                         >
@@ -172,6 +173,7 @@ export default function ImportProfileModal(props: Props) {
                         </button>
                     </div>
                     <textarea
+                        id="import-profile-json"
                         class="textarea textarea-bordered w-full font-mono text-xs leading-relaxed"
                         rows={8}
                         placeholder={t("settings.exim.import.placeholder")}
@@ -299,10 +301,11 @@ export default function ImportProfileModal(props: Props) {
                 </Show>
 
                 <div class="flex gap-2 justify-end">
-                    <button class="btn btn-ghost btn-sm" onClick={closeAndReset}>
+                    <button type="button" class="btn btn-ghost btn-sm" onClick={closeAndReset}>
                         {t("common.close")}
                     </button>
                     <button
+                        type="button"
                         class="btn btn-primary btn-sm"
                         disabled={!canImport()}
                         onClick={handleImport}

@@ -1,6 +1,6 @@
 import { createSignal, createEffect, on } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
-import { ScoopPackage } from "../types/scoop";
+import type { ScoopPackage } from "../types/scoop";
 import { usePackageInfo } from "./usePackageInfo";
 import operationsStore from "../stores/operations";
 import { getErrorMessage } from "../utils/errors";

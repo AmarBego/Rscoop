@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useBuckets, type BucketInfo } from "../hooks/useBuckets";
 import { usePackageInfo } from "../hooks/usePackageInfo";
 import operationsStore from "../stores/operations";
-import { ScoopPackage } from "../types/scoop";
+import type { ScoopPackage } from "../types/scoop";
 import BucketInfoModal from "../components/BucketInfoModal";
 import PackageInfoModal from "../components/PackageInfoModal";
 import { manifestReview } from "../stores/manifestReview";
@@ -11,7 +11,7 @@ import BucketSearch from "../components/page/buckets/BucketSearch";
 import BucketGrid from "../components/page/buckets/BucketGrid";
 import BucketSearchResults from "../components/page/buckets/BucketSearchResults";
 import AddBucketModal from "../components/page/buckets/AddBucketModal";
-import { BucketSearchResultsSnapshot, SearchableBucket } from "../hooks/useBucketSearch";
+import type { BucketSearchResultsSnapshot, SearchableBucket } from "../hooks/useBucketSearch";
 import { useI18n } from "../i18n";
 import { getErrorMessage } from "../utils/errors";
 
@@ -270,7 +270,7 @@ function BucketPage() {
           <div class="flex flex-wrap items-center gap-2 mb-3 text-xs text-warning" role="status">
             <span>{t("modal.manifest.upstreamChanged")}</span>
             <For each={manifestReview.conflicts()}>{target =>
-              <button class="btn btn-xs btn-ghost" onClick={() => void manifestReview.open(target)}>{target.bucket}/{target.packageName} · {t("modal.manifest.review")}</button>
+              <button type="button" class="btn btn-xs btn-ghost" onClick={() => void manifestReview.open(target)}>{target.bucket}/{target.packageName} · {t("modal.manifest.review")}</button>
             }</For>
           </div>
         </Show>

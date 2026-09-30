@@ -58,7 +58,9 @@ export default function ManifestPanel(props: Props) {
   const busy = () => confirming() || ioBusy();
   const backupPath = () => {
     const doc = document();
-    return doc?.latestBackup ? doc.path.replace(/[^\\/]+$/, () => doc.latestBackup!.name) : null;
+    const backup = doc?.latestBackup;
+    if (!doc || !backup) return null;
+    return doc.path.replace(/[^\\/]+$/, () => backup.name);
   };
   const validationError = createMemo(() => {
     if (!editing()) return null;
@@ -106,10 +108,10 @@ export default function ManifestPanel(props: Props) {
       });
       if (!isCurrent(id)) return;
       const changed = !!previous && (result.content !== previous.content || result.path !== previous.path);
-      if (automatic && dirty()) {
+      if (automatic && dirty() && previous) {
         setDiskChanged(changed);
         // Refresh remote metadata without replacing the draft's disk snapshot.
-        setDocument({ ...previous!, upstreamContent: result.upstreamContent,
+        setDocument({ ...previous, upstreamContent: result.upstreamContent,
           upstreamChanged: result.upstreamChanged, upstreamRemoved: result.upstreamRemoved,
           latestBackup: result.latestBackup });
       } else {
@@ -230,7 +232,9 @@ export default function ManifestPanel(props: Props) {
   };
 
   const startEditing = () => {
-    setDraft(editableText(document()!.content));
+    const doc = document();
+    if (!doc) return;
+    setDraft(editableText(doc.content));
     setEditing(true);
     setStatus(null);
   };
@@ -301,9 +305,9 @@ export default function ManifestPanel(props: Props) {
         <div class="flex justify-center items-center h-48 gap-3"><span class="loading loading-spinner" />{t("modal.manifest.loading")}</div>
       </Show>
       <Show when={error()}>
-        <div role="alert" class="alert alert-error mb-3 text-sm break-words">
+        <div role="alert" class="alert alert-error mb-3 text-sm wrap-break-word">
           <span>{error()}</span>
-          <button class="btn btn-sm" disabled={busy()} onClick={refresh}>{t("modal.manifest.reload")}</button>
+          <button type="button" class="btn btn-sm" disabled={busy()} onClick={refresh}>{t("modal.manifest.reload")}</button>
         </div>
       </Show>
       <Show when={document()}>
@@ -312,7 +316,7 @@ export default function ManifestPanel(props: Props) {
           <Show when={doc().upstreamChanged && !reviewing()}>
             <div role="status" class="flex items-center justify-between gap-2 mb-2 text-xs text-warning">
               <span>{t("modal.manifest.upstreamChanged")}</span>
-              <button class="btn btn-xs btn-ghost" disabled={busy()} onClick={startReview}>{t("modal.manifest.review")}</button>
+              <button type="button" class="btn btn-xs btn-ghost" disabled={busy()} onClick={startReview}>{t("modal.manifest.review")}</button>
             </div>
           </Show>
           <div class="rounded-xl border border-base-content/10 bg-code">
@@ -327,10 +331,10 @@ export default function ManifestPanel(props: Props) {
               <div class="flex items-center gap-1 shrink-0">
                 <Show when={!(reviewing() && reviewSide() === "upstream")}>
                   <Show when={editing()} fallback={
-                    <button class="btn btn-sm btn-ghost" disabled={busy()} onClick={startEditing}><Pencil class="w-4 h-4" />{t("modal.manifest.edit")}</button>
+                    <button type="button" class="btn btn-sm btn-ghost" disabled={busy()} onClick={startEditing}><Pencil class="w-4 h-4" />{t("modal.manifest.edit")}</button>
                   }>
-                    <button class="btn btn-sm btn-ghost" disabled={busy()} onClick={cancelEditing}>{t("common.cancel")}</button>
-                    <button class="btn btn-sm btn-primary" disabled={busy() || !dirty() || !!validationError()} onClick={save}>
+                    <button type="button" class="btn btn-sm btn-ghost" disabled={busy()} onClick={cancelEditing}>{t("common.cancel")}</button>
+                    <button type="button" class="btn btn-sm btn-primary" disabled={busy() || !dirty() || !!validationError()} onClick={save}>
                       <Save class="w-4 h-4" />{t("common.save")}
                     </button>
                   </Show>
@@ -353,15 +357,15 @@ export default function ManifestPanel(props: Props) {
             </div>
             <Show when={reviewing()}>
               <div class="flex flex-wrap items-center justify-between gap-2 px-3 py-2 border-b border-base-content/10 text-xs">
-                <div role="group" aria-label={t("modal.manifest.reviewUpstream")} class="flex items-center gap-1">
-                  <button class="btn btn-xs btn-ghost" classList={{ "bg-base-content/10": reviewSide() === "local" }} aria-pressed={reviewSide() === "local"} onClick={() => setReviewSide("local")}>{t("modal.manifest.yourVersion")}</button>
-                  <button class="btn btn-xs btn-ghost" classList={{ "bg-base-content/10": reviewSide() === "upstream" }} aria-pressed={reviewSide() === "upstream"} onClick={() => setReviewSide("upstream")}>{t("modal.manifest.upstreamVersion")}</button>
-                </div>
+                <fieldset aria-label={t("modal.manifest.reviewUpstream")} class="flex items-center gap-1">
+                  <button type="button" class="btn btn-xs btn-ghost" classList={{ "bg-base-content/10": reviewSide() === "local" }} aria-pressed={reviewSide() === "local"} onClick={() => setReviewSide("local")}>{t("modal.manifest.yourVersion")}</button>
+                  <button type="button" class="btn btn-xs btn-ghost" classList={{ "bg-base-content/10": reviewSide() === "upstream" }} aria-pressed={reviewSide() === "upstream"} onClick={() => setReviewSide("upstream")}>{t("modal.manifest.upstreamVersion")}</button>
+                </fieldset>
                 <div class="flex items-center gap-1">
                   <Show when={reviewSide() === "upstream" && doc().upstreamContent !== null}>
-                    <button class="btn btn-xs btn-ghost text-primary" disabled={busy()} onClick={loadUpstream}>{t("modal.manifest.useUpstream")}</button>
+                    <button type="button" class="btn btn-xs btn-ghost text-primary" disabled={busy()} onClick={loadUpstream}>{t("modal.manifest.useUpstream")}</button>
                   </Show>
-                  <button class="btn btn-xs btn-ghost btn-square" aria-label={t("modal.manifest.closeReview")} onClick={() => setReviewing(false)}><X class="w-3 h-3" /></button>
+                  <button type="button" class="btn btn-xs btn-ghost btn-square" aria-label={t("modal.manifest.closeReview")} onClick={() => setReviewing(false)}><X class="w-3 h-3" /></button>
                 </div>
               </div>
             </Show>
@@ -369,15 +373,17 @@ export default function ManifestPanel(props: Props) {
               <div class="p-3 border-b border-base-content/10 bg-base-100/30 text-xs text-base-content/60 space-y-2">
                 <div class="flex items-center justify-between gap-2">
                   <span class="font-medium text-base-content/80">{doc().installedCopy ? t("modal.manifest.installedCopy") : t("modal.manifest.bucketFile", { bucket: doc().bucket ?? "" })}</span>
-                  <button class="btn btn-xs btn-ghost btn-square" aria-label={t("common.close")} onClick={() => setShowDetails(false)}><X class="w-3 h-3" /></button>
+                  <button type="button" class="btn btn-xs btn-ghost btn-square" aria-label={t("common.close")} onClick={() => setShowDetails(false)}><X class="w-3 h-3" /></button>
                 </div>
                 <p dir="ltr" class="font-mono break-all select-text">{doc().path}</p>
                 <p>{doc().installedCopy ? t("modal.manifest.installedHint") : t("modal.manifest.bucketHint")}</p>
                 <Show when={backupPath()}>
+                  {(path) => (
                   <div class="flex items-start gap-2">
-                    <p class="min-w-0 break-all">{t("modal.manifest.backup")} <span dir="ltr" class="font-mono select-text">{backupPath()}</span></p>
-                    <button class="btn btn-xs btn-ghost shrink-0" aria-label={t("modal.manifest.copyBackupPath")} onClick={() => copy(backupPath()!, false)}><Copy class="w-3 h-3" /></button>
+                    <p class="min-w-0 break-all">{t("modal.manifest.backup")} <span dir="ltr" class="font-mono select-text">{path()}</span></p>
+                    <button type="button" class="btn btn-xs btn-ghost shrink-0" aria-label={t("modal.manifest.copyBackupPath")} onClick={() => copy(path(), false)}><Copy class="w-3 h-3" /></button>
                   </div>
+                  )}
                 </Show>
               </div>
             </Show>
@@ -387,11 +393,13 @@ export default function ManifestPanel(props: Props) {
                 onInput={(content) => { setDraft(content); setStatus(null); }} onSave={() => void save()} />
             </div>
             <Show when={reviewing() && reviewSide() === "upstream"}>
-              <Show when={doc().upstreamContent !== null} fallback={
+              <Show when={doc().upstreamContent ?? undefined} fallback={
                 <p class="p-4 text-sm text-base-content/60">{t(doc().upstreamRemoved ? "modal.manifest.upstreamRemoved" : "modal.manifest.upstreamUnavailable")}</p>
               }>
-                <ManifestCodeEditor content={editableText(doc().upstreamContent!)} editing={false} disabled={false}
+                {(upstream) => (
+                <ManifestCodeEditor content={editableText(upstream())} editing={false} disabled={false}
                   label={t("modal.manifest.upstreamVersion")} invalid={false} onInput={() => {}} onSave={() => {}} />
+                )}
               </Show>
             </Show>
           </div>
@@ -399,7 +407,9 @@ export default function ManifestPanel(props: Props) {
             <Show when={validationError()} fallback={
               <Show when={status()}><p role="status" class="flex items-center gap-2"><Check class="w-3 h-3 shrink-0" />{status()}</p></Show>
             }>
-              <p role="alert" id="manifest-json-error" class="text-error truncate" title={validationError()!}>{validationError()}</p>
+              {(err) => (
+              <p role="alert" id="manifest-json-error" class="text-error truncate" title={err()}>{err()}</p>
+              )}
             </Show>
           </div>
         </>}

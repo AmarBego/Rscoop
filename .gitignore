@@ -3,3 +3,4 @@ dist
 .idea
 .prototools
 storybook-static
+src-tauri/target-test/

@@ -1,5 +1,5 @@
 import { For, Show, createEffect, createSignal, createMemo, Switch, Match, on, onCleanup } from "solid-js";
-import { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
+import type { ScoopPackage, ScoopInfo, VersionedPackageInfo } from "../types/scoop";
 import hljs from 'highlight.js/lib/core';
 
 import json from 'highlight.js/lib/languages/json';
@@ -55,7 +55,7 @@ function DetailValue(props: { value: string }) {
       if (p && typeof p === 'object') {
         return p;
       }
-    } catch (e) {
+    } catch {
       // Not a JSON object string
     }
     return null;
@@ -69,7 +69,7 @@ function DetailValue(props: { value: string }) {
   });
 
   return (
-    <Show when={parsed()} fallback={<span class="break-words">{props.value}</span>}>
+    <Show when={parsed()} fallback={<span class="wrap-break-word">{props.value}</span>}>
       <pre dir="ltr" class="text-xs p-2 bg-base-100 rounded-lg whitespace-pre-wrap font-mono max-h-60 overflow-y-auto text-start">
         <code ref={codeRef} class="language-json">
           {JSON.stringify(parsed(), null, 2)}
@@ -83,7 +83,7 @@ function DetailValue(props: { value: string }) {
 function IncludesValue(props: { value: string }) {
   const items = createMemo(() => props.value.split(/,\s*/).filter((s) => s.length > 0));
   return (
-    <div class="max-h-[4.5rem] overflow-y-auto">
+    <div class="max-h-18 overflow-y-auto">
       <ul class="list-disc list-inside text-xs space-y-0.5">
         <For each={items()}>{(item) => <li class="break-all">{item}</li>}</For>
       </ul>
@@ -101,7 +101,7 @@ function LicenseValue(props: { value: string }) {
           url: p.url as string | undefined,
         };
       }
-    } catch (e) {
+    } catch {
       // Not a JSON object string
     }
     return null;
@@ -109,21 +109,20 @@ function LicenseValue(props: { value: string }) {
 
   return (
     <Show when={license()} fallback={<DetailValue value={props.value} />}>
-      <Switch>
-        <Match when={license()?.url}>
-          <a
-            href={license()!.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="link link-primary"
-          >
-            {license()!.identifier}
-          </a>
-        </Match>
-        <Match when={!license()?.url}>
-          <span class="break-words">{license()!.identifier}</span>
-        </Match>
-      </Switch>
+      {(l) => (
+        <Show when={l().url} fallback={<span class="wrap-break-word">{l().identifier}</span>}>
+          {(url) => (
+            <a
+              href={url()}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="link link-primary"
+            >
+              {l().identifier}
+            </a>
+          )}
+        </Show>
+      )}
     </Show>
   );
 }
@@ -168,7 +167,8 @@ function PackageInfoModal(props: PackageInfoModalProps) {
   };
 
   const orderedDetails = createMemo(() => {
-    if (!displayInfo()?.details) return [];
+    const info = displayInfo();
+    if (!info?.details) return [];
 
     const desiredOrder: PackageDetailKey[] = [
       'Name',
@@ -183,12 +183,13 @@ function PackageInfoModal(props: PackageInfoModalProps) {
       'License'
     ];
 
-    const detailsMap = new Map(displayInfo()!.details);
+    const detailsMap = new Map(info.details);
     const result: [string, string][] = [];
 
     for (const key of desiredOrder) {
-      if (detailsMap.has(key)) {
-        result.push([key, detailsMap.get(key)!]);
+      const value = detailsMap.get(key);
+      if (value !== undefined) {
+        result.push([key, value]);
       }
     }
 
@@ -414,7 +415,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
             onClick={() => {
               if (props.pkg) {
                 const ver = installVersion().trim();
-                props.onInstall!(props.pkg, ver || undefined);
+                props.onInstall?.(props.pkg, ver || undefined);
                 props.onPackageStateChanged?.();
                 setInstallVersion("");
                 flashAction("install");
@@ -458,7 +459,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
           </Show>
         </button>
       </Show>
-      <button class="btn-close-outline" disabled={manifestBusy()} onClick={requestClose}>
+      <button type="button" class="btn-close-outline" disabled={manifestBusy()} onClick={requestClose}>
         {props.showBackButton ? t("modal.package.backToBucket") : t("common.close")}
       </button>
     </div>
@@ -564,7 +565,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                     <h4 class="text-lg font-medium mb-3 border-b pb-2">{t("modal.package.notes")}</h4>
                     <div class="bg-code rounded-xl overflow-hidden border border-base-content/10 shadow-inner">
                       <pre class="p-4 m-0">
-                        <code ref={notesCodeRef} class="nohighlight font-mono text-sm leading-relaxed !bg-transparent whitespace-pre-wrap">{displayInfo()?.notes}</code>
+                        <code ref={notesCodeRef} class="nohighlight font-mono text-sm leading-relaxed bg-transparent! whitespace-pre-wrap">{displayInfo()?.notes}</code>
                       </pre>
                     </div>
                   </div>
@@ -599,6 +600,7 @@ function PackageInfoModal(props: PackageInfoModalProps) {
                             </div>
                             <Show when={!version.is_current}>
                               <button
+                                type="button"
                                 class="btn btn-xs btn-primary"
                                 disabled={!!switchingVersion() || manifestDirty() || manifestBusy()}
                                 onClick={() => props.pkg && switchVersion(props.pkg, version.version)}
@@ -631,9 +633,11 @@ function PackageInfoModal(props: PackageInfoModalProps) {
 
           {/* Keep drafts mounted when switching between Details and Manifest. */}
           <Show when={props.pkg}>
-            <ManifestPanel pkg={props.pkg!} active={activeTab() === "manifest"}
+            {(pkg) => (
+            <ManifestPanel pkg={pkg()} active={activeTab() === "manifest"}
               reviewRequest={reviewRequest()}
               onDirtyChange={setManifestDirty} onBusyChange={setManifestBusy} onChanged={manifestChanged} />
+            )}
           </Show>
         </Show>
       </Modal>

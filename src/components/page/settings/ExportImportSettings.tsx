@@ -19,6 +19,7 @@ export default function ExportImportSettings() {
             >
                 <div class="flex flex-wrap gap-2">
                     <button
+                        type="button"
                         class="btn btn-primary btn-sm"
                         onClick={() => setExportOpen(true)}
                     >
@@ -26,6 +27,7 @@ export default function ExportImportSettings() {
                         {t("settings.exim.exportButton")}
                     </button>
                     <button
+                        type="button"
                         class="btn btn-sm"
                         onClick={() => setImportOpen(true)}
                     >

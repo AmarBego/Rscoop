@@ -1,6 +1,6 @@
 import { Show, createSignal, createEffect, onCleanup } from "solid-js";
 import { RefreshCw } from "lucide-solid";
-import { BucketInfo } from "../../../hooks/useBuckets";
+import type { BucketInfo } from "../../../hooks/useBuckets";
 import { useI18n } from "../../../i18n";
 
 interface BucketCardProps {
@@ -57,7 +57,6 @@ function BucketCard(props: BucketCardProps) {
     <div
       ref={cardRef}
       class="bg-base-300 rounded-lg p-4 cursor-pointer hover:bg-base-300/80 transition-colors relative overflow-hidden"
-      onClick={openBucket}
     >
       {/* Success overlay */}
       <Show when={showOverlay()}>
@@ -71,7 +70,7 @@ function BucketCard(props: BucketCardProps) {
         <div class="min-w-0 flex-1">
           <button
             type="button"
-            class="font-semibold text-start hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate max-w-full"
+            class="font-semibold text-start cursor-pointer focus-visible:outline-2 focus-visible:outline-primary rounded truncate max-w-full after:absolute after:inset-0 after:content-['']"
             onClick={openBucket}
             title={props.bucket.name}
           >
@@ -91,19 +90,21 @@ function BucketCard(props: BucketCardProps) {
         <Show when={props.bucket.last_updated}>
           <span class="text-xs text-base-content/40">{t("buckets.updated", { date: formatDate(props.bucket.last_updated) })}</span>
         </Show>
-        <Show when={props.bucket.is_git_repo && props.onUpdateBucket}>
+        <Show when={props.bucket.is_git_repo ? props.onUpdateBucket : undefined}>
+          {(onUpdate) => (
           <button
             type="button"
-            class="btn btn-ghost btn-sm ms-auto"
+            class="btn btn-ghost btn-sm ms-auto relative"
             onClick={(e) => {
               e.stopPropagation();
-              props.onUpdateBucket!(props.bucket.name);
+              onUpdate()(props.bucket.name);
             }}
             disabled={props.isUpdating}
           >
             <RefreshCw class="w-3.5 h-3.5" classList={{ "animate-spin": props.isUpdating }} aria-hidden="true" />
             {t("common.update")}
           </button>
+          )}
         </Show>
       </div>
     </div>

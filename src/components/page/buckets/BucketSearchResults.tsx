@@ -1,6 +1,6 @@
 import { For, Show, createSignal } from "solid-js";
-import { SearchableBucket } from "../../../hooks/useBucketSearch";
-import { BucketInfo } from "../../../hooks/useBuckets";
+import type { SearchableBucket } from "../../../hooks/useBucketSearch";
+import type { BucketInfo } from "../../../hooks/useBuckets";
 import { useBucketInstall } from "../../../hooks/useBucketInstall";
 import { ExternalLink, Star, Package, GitFork, Shield, LoaderCircle, TriangleAlert } from "lucide-solid";
 import { openUrl } from '@tauri-apps/plugin-opener';
@@ -149,14 +149,13 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
           <For each={props.buckets}>
             {(bucket) => (
               <div
-                class="bg-base-300 rounded-lg p-4 cursor-pointer hover:bg-base-300/80 transition-colors"
-                onClick={() => openBucket(bucket)}
+                class="bg-base-300 rounded-lg p-4 cursor-pointer hover:bg-base-300/80 transition-colors relative"
               >
                 {/* Header */}
                 <div class="flex items-center gap-2 mb-2 min-w-0">
                   <button
                     type="button"
-                    class="font-semibold text-lg text-start hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary rounded truncate min-w-0"
+                    class="font-semibold text-lg text-start cursor-pointer focus-visible:outline-2 focus-visible:outline-primary rounded truncate min-w-0 after:absolute after:inset-0 after:content-['']"
                     onClick={() => openBucket(bucket)}
                     title={bucket.name}
                   >
@@ -170,7 +169,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                   </Show>
                   <button
                     type="button"
-                    class="btn btn-ghost btn-xs btn-circle ms-auto"
+                    class="btn btn-ghost btn-xs btn-circle ms-auto relative"
                     onClick={async (e) => {
                       e.stopPropagation();
                       try { await openUrl(bucket.url); } catch {}
@@ -183,7 +182,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                 </div>
 
                 {/* Description */}
-                <p class="text-s text-base-content/60 line-clamp-2 mb-2 min-h-[2rem]">
+                <p class="text-s text-base-content/60 line-clamp-2 mb-2 min-h-8">
                   {bucket.description || t("buckets.noDescription")}
                 </p>
 
@@ -212,7 +211,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                       fallback={
                         <button
                           type="button"
-                          class="btn btn-primary text-xs btn-xs"
+                          class="btn btn-primary text-xs btn-xs relative"
                           onClick={(e) => handleInstallBucket(bucket, e)}
                           disabled={bucketInstall.isBucketBusy(bucket.name)}
                         >
@@ -228,7 +227,7 @@ function BucketSearchResults(props: BucketSearchResultsProps) {
                     >
                       <button
                         type="button"
-                        class="btn btn-ghost btn-xs text-xs text-error"
+                        class="btn btn-ghost btn-xs text-xs text-error relative"
                         onClick={(e) => handleRemoveBucket(bucket.name, e)}
                         disabled={bucketInstall.isBucketBusy(bucket.name)}
                       >
