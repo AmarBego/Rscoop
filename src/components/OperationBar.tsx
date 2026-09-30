@@ -271,7 +271,7 @@ function OperationBar() {
         }
       >
         <Show when={(viewingLog()?.operationWarnings?.length ?? 0) > 0}>
-          <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1 wrap:anywhere">
+          <div class="mb-3 rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm space-y-1 wrap-anywhere">
             <div class="flex items-center gap-2 text-warning font-medium">
               <TriangleAlert class="w-4 h-4 shrink-0" />
               <span>

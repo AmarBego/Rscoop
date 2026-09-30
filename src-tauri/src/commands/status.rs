@@ -273,23 +273,39 @@ fn is_legacy_scoop_version(version: &str) -> bool {
         && compare_versions(version, MODERN_SCOOP_CUTOFF) == Ordering::Less
 }
 
-/// Reads Scoop's own installed manifest to report its version.
+/// Scoop installs itself as a git checkout, so its version comes from tags
+/// (e.g. `v0.6.0`, `v0.5.3-12-gabc`) rather than an install manifest.
+fn describe_scoop_version(scoop_dir: &Path) -> Option<String> {
+    let repo = Repository::open(scoop_dir.join("apps").join("scoop").join("current")).ok()?;
+    let mut options = git2::DescribeOptions::new();
+    options.describe_tags();
+    let description = repo.describe(&options).ok()?.format(None).ok()?;
+    parse_describe_output(&description)
+}
+
+fn parse_describe_output(description: &str) -> Option<String> {
+    let base = description
+        .strip_prefix('v')
+        .unwrap_or(description)
+        .split('-')
+        .next()?;
+    base.chars()
+        .next()
+        .is_some_and(|c| c.is_ascii_digit())
+        .then(|| base.to_string())
+}
+
+/// Reports Scoop's own version for the legacy-version banner.
 /// Unknown or unparseable versions are never flagged legacy.
 #[tauri::command]
 pub async fn get_scoop_version<R: Runtime>(
     _app: AppHandle<R>,
     state: State<'_, AppState>,
 ) -> Result<ScoopVersionInfo, String> {
-    let current_dir = state
-        .scoop_path()
-        .join("apps")
-        .join("scoop")
-        .join("current");
-    let version = resolve_scoop_json(&current_dir, ScoopJsonKind::Manifest)
-        .and_then(|path| fs::read_to_string(path).ok())
-        .and_then(|content| serde_json::from_str::<PackageManifest>(&content).ok())
-        .map(|manifest| manifest.version);
-
+    let scoop_path = state.scoop_path();
+    let version = tokio::task::spawn_blocking(move || describe_scoop_version(&scoop_path))
+        .await
+        .unwrap_or(None);
     Ok(ScoopVersionInfo {
         is_legacy: version.as_deref().is_some_and(is_legacy_scoop_version),
         version,
@@ -298,7 +314,7 @@ pub async fn get_scoop_version<R: Runtime>(
 
 #[cfg(test)]
 mod tests {
-    use super::is_legacy_scoop_version;
+    use super::{is_legacy_scoop_version, parse_describe_output};
 
     #[test]
     fn legacy_detection() {
@@ -309,5 +325,17 @@ mod tests {
         assert!(!is_legacy_scoop_version("1.0.0"));
         assert!(!is_legacy_scoop_version("nightly"));
         assert!(!is_legacy_scoop_version(""));
+    }
+
+    #[test]
+    fn describe_parsing() {
+        assert_eq!(parse_describe_output("v0.5.3").as_deref(), Some("0.5.3"));
+        assert_eq!(
+            parse_describe_output("v0.5.3-12-gabc1234").as_deref(),
+            Some("0.5.3")
+        );
+        assert_eq!(parse_describe_output("0.6.0").as_deref(), Some("0.6.0"));
+        assert_eq!(parse_describe_output("nightly"), None);
+        assert_eq!(parse_describe_output(""), None);
     }
 }

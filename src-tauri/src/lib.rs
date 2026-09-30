@@ -15,6 +15,27 @@ pub mod utils;
 use tauri::{Manager, WindowEvent};
 use tauri_plugin_log::{Target, TargetKind};
 
+fn truncate_logs(dir: &std::path::Path) {
+    // Fresh logs per launch, scoped to our own *.log files. The writability
+    // probe uses the same suffix so strays self-clean here.
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for path in entries
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| path.is_file())
+            .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("log"))
+        {
+            if let Err(e) = std::fs::OpenOptions::new()
+                .write(true)
+                .truncate(true)
+                .open(&path)
+            {
+                eprintln!("Failed to clear log {}: {}", path.display(), e);
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(windows)]
@@ -49,7 +70,7 @@ pub fn run() {
     // Folder Access may block freshly built binaries from writing here.
     // Probe first so that can never fail startup; stdout always works.
     let file_logging = {
-        let probe = log_dir.join(format!(".rscoop-write-test-{}", std::process::id()));
+        let probe = log_dir.join(format!(".rscoop-write-test-{}.log", std::process::id()));
         let dir_ok = std::fs::create_dir_all(&log_dir).is_ok();
         let write_ok = std::fs::write(&probe, b"ok").is_ok();
         let remove_ok = std::fs::remove_file(&probe).is_ok();
@@ -66,24 +87,10 @@ pub fn run() {
     };
 
     let mut log_targets = vec![Target::new(TargetKind::Stdout)];
+    // Truncation runs in setup, after single-instance resolution, so a
+    // rejected second launch never wipes the running instance's log.
+    let truncate_dir = file_logging.then(|| log_dir.clone());
     if file_logging {
-        // Truncate existing logs on launch. Another instance (e.g. in the tray)
-        // may hold them open; deleting open files fails on Windows, truncating works.
-        if let Ok(entries) = std::fs::read_dir(&log_dir) {
-            for path in entries
-                .flatten()
-                .map(|entry| entry.path())
-                .filter(|path| path.is_file())
-            {
-                if let Err(e) = std::fs::OpenOptions::new()
-                    .write(true)
-                    .truncate(true)
-                    .open(&path)
-                {
-                    eprintln!("Failed to clear log {}: {}", path.display(), e);
-                }
-            }
-        }
         log_targets.push(Target::new(TargetKind::Folder {
             path: log_dir.clone(),
             file_name: None,
@@ -114,6 +121,9 @@ pub fn run() {
         .plugin(log_plugin)
         .plugin(tauri_plugin_store::Builder::new().build())
         .setup(move |app| {
+            if let Some(dir) = truncate_dir.as_ref() {
+                truncate_logs(dir);
+            }
             #[cfg(windows)]
             {
                 if let Err(error) = &launch_result {
