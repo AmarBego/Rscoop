@@ -22,7 +22,7 @@
     "highlight.js": "^11.12.0",
     "lucide-solid": "^1.43.0",
     "marked": "^18.0.12",
-    "solid-js": "^1.9.15"
+    "solid-js": "^1.9.17"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
