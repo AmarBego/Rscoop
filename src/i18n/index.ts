@@ -8,9 +8,10 @@ import de from "./locales/de.json";
 import zh from "./locales/zh.json";
 import ar from "./locales/ar.json";
 import fa from "./locales/fa.json";
+import ru from "./locales/ru.json";
 import { SETTINGS_STORAGE_KEY } from "../stores/settingsStorage";
 
-const locales: Record<string, Locale> = { en, de, zh, ar, fa };
+const locales: Record<string, Locale> = { en, de, zh, ar, fa, ru };
 const DEFAULT_LANGUAGE = "en";
 
 export type LocaleDirection = "ltr" | "rtl";
@@ -30,6 +31,7 @@ export const availableLanguages: LanguageInfo[] = [
   { code: "zh", name: "简体中文", dir: "ltr" },
   { code: "ar", name: "العربية", dir: "rtl" },
   { code: "fa", name: "فارسی", dir: "rtl" },
+  { code: "ru", name: "Русский", dir: "ltr" },
   // { code: "fr", name: "Français" },
   // { code: "es", name: "Español" },
   // { code: "ja", name: "日本語" },
