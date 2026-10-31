@@ -93,7 +93,7 @@ rScoop supports multiple languages through [Crowdin](https://crowdin.com/project
 | Japanese | 🔄 Looking for contributors | Contributor needed |
 | Korean | 🔄 Looking for contributors | Contributor needed |
 | Portuguese | 🔄 Looking for contributors | Contributor needed |
-| Russian | 🔄 Looking for contributors | Contributor needed |
+| Russian | ✅ Complete | [@TemaSM](https://github.com/TemaSM) |
 | Spanish | 🔄 Looking for contributors | Contributor needed |
 
 Want to help? [Join the project on Crowdin](https://crowdin.com/project/rscoop).

@@ -60,7 +60,8 @@ Settings are split into six tabs: Automation, Management, Security, Window, Tray
 
 ### Language
 - Pick your UI language. Translations are managed through Crowdin
-- English, German, and Simplified Chinese are complete; other languages need contributors
+- English, German, Simplified Chinese, Persian, and Russian are complete. Other languages need contributors
+- Native tray menus, external command output, and messages outside the locale dictionaries may remain in English
 
 ### Window Behavior
 - Toggle close-to-tray vs. actually exiting when you close the window

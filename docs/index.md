@@ -23,7 +23,7 @@ Built with Rust and SolidJS on [Tauri 2](https://v2.tauri.app). It can stay in y
 - **VirusTotal scanning.** Paste your API key in settings and rScoop scans packages before install. Configurable threat threshold.
 - **Tray launcher.** Pin your favorite Scoop apps to the top of the tray menu, hide the ones you never launch, and see your full app list with executable icons.
 - **Auto-updates.** Background bucket and package updates on a schedule you pick (1h, 6h, 24h, 7d, or custom interval).
-- **Multi-language support.** Translations are managed through Crowdin. English, German, and Simplified Chinese are complete; other languages need contributors.
+- **Multi-language support.** Translations are managed through Crowdin. English, German, Simplified Chinese, Persian, and Russian are complete. Other languages need contributors.
 
 ## Requirements
 
