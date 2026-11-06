@@ -126,6 +126,15 @@ Scoop remains the source of truth for package installs, updates, and uninstalls.
 
 Issues and PRs are welcome. See the [Developer Guide](https://amarbego.github.io/Rscoop/developer-guide.html) for local setup instructions.
 
+
+## Support Development
+
+rScoop is free, open source, and developed in my spare time.
+
+If you find it useful, consider [buying me a gorilla](https://buymeacoffee.com/AmarBego). It helps me keep maintaining the project, fixing bugs, and building new features.
+
+Thanks for your support!
+
 ## License
 
 [MIT](LICENSE)
