@@ -1,4 +1,5 @@
 source "https://rubygems.org"
 
-gem "github-pages", group: :jekyll_plugins
+gem "github-pages", "~> 233", group: :jekyll_plugins
 gem "jekyll-remote-theme"
+gem "rubyzip", ">= 3.4.0", "< 4.0"
