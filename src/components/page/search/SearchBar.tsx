@@ -1,6 +1,7 @@
-import { Show, type Accessor, type Setter } from "solid-js";
+import { Show, type Accessor, type Setter, onMount, onCleanup } from "solid-js";
 import { CircleQuestionMark, Search, X, LoaderCircle } from "lucide-solid";
 import { useI18n } from "../../../i18n";
+import { FOCUS_SEARCH_EVENT } from "../../../utils/shortcuts";
 
 interface SearchBarProps {
     searchTerm: Accessor<string>;
@@ -10,6 +11,21 @@ interface SearchBarProps {
 
 function SearchBar(props: SearchBarProps) {
     const { t, direction } = useI18n();
+    let inputRef: HTMLInputElement | undefined;
+
+    const focusInput = () => {
+        inputRef?.focus();
+        inputRef?.select();
+    };
+
+    onMount(() => {
+        window.addEventListener(FOCUS_SEARCH_EVENT, focusInput);
+    });
+
+    onCleanup(() => {
+        window.removeEventListener(FOCUS_SEARCH_EVENT, focusInput);
+    });
+
     return (
         <div class="relative w-full">
             <span class="absolute inset-y-0 inset-s-0 flex items-center ps-3 z-10">
@@ -19,12 +35,21 @@ function SearchBar(props: SearchBarProps) {
             </span>
 
             <input
+                ref={inputRef}
                 type="search"
                 placeholder={t("search.placeholder")}
                 aria-label={t("search.placeholder")}
+                data-search-input="global"
                 class="input bg-base-400 w-full ps-10 pe-16 relative focus:outline-none focus:border-base-content/20 [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none"
                 value={props.searchTerm()}
                 onInput={(e) => props.setSearchTerm(e.currentTarget.value)}
+                onKeyDown={(e) => {
+                    // Esc clears the query first (the input is the global search target).
+                    if (e.key === "Escape" && props.searchTerm().length > 0) {
+                        e.stopPropagation();
+                        props.setSearchTerm("");
+                    }
+                }}
             />
 
             <div class="absolute inset-y-0 inset-e-0 flex items-center pe-3 gap-2">
@@ -37,6 +62,9 @@ function SearchBar(props: SearchBarProps) {
                     >
                         <X class="h-5 w-5" aria-hidden="true" />
                     </button>
+                </Show>
+                <Show when={props.searchTerm().length === 0}>
+                    <kbd class="kbd kbd-xs opacity-60 pointer-events-none hidden sm:inline-flex" aria-hidden="true">Ctrl F</kbd>
                 </Show>
                 <span
                     class="tooltip"

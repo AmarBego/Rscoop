@@ -1,8 +1,9 @@
-import { For, Show, type Accessor, type Setter, createSignal, createEffect, onCleanup } from "solid-js";
+import { For, Show, type Accessor, type Setter, createSignal, createEffect, onMount, onCleanup } from "solid-js";
 import {
   Funnel, LayoutGrid, List, CircleArrowUp, Search, X, CircleCheckBig, CircleAlert, Activity
 } from 'lucide-solid';
 import { useI18n } from "../../../i18n";
+import { FOCUS_SEARCH_EVENT } from "../../../utils/shortcuts";
 import type { ScoopStatus } from "../../../hooks/useInstalledPackages";
 import { Dropdown, DropdownItem, DropdownTitle } from "../../common/Dropdown";
 
@@ -52,6 +53,24 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
     }
   });
 
+  // Global Ctrl+F focuses this page's filter instead of navigating away.
+  const focusFilter = () => {
+    if (!isSearchOpen()) {
+      setIsSearchOpen(true);
+    } else {
+      searchInputRef?.focus();
+      searchInputRef?.select();
+    }
+  };
+
+  onMount(() => {
+    window.addEventListener(FOCUS_SEARCH_EVENT, focusFilter);
+  });
+
+  onCleanup(() => {
+    window.removeEventListener(FOCUS_SEARCH_EVENT, focusFilter);
+  });
+
   const toggleViewMode = () => {
     props.setViewMode(props.viewMode() === 'grid' ? 'list' : 'grid');
   };
@@ -69,6 +88,7 @@ function InstalledPageHeader(props: InstalledPageHeaderProps) {
                 type="text"
                 placeholder={t("installed.searchPlaceholder")}
                 aria-label={t("installed.searchTooltip")}
+                data-search-input="installed-filter"
                 class="input w-full join-item bg-base-200 focus:outline-none focus:border-base-content/20"
                 value={props.searchQuery()}
                 onInput={(e) => props.setSearchQuery(e.currentTarget.value)}

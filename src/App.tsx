@@ -22,6 +22,7 @@ import { relaunch } from "@tauri-apps/plugin-process";
 import installedPackagesStore from "./stores/installedPackagesStore";
 import settingsStore from "./stores/settings";
 import { getErrorMessage } from "./utils/errors";
+import { FOCUS_SEARCH_EVENT, isEditableElement, isModalOpen } from "./utils/shortcuts";
 
 function App() {
     // Initialize with the user's default launch page (do not persist view across sessions)
@@ -73,7 +74,60 @@ function App() {
     };
 
 
+    // Focus the contextual search input. Pages with their own search
+    // (Search, Installed, Buckets) handle the event in place; everywhere
+    // else we navigate to the Search page first, then focus.
+    const focusSearchFromAnywhere = () => {
+        const current = view();
+        if (current === "search" || current === "installed" || current === "bucket") {
+            window.dispatchEvent(new CustomEvent(FOCUS_SEARCH_EVENT));
+        } else {
+            setView("search");
+            // Wait for SearchPage to mount before focusing its input.
+            requestAnimationFrame(() => {
+                setTimeout(() => window.dispatchEvent(new CustomEvent(FOCUS_SEARCH_EVENT)), 50);
+            });
+        }
+    };
+
+    const NAV_VIEWS: View[] = ["search", "bucket", "installed", "doctor", "settings"];
+
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+        // Keep dialog focus and unsaved edits intact; let dialogs handle their own keys.
+        if (e.defaultPrevented || e.isComposing || isModalOpen()) return;
+
+        const isMod = e.ctrlKey || e.metaKey;
+        const key = e.key.toLowerCase();
+
+        // Ctrl/⌘+F or Ctrl/⌘+K → focus search from anywhere.
+        if (isMod && (key === "f" || key === "k")) {
+            e.preventDefault();
+            focusSearchFromAnywhere();
+            return;
+        }
+
+        // Alt+1..5 → navigate between pages.
+        if (e.altKey && !e.ctrlKey && !e.metaKey && e.key >= "1" && e.key <= "5") {
+            e.preventDefault();
+            setView(NAV_VIEWS[Number(e.key) - 1]);
+            return;
+        }
+
+        // Single-key shortcuts only when not typing.
+        if (isMod || e.altKey || isEditableElement(e.target)) return;
+        if (e.key === "/") {
+            e.preventDefault();
+            focusSearchFromAnywhere();
+        } else if (e.key === "?") {
+            e.preventDefault();
+            setView("settings");
+            setPendingSettingsTab("keybinds");
+        }
+    };
+
     onMount(async () => {
+        document.addEventListener("keydown", handleGlobalShortcuts);
+
         // Check if installed via Scoop
         try {
             const isScoop = await invoke<boolean>("is_scoop_installation");
@@ -211,6 +265,7 @@ function App() {
         // Clean up on unmount
         return () => {
             clearTimeout(timeoutId);
+            document.removeEventListener("keydown", handleGlobalShortcuts);
             cleanup();
         };
     });

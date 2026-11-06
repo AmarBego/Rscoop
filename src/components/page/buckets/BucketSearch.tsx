@@ -1,7 +1,8 @@
-import { Show, type Accessor, createSignal, createEffect, createUniqueId } from "solid-js";
+import { Show, type Accessor, createSignal, createEffect, createUniqueId, onMount, onCleanup } from "solid-js";
 import { Search, X, TriangleAlert, LoaderCircle, ChevronDown } from "lucide-solid";
 import { type BucketSearchResultsSnapshot, type BucketSortKey, type ExpandedSearchInfo, useBucketSearch } from "../../../hooks/useBucketSearch";
 import { useI18n } from "../../../i18n";
+import { FOCUS_SEARCH_EVENT } from "../../../utils/shortcuts";
 import Modal from "../../common/Modal";
 import { Dropdown, DropdownItem } from "../../common/Dropdown";
 
@@ -36,6 +37,30 @@ function BucketSearch(props: BucketSearchProps) {
     if (props.isActive() && !searchInput()) {
       bucketSearch.loadDefaults();
     }
+  });
+
+  // Autofocus the input whenever the search panel opens.
+  createEffect(() => {
+    if (props.isActive()) {
+      queueMicrotask(() => inputRef?.focus());
+    }
+  });
+
+  // Global Ctrl+F focuses the bucket search when the panel is open.
+  // (BucketPage opens the panel when it is closed.)
+  const focusInput = () => {
+    if (props.isActive()) {
+      inputRef?.focus();
+      inputRef?.select();
+    }
+  };
+
+  onMount(() => {
+    window.addEventListener(FOCUS_SEARCH_EVENT, focusInput);
+  });
+
+  onCleanup(() => {
+    window.removeEventListener(FOCUS_SEARCH_EVENT, focusInput);
   });
 
   // Watch search results and update parent (simple like SearchPage)
@@ -114,6 +139,7 @@ function BucketSearch(props: BucketSearchProps) {
                 type="text"
                 placeholder={t("buckets.searchPlaceholder")}
                 aria-label={t("buckets.searchPlaceholder")}
+                data-search-input="bucket-search"
                 class="input w-full ps-10 pe-10 bg-base-300 transition-colors duration-200 focus:outline-none focus:border-base-content/20"
                 value={searchInput()}
                 onInput={(e) => handleSearchInput(e.currentTarget.value)}

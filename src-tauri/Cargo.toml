@@ -1,6 +1,6 @@
 [package]
 name = "rscoop"
-version = "1.11.0"
+version = "1.12.0"
 description = "A modern, powerful GUI for Scoop"
 authors = ["AmarBego"]
 license = "MIT"
@@ -17,21 +17,27 @@ name = "rscoop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.6.3", features = [] }
+tauri-build = { version = "2.7.1", features = [] }
 
 [dependencies]
-tauri = { version = "2.11.5", features = ["tray-icon"] }
-tauri-plugin-shell = "2.3.6"
+tauri = { version = "2.12.1", features = ["tray-icon"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
-tempfile = "3.23.0"
+tempfile = "3.27.0"
 log = "0.4.34"
-tauri-plugin-log = { version = "2.9.1" }
+tauri-plugin-log = { version = "2.10.0" }
 winreg = "0.56.0"
-reqwest = { version = "0.13.4", features = ["json", "blocking"] }
+# default-features=false: reqwest 0.13's default-tls is rustls + aws-lc
+# (a huge, flaky C++ build via cc-rs/lib.exe). We only do one plain
+# HTTPS GET, so take the rest of the defaults as-is; TLS comes from
+# tauri-plugin-updater's rustls/ring via feature unification.
+reqwest = { version = "0.13.5", default-features = false, features = ["charset", "http2", "system-proxy"] }
 csv = "1.4.0"
-tauri-plugin-store = "2.4.4"
-tokio = { version = "1.53.1", features = ["full"] }
+tauri-plugin-store = "2.5.0"
+# Trimmed from "full": rt (spawn_blocking, tests), time (sleep),
+# sync (Mutex/RwLock), fs, io-util (AsyncWriteExt), macros (tokio::test).
+# Deps (reqwest, tauri, execra) unify in what they need (e.g. net).
+tokio = { version = "1.53.1", features = ["rt", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
 chrono = { version = "0.4.45", features = ["serde"] }
 dirs = "7.0.0"
 windows-sys = { version = "0.61.2", features = [
@@ -48,21 +54,21 @@ rayon = "1.12.0"
 itertools = "0.15.0"
 once_cell = "1.21.4"
 execra = { version = "1.1.0", features = ["tauri", "interpret"] }
-tauri-plugin-dialog = "2.7.3"
-tauri-plugin-process = "2.3.1"
+tauri-plugin-dialog = "2.8.1"
+tauri-plugin-process = "2.4.0"
 lnk = "0.6.4"
-tauri-plugin-opener = "2.5.5"
+tauri-plugin-opener = "2.7.0"
 git2 = { version = "0.21.0", features = ["https"] }
 url = "2.5.8"
 
 [target."cfg(windows)".dependencies]
-windows = { version = "0.61.3", features = [
+windows = { version = "0.62.2", features = [
     "Win32_System_Com",
     "Win32_System_Ole",
     "Win32_System_Variant",
     "Win32_UI_Shell",
     "Win32_UI_WindowsAndMessaging",
 ] }
-tauri-plugin-updater = "2.11.0"
-tauri-plugin-single-instance = "2.4.4"
+tauri-plugin-updater = "2.13.1"
+tauri-plugin-single-instance = "2.5.2"
 tauri-winrt-notification = "0.8.1"

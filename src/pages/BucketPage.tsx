@@ -1,5 +1,6 @@
-import { createSignal, onMount, Show, For } from "solid-js";
+import { createSignal, onMount, onCleanup, Show, For } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
+import { FOCUS_SEARCH_EVENT } from "../utils/shortcuts";
 import { useBuckets, type BucketInfo } from "../hooks/useBuckets";
 import { usePackageInfo } from "../hooks/usePackageInfo";
 import operationsStore from "../stores/operations";
@@ -49,6 +50,13 @@ function BucketPage() {
 
   onMount(() => {
     fetchBuckets();
+
+    // Global Ctrl+F opens the Discover search panel (BucketSearch autofocuses it).
+    const openSearch = () => {
+      if (!isSearchActive()) toggleSearch();
+    };
+    window.addEventListener(FOCUS_SEARCH_EVENT, openSearch);
+    onCleanup(() => window.removeEventListener(FOCUS_SEARCH_EVENT, openSearch));
   });
 
   const toggleSearch = () => {

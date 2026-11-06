@@ -16,6 +16,8 @@ jobs:
     environment: release
     env:
       NODE_VERSION: '20'
+      SCCACHE_GHA_ENABLED: 'true'
+      RUSTC_WRAPPER: 'sccache'
     steps:
       - name: Checkout repository
         # actions/checkout@v4
@@ -33,6 +35,12 @@ jobs:
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
         with:
           toolchain: stable
+
+      # Shared compilation cache (complements rust-cache below; pays off
+      # most when the lockfile changes and target/ reuse misses).
+      - name: Setup sccache
+        # mozilla-actions/sccache-action@v0.0.11
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba
 
       # Cache Rust dependencies and build artifacts (cargo registry, git, and target dir)
       # Swatinem/rust-cache handles lockfile hashing and cache priming automatically.

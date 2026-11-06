@@ -15,6 +15,7 @@ import ThemeSettings from "../components/page/settings/ThemeSettings";
 import DefaultLaunchPageSettings from "../components/page/settings/DefaultLaunchPageSettings";
 import LanguageSettings from "../components/page/settings/LanguageSettings";
 import TrayMenuSettings from "../components/page/settings/TrayMenuSettings";
+import KeybindsSettings from "../components/page/settings/KeybindsSettings";
 import heldStore from "../stores/held";
 import { useI18n } from "../i18n";
 
@@ -39,6 +40,7 @@ function SettingsPage(props: SettingsPageProps) {
         { key: 'security', labelKey: "settings.tabSecurity" },
         { key: 'window', labelKey: "settings.tabWindow" },
         { key: 'tray', labelKey: "settings.tabTray" },
+        { key: 'keybinds', labelKey: "settings.tabKeybinds" },
         { key: 'about', labelKey: "settings.tabAbout" },
     ];
     const [activeTab, setActiveTab] = createSignal<string>('automation');
@@ -167,6 +169,13 @@ function SettingsPage(props: SettingsPageProps) {
                     <Show when={activeTab() === 'tray'}>
                         <div id={panelId("tray")} role="tabpanel" aria-labelledby={tabId("tray")} tabindex="0">
                             <TrayMenuSettings />
+                        </div>
+                    </Show>
+
+                    {/* Keybinds Tab */}
+                    <Show when={activeTab() === 'keybinds'}>
+                        <div id={panelId("keybinds")} role="tabpanel" aria-labelledby={tabId("keybinds")} tabindex="0">
+                            <KeybindsSettings />
                         </div>
                     </Show>
 
