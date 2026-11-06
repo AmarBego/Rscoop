@@ -9,6 +9,10 @@ A desktop app for [Scoop](https://scoop.sh). Search, install, update, and manage
 [![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-orange)](https://v2.tauri.app)
 [![Crowdin](https://badges.crowdin.net/rscoop/localized.svg)](https://crowdin.com/project/rscoop)
 
+<a href="https://buymeacoffee.com/AmarBego">
+  <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20Development-yellow?logo=buymeacoffee" alt="Buy Me a Coffee">
+</a>
+
 </div>
 
 ---
